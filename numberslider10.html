@@ -1321,6 +1321,7 @@
 //            google.script.run.withSuccessHandler(onScoreSaved).withFailureHandler(onScoreSaveFailure).saveScore(name, scoreToSave, gameMode);
             // 送信するデータを作成
             const data = {
+                action: 'saveScore',
               name: name,
               scoreToSave: scoreToSave,
               gameMode: gameMode
