@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>ナンバースライダーde１０</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Poppins:wght@700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        #gameCanvas {
+            display: block;
+            background-color: #f8fafc;
+            cursor: pointer;
+        }
+        #title-bg-canvas {
+            display: block;
+        }
+        .control-button, .start-button, .tab-button {
+            -webkit-tap-highlight-color: transparent;
+        }
+        #game-over-modal, #title-screen {
+            background-color: rgba(0, 0, 0, 0.75);
+        }
+        .title-gradient {
+            background: -webkit-linear-gradient(45deg, #60a5fa, #a78bfa, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .tab-active {
+            background-color: #334155; /* slate-700 */
+            color: white;
+        }
+        #animated-hourglass {
+            position: absolute;
+            will-change: transform;
+            pointer-events: none;
+            z-index: 100;
+            font-size: 1.5rem; /* 24px */
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="bg-slate-800 text-white">
+
+    <div id="title-screen" class="absolute inset-0 z-20 bg-slate-900 overflow-y-auto">
+        <canvas id="title-bg-canvas" class="absolute top-0 left-0 w-full h-full"></canvas>
+        <div class="relative z-10 flex flex-col items-center justify-center p-4 min-h-full">
+            <h1 class="text-5xl md:text-7xl font-black title-gradient mb-6 text-center" style="font-family: 'Poppins', sans-serif;">ナンバースライダーde１０</h1>
+            <div class="w-full max-w-6xl flex flex-col md:flex-row gap-8">
+                <div id="mode-buttons-grid" class="flex-1 grid grid-cols-1 sm:grid-cols-2 justify-items-center gap-4 text-center">
+                    <div class="w-full max-w-xs">
+                        <button id="survival-button" class="start-button w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            サバイバル
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">時間制限あり！10を作ってタイルを消そう！</p>
+                    </div>
+                    <div class="w-full max-w-xs">
+                        <button id="endless-button" class="start-button w-full px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            エンドレス
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">時間無制限！10を作ってタイルを消そう！</p>
+                    </div>
+                    <div class="w-full max-w-xs">
+                        <button id="tenSurvival-button" class="start-button w-full px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            １０サバイバル
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">時間制限あり！盤面を全て10にしよう！</p>
+                    </div>
+                    <div class="w-full max-w-xs">
+                        <button id="tenEndless-button" class="start-button w-full px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            １０エンドレス
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">時間無制限！盤面を全て10にしよう！</p>
+                    </div>
+                     <div class="w-full max-w-xs">
+                        <button id="stone-survival-button" class="start-button w-full px-6 py-3 bg-gray-800 hover:bg-gray-900 text-gray-300 text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            ストーンサバイバル
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">時間制限あり！作った10が石になる！</p>
+                    </div>
+                    <div class="w-full max-w-xs">
+                        <button id="stone-endless-button" class="start-button w-full px-6 py-3 bg-gray-300 hover:bg-gray-400 text-gray-800 text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            ストーンエンドレス
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">時間無制限！手戻し不可！作った10が石になる！</p>
+                    </div>
+                    <div class="w-full max-w-xs">
+                        <button id="time-attack-button" class="start-button w-full px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-black text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            タイムアタック
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">全消しまでの時間を競え！</p>
+                    </div>
+                     <div class="w-full max-w-xs">
+                        <button id="stone-time-attack-button" class="start-button w-full px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            ストーンタイムアタック
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">石で埋め尽くす時間を競え！</p>
+                    </div>
+                    <div id="link-attack-container" class="w-full max-w-xs sm:col-span-2">
+                        <button id="link-attack-button" class="start-button w-full px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            ナンバーリンク
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">なぞって加算！10の倍数で消える！同時にたくさん消すと高得点！</p>
+                    </div>
+                     <div id="secret-mode-container" class="hidden w-full max-w-xs">
+                        <button id="secret-survival-button" class="start-button w-full px-6 py-3 bg-purple-800 hover:bg-purple-900 text-white text-xl font-bold rounded-xl shadow-lg transition-transform transform hover:scale-105">
+                            シークレット
+                        </button>
+                        <p class="text-sm text-slate-400 mt-2">シークレットモード！時間制限あり！10を作ってタイルを消そう！数字もシークレット！</p>
+                    </div>
+                </div>
+                <div class="flex-1 w-full max-w-sm bg-slate-800 p-4 rounded-lg">
+                    <h2 class="text-xl font-bold text-center text-yellow-400 mb-2">ランキング</h2>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 border-b border-slate-600 mb-2 text-sm">
+                        <button id="tab-survival" class="tab-button p-2 text-center font-bold rounded-t-lg tab-active">サバイバル</button>
+                        <button id="tab-endless" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">エンドレス</button>
+                        <button id="tab-tenSurvival" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">10サバイバル</button>
+                        <button id="tab-tenEndless" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">10エンドレス</button>
+                        <button id="tab-stone-survival" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">ストーンサバイバル</button>
+                        <button id="tab-stone-endless" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">ストーンエンドレス</button>
+                        <button id="tab-time-attack" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">タイムアタック</button>
+                        <button id="tab-stone-time-attack" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">ストーンタイムアタック</button>
+                        <button id="tab-link-attack" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg">ナンバーリンク</button>
+                        <button id="tab-secret-survival" class="tab-button p-2 text-center font-bold text-slate-400 rounded-t-lg hidden">シークレット</button>
+                    </div>
+                    <div id="title-highscore-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-container" class="hidden w-full h-screen flex flex-col items-center justify-center">
+        <div class="w-full p-3 flex flex-col items-center max-w-md mx-auto">
+            <div class="w-full flex justify-between items-center mb-2">
+                <div class="flex items-center gap-x-6">
+                    <div>
+                        <p id="mode-display" class="text-sm font-bold text-indigo-400"></p>
+                        <h1 id="stage-title" class="text-xl font-bold text-slate-200" style="font-family: 'Poppins', sans-serif;">ステージ 1</h1>
+                    </div>
+                    
+                    <div id="link-header-info" class="hidden flex flex-col items-start gap-y-1">
+                        <p class="text-base text-green-400 font-bold transform-origin-center transition-transform ease-out">スコア: <span id="link-score-value-header">0</span></p>
+                        <div class="flex items-center gap-2">
+                            <p class="text-base text-yellow-400 font-bold">リンク下一桁:</p>
+                            <div id="link-last-digit-tile" class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-md" style="background-color: #475569;">
+                                <span id="link-last-digit-value">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button id="give-up-button" class="hidden control-button px-3 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-md transition-colors focus:outline-none">
+                        ギブアップ
+                    </button>
+                    <button id="undo-button" class="control-button px-3 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white font-bold rounded-lg shadow-md transition-colors focus:outline-none">
+                        アンドゥ
+                    </button>
+                    <button id="retry-button" class="control-button px-3 py-2 text-sm bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg shadow-md transition-colors focus:outline-none">
+                        リトライ
+                    </button>
+                </div>
+            </div>
+            <div id="timer-container" class="w-full flex items-center gap-2">
+                <div id="time-display-wrapper" class="relative text-lg text-cyan-400 font-bold whitespace-nowrap w-40 h-7">
+                    <span id="time-label" class="absolute left-0 top-1/2 -translate-y-1/2">制限時間:</span>
+                    <span id="time-value" class="absolute right-0 top-1/2 -translate-y-1/2"></span>
+                </div>
+                <div id="time-gauge-container" class="flex-grow bg-gray-600 rounded-full h-4 relative overflow-hidden">
+                    <div id="time-gauge-bar" class="bg-green-500 h-full rounded-full" style="width: 100%"></div>
+                </div>
+                <div id="hourglass-container" class="flex items-center gap-1 h-6 flex-shrink-0" style="width: 5.5rem;">
+                    </div>
+            </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="game-over-modal" class="hidden absolute inset-0 z-10 flex items-center justify-center">
+        <div class="bg-slate-700 p-8 rounded-lg shadow-2xl text-center w-11/12 max-w-sm">
+            <h2 id="game-over-title" class="text-3xl font-bold text-red-500 mb-4">ゲームオーバー</h2>
+            <p class="text-lg mb-4"><span id="final-score-label">最終ステージ:</span> <span id="final-score-value" class="font-bold text-yellow-400"></span></p>
+            <div class="flex items-center mb-4">
+                <label for="player-name" class="text-white mr-2 whitespace-nowrap">名前：</label>
+                <input type="text" id="player-name" placeholder="名前を入力" class="flex-grow p-2 rounded bg-slate-800 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" maxlength="10">
+            </div>
+            <button id="register-score-button" class="w-full control-button mb-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-md transition-colors">
+                ハイスコア登録
+            </button>
+            <button id="restart-button" class="w-full control-button px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-md transition-colors">
+                登録せずタイトルへ戻る
+            </button>
+        </div>
+    </div>
+    
+    <div id="animated-hourglass">⌛</div>
+
+    <script>
+
+
+        // --- DOM要素 ---
+        const titleScreen = document.getElementById('title-screen');
+        const titleBgCanvas = document.getElementById('title-bg-canvas');
+        const survivalButton = document.getElementById('survival-button');
+        const endlessButton = document.getElementById('endless-button');
+        const tenSurvivalButton = document.getElementById('tenSurvival-button');
+        const tenEndlessButton = document.getElementById('tenEndless-button');
+        const stoneSurvivalButton = document.getElementById('stone-survival-button');
+        const stoneEndlessButton = document.getElementById('stone-endless-button');
+        const timeAttackButton = document.getElementById('time-attack-button');
+        const stoneTimeAttackButton = document.getElementById('stone-time-attack-button');
+        const linkAttackButton = document.getElementById('link-attack-button');
+        const secretSurvivalButton = document.getElementById('secret-survival-button');
+        const titleHighscoreList = document.getElementById('title-highscore-list');
+        const tabSurvival = document.getElementById('tab-survival');
+        const tabEndless = document.getElementById('tab-endless');
+        const tabTenSurvival = document.getElementById('tab-tenSurvival');
+        const tabTenEndless = document.getElementById('tab-tenEndless');
+        const tabStoneSurvival = document.getElementById('tab-stone-survival');
+        const tabStoneEndless = document.getElementById('tab-stone-endless');
+        const tabTimeAttack = document.getElementById('tab-time-attack');
+        const tabStoneTimeAttack = document.getElementById('tab-stone-time-attack');
+        const tabLinkAttack = document.getElementById('tab-link-attack');
+        const tabSecretSurvival = document.getElementById('tab-secret-survival');
+        const gameContainer = document.getElementById('game-container');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const stageTitle = document.getElementById('stage-title');
+        const modeDisplay = document.getElementById('mode-display');
+        const retryButton = document.getElementById('retry-button');
+        const undoButton = document.getElementById('undo-button');
+        const giveUpButton = document.getElementById('give-up-button');
+        const timeDisplayWrapper = document.getElementById('time-display-wrapper');
+        const timeLabel = document.getElementById('time-label');
+        const timeValueSpan = document.getElementById('time-value');
+        const timeGaugeContainer = document.getElementById('time-gauge-container');
+        const timeGaugeBar = document.getElementById('time-gauge-bar');
+        const hourglassContainer = document.getElementById('hourglass-container');
+        const linkHeaderInfo = document.getElementById('link-header-info');
+        const linkLastDigitTile = document.getElementById('link-last-digit-tile');
+        const linkLastDigitValue = document.getElementById('link-last-digit-value');
+        const linkScoreValueHeader = document.getElementById('link-score-value-header');
+        const animatedHourglass = document.getElementById('animated-hourglass');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const gameOverTitle = document.getElementById('game-over-title');
+        const finalScoreLabel = document.getElementById('final-score-label');
+        const finalScoreValue = document.getElementById('final-score-value');
+        const playerNameInput = document.getElementById('player-name');
+        const registerScoreButton = document.getElementById('register-score-button');
+        const restartButton = document.getElementById('restart-button');
+        
+        // --- ゲーム設定 ---
+        const GRID_SIZE = 10;
+        const SWIPE_THRESHOLD = 30;
+        const INITIAL_TIME = 90000; // Default time, now mainly for linkAttack
+        const TIME_BONUS = 10000;
+        const SYMBOLS = ['★', '●', '▲', '■', '◆', '♥', '♠', '♣', '♪', '⑩'];
+
+        // --- ゲーム状態管理 ---
+        let gameState = 'title';
+        let gameMode = 'survival';
+        let currentStage = 1;
+        let grid = [];
+        let initialGrid = [];
+        let moveHistory = [];
+        let particles = [];
+        let activeAnimations = [];
+        let scoreAnimations = [];
+        let timeLimit = 0;
+        let lastFrameTime = 0;
+        let timeBonusAnimation = { active: false };
+        let stageClearAnimation = { active: false };
+        let flashTriggers = { s3: false, s2: false, s1: false };
+        let allHighScores = null; // ★変更：初期状態をnullに
+        let isHourglassAnimating = false;
+        let animatedHourglassSize = { width: 0, height: 0 };
+        let linkAttackScore = 0;
+        
+        // --- 描画・レイアウト関連 ---
+        let cellSize = 0;
+        const TILE_COLORS = ['#60a5fa', '#818cf8', '#a78bfa', '#f472b6', '#fb923c', '#facc15', '#a3e635', '#4ade80', '#2dd4bf', '#14b8a6'];
+        const bgCtx = titleBgCanvas.getContext('2d');
+
+        // --- 入力関連 ---
+        let dragStartPos = null;
+        let selectedTile = null;
+        let isLinking = false;
+        let currentChain = [];
+        let linkSum = 0;
+        
+        // --- ヘルパー関数 ---
+        function formatNumberWithCommas(number) {
+            return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+        
+        function hexToRgb(hex) {
+            let r = 0, g = 0, b = 0;
+            if (hex.length == 4) { // #RGB
+                r = "0x" + hex[1] + hex[1];
+                g = "0x" + hex[2] + hex[2];
+                b = "0x" + hex[3] + hex[3];
+            } else if (hex.length == 7) { // #RRGGBB
+                r = "0x" + hex[1] + hex[2];
+                g = "0x" + hex[3] + hex[4];
+                b = "0x" + hex[5] + hex[6];
+            }
+            return `${+r},${+g},${+b}`;
+        }
+
+        // --- ゲームフロー関数 ---
+        function showTitleScreen(scoresAreFresh = false) {
+            gameState = 'title';
+            titleScreen.classList.remove('hidden');
+            gameContainer.classList.add('hidden');
+            gameOverModal.classList.add('hidden');
+            
+            initTitleBackground();
+            
+            const lastMode = localStorage.getItem('slidePuzzleLastMode') || 'survival';
+            switchRankingTab(lastMode);
+
+            // Check for secret mode unlock
+            const allModes = ['survival', 'endless', 'tenSurvival', 'tenEndless', 'stoneSurvival', 'stoneEndless', 'timeAttack', 'stoneTimeAttack', 'linkAttack'];
+            const completedModes = JSON.parse(localStorage.getItem('completedModes')) || {};
+            let unlockedCount = 0;
+            allModes.forEach(mode => {
+                if (completedModes[mode]) {
+                    unlockedCount++;
+                }
+            });
+
+            const secretModeContainer = document.getElementById('secret-mode-container');
+            const linkAttackContainer = document.getElementById('link-attack-container');
+            if (unlockedCount >= allModes.length) {
+                secretModeContainer.classList.remove('hidden');
+                linkAttackContainer.classList.remove('sm:col-span-2');
+                tabSecretSurvival.classList.remove('hidden');
+            } else {
+                secretModeContainer.classList.add('hidden');
+                linkAttackContainer.classList.add('sm:col-span-2');
+                tabSecretSurvival.classList.add('hidden');
+            }
+            
+            // Only call getHighScores if we don't have fresh data from a save operation
+            if (!scoresAreFresh) {
+                google.script.run.withSuccessHandler(onHighScoresLoaded).withFailureHandler(onGetScoresFailure).getHighScores();
+            }
+        }
+
+        function onHighScoresLoaded(scores) {
+            allHighScores = scores || { survival: [], endless: [], tenSurvival: [], tenEndless: [], stoneSurvival: [], stoneEndless: [], timeAttack: [], stoneTimeAttack: [], linkAttack: [], secretSurvival: [] };
+            
+            const lastMode = localStorage.getItem('slidePuzzleLastMode') || 'survival';
+            switchRankingTab(lastMode);
+        }
+
+        function onGetScoresFailure(error) {
+            console.error("GAS call failed:", error);
+            titleHighscoreList.innerHTML = `<p class="text-red-500 text-center">ランキングの読み込みに失敗しました。</p>`;
+        }
+
+        function switchRankingTab(mode) {
+            localStorage.setItem('slidePuzzleLastMode', mode);
+
+            const tabs = [tabSurvival, tabEndless, tabTenSurvival, tabTenEndless, tabStoneSurvival, tabStoneEndless, tabTimeAttack, tabStoneTimeAttack, tabLinkAttack, tabSecretSurvival];
+            tabs.forEach(tab => {
+                tab.classList.remove('tab-active', 'text-white');
+                tab.classList.add('text-slate-400');
+            });
+
+            const scoreMap = {
+                'survival': { tab: tabSurvival, type: 'stage' },
+                'endless': { tab: tabEndless, type: 'stage' },
+                'tenSurvival': { tab: tabTenSurvival, type: 'stage' },
+                'tenEndless': { tab: tabTenEndless, type: 'stage' },
+                'stoneSurvival': { tab: tabStoneSurvival, type: 'stage' },
+                'stoneEndless': { tab: tabStoneEndless, type: 'stage' },
+                'timeAttack': { tab: tabTimeAttack, type: 'time' },
+                'stoneTimeAttack': { tab: tabStoneTimeAttack, type: 'time' },
+                'linkAttack': { tab: tabLinkAttack, type: 'score' },
+                'secretSurvival': { tab: tabSecretSurvival, type: 'stage' }
+            };
+
+            const selected = scoreMap[mode];
+            if (selected) {
+                selected.tab.classList.add('tab-active', 'text-white');
+                selected.tab.classList.remove('text-slate-400');
+                
+                const scoresForMode = allHighScores ? allHighScores[mode] : null;
+                displayHighScores(scoresForMode, titleHighscoreList, selected.type);
+            }
+        }
+
+        function startGame(mode) {
+            gameMode = mode;
+            localStorage.setItem('slidePuzzleLastMode', mode);
+            titleScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            currentStage = 1;
+            
+            canvas.removeEventListener('mousedown', onPointerDown);
+            canvas.removeEventListener('touchstart', onPointerDown, { passive: false });
+            canvas.removeEventListener('mousedown', onLinkStart);
+            canvas.removeEventListener('touchstart', onLinkStart, { passive: false });
+            window.removeEventListener('mousemove', onLinkMove);
+            window.removeEventListener('touchmove', onLinkMove, { passive: false });
+            window.removeEventListener('mouseup', onLinkEnd);
+            window.removeEventListener('touchend', onLinkEnd);
+
+            if (gameMode === 'linkAttack') {
+                canvas.addEventListener('mousedown', onLinkStart);
+                canvas.addEventListener('touchstart', onLinkStart, { passive: false });
+                window.addEventListener('mousemove', onLinkMove);
+                window.addEventListener('touchmove', onLinkMove, { passive: false });
+                window.addEventListener('mouseup', onLinkEnd);
+                window.addEventListener('touchend', onLinkEnd);
+            } else {
+                canvas.addEventListener('mousedown', onPointerDown);
+                canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+            }
+
+            setupStage(1);
+            lastFrameTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- 初期化 ---
+        function setupStage(stageNumber) {
+            gameState = 'awaiting_input';
+            
+            const isStoneMode = gameMode === 'stoneSurvival' || gameMode === 'stoneEndless';
+            if (stageNumber === 1 || !isStoneMode) {
+                grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+            }
+
+            stageTitle.textContent = (gameMode.includes('Attack') && gameMode !== 'linkAttack') ? 'タイムアタック' : `ステージ ${stageNumber}`;
+            
+            let modeText = '';
+            switch (gameMode) {
+                case 'survival': modeText = 'サバイバル'; break;
+                case 'endless': modeText = 'エンドレス'; break;
+                case 'tenSurvival': modeText = '１０サバイバル'; break;
+                case 'tenEndless': modeText = '１０エンドレス'; break;
+                case 'stoneSurvival': modeText = 'ストーンサバイバル'; break;
+                case 'stoneEndless': modeText = 'ストーンエンドレス'; break;
+                case 'timeAttack': modeText = 'タイムアタック'; break;
+                case 'stoneTimeAttack': modeText = 'ストーンタイムアタック'; break;
+                case 'linkAttack': modeText = 'ナンバーリンク'; stageTitle.textContent = 'ナンバーリンク'; break;
+                case 'secretSurvival': modeText = 'シークレット'; break;
+            }
+            modeDisplay.textContent = modeText;
+
+            const isTimeLimitMode = gameMode === 'survival' || gameMode === 'tenSurvival' || gameMode === 'stoneSurvival' || gameMode === 'linkAttack' || gameMode === 'secretSurvival';
+            const isTimeAttack = gameMode.includes('Attack') && gameMode !== 'linkAttack';
+            
+            linkHeaderInfo.classList.add('hidden');
+            giveUpButton.classList.add('hidden');
+            undoButton.classList.add('hidden');
+            retryButton.classList.add('hidden');
+
+
+            if (gameMode === 'linkAttack') {
+                document.getElementById('timer-container').classList.remove('hidden');
+                timeGaugeContainer.classList.remove('hidden');
+                hourglassContainer.classList.add('hidden');
+                timeLabel.textContent = '残り時間:';
+                timeDisplayWrapper.classList.remove('text-red-500', 'blinking');
+                timeDisplayWrapper.classList.add('text-cyan-400');
+                timeGaugeBar.classList.remove('bg-red-500');
+                timeGaugeBar.classList.add('bg-green-500');
+                linkHeaderInfo.classList.remove('hidden');
+                linkScoreValueHeader.textContent = '0';
+                linkLastDigitValue.textContent = '0';
+                linkLastDigitTile.style.backgroundColor = '#475569'; // Neutral color
+                linkAttackScore = 0;
+                timeLimit = 90000; // 90 seconds
+                generateLinkAttackBoard();
+            } else if (isTimeAttack) {
+                document.getElementById('timer-container').classList.remove('hidden');
+                timeGaugeContainer.classList.add('hidden');
+                hourglassContainer.classList.add('hidden');
+                timeLabel.textContent = '経過時間:';
+                // BUG FIX: Reset time color for time attack mode
+                timeDisplayWrapper.classList.remove('text-red-500', 'blinking');
+                timeDisplayWrapper.classList.add('text-cyan-400');
+                giveUpButton.classList.remove('hidden');
+                undoButton.classList.remove('hidden');
+                retryButton.classList.remove('hidden');
+                timeLimit = 0;
+            } else if (isTimeLimitMode) {
+                document.getElementById('timer-container').classList.remove('hidden');
+                timeGaugeContainer.classList.remove('hidden');
+                hourglassContainer.classList.remove('hidden');
+                timeLabel.textContent = '制限時間:';
+                timeDisplayWrapper.classList.remove('text-red-500', 'blinking');
+                timeDisplayWrapper.classList.add('text-cyan-400');
+                timeGaugeBar.classList.remove('bg-red-500');
+                timeGaugeBar.classList.add('bg-green-500');
+                if (stageNumber === 1) {
+                    timeLimit = 10000; // 10 seconds for all survival modes
+                }
+                flashTriggers = { s3: false, s2: false, s1: false };
+                undoButton.classList.remove('hidden');
+                retryButton.classList.remove('hidden');
+            } else { // endless modes
+                document.getElementById('timer-container').classList.add('hidden');
+                giveUpButton.classList.remove('hidden');
+                if (gameMode === 'tenEndless' || gameMode === 'stoneEndless') {
+                    // no undo/retry
+                } else {
+                    undoButton.classList.remove('hidden');
+                    retryButton.classList.remove('hidden');
+                }
+            }
+            
+            if (gameMode !== 'linkAttack') {
+                if (isTimeAttack) {
+                    const timeAttackDifficulty = { totalSum: 130, numSplits: 56 };
+                    generateSolvableBoard(timeAttackDifficulty.totalSum, timeAttackDifficulty.numSplits);
+                } else {
+                    const isEndless = gameMode === 'endless' || gameMode === 'tenEndless' || gameMode === 'stoneEndless';
+                    let effectiveStageNumber = isEndless ? stageNumber * 1.5 : stageNumber;
+                    const numSplits = Math.floor(effectiveStageNumber * 1.5);
+                    const totalSum = Math.ceil(effectiveStageNumber / 3) * 10;
+                    generateSolvableBoard(totalSum, numSplits);
+                }
+            }
+
+            initialGrid = JSON.parse(JSON.stringify(grid));
+            moveHistory = [JSON.parse(JSON.stringify(grid))];
+            resizeCanvas();
+        }
+
+        function retryStage() {
+            if (gameState === 'animating' || gameState === 'stage_clear') return;
+            grid = JSON.parse(JSON.stringify(initialGrid));
+            gameState = 'awaiting_input';
+            activeAnimations = [];
+            particles = [];
+            moveHistory = [JSON.parse(JSON.stringify(grid))];
+            if (gameMode.includes('Attack') && gameMode !== 'linkAttack') {
+                timeLimit = 0;
+            }
+            drawGame();
+        }
+
+        function undoMove() {
+            if (gameState !== 'awaiting_input' || moveHistory.length <= 1) return;
+            moveHistory.pop();
+            const lastState = moveHistory[moveHistory.length - 1];
+            grid = JSON.parse(JSON.stringify(lastState));
+            drawGame();
+        }
+        
+        function generateLinkAttackBoard() {
+            grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const value = Math.floor(Math.random() * 9) + 1;
+                    grid[y][x] = {
+                        value: value,
+                        color: TILE_COLORS[value - 1],
+                        id: Math.random(),
+                        isStone: false
+                    };
+                }
+            }
+        }
+
+        function generateSolvableBoard(targetSum, numSplits) {
+            let tilesOnBoard = [];
+            let initialValues = [];
+            let sum = targetSum;
+            while (sum > 0) {
+                initialValues.push(Math.min(10, sum));
+                sum -= 10;
+            }
+
+            initialValues.forEach(val => {
+                let placed = false;
+                for (let attempts = 0; attempts < 100 && !placed; attempts++) {
+                    const pos = findRandomEmptyCell(grid);
+                    if (pos && hasAdjacentEmptyCell(grid, pos)) {
+                        placeTile(val, pos);
+                        tilesOnBoard.push({ ...pos, value: val });
+                        placed = true;
+                    }
+                }
+            });
+
+            for (let i = 0; i < numSplits; i++) {
+                let potentialTilesToSplit = [];
+                for (const tile of tilesOnBoard) {
+                    if (tile.value > 1 && !tile.isStone) {
+                        const directions = [{x:0,y:1},{x:0,y:-1},{x:1,y:0},{x:-1,y:0}];
+                        for (const dir of directions) {
+                            if (findRandomReachableCell(grid, tile, dir)) {
+                                potentialTilesToSplit.push(tile);
+                                break; 
+                            }
+                        }
+                    }
+                }
+
+                let finalSplittableTiles = potentialTilesToSplit.filter(t => t.value === 10);
+                if (finalSplittableTiles.length === 0) {
+                    finalSplittableTiles = potentialTilesToSplit;
+                }
+                if (finalSplittableTiles.length === 0) break;
+
+                const tileToSplitIndex = Math.floor(Math.random() * finalSplittableTiles.length);
+                const tileToSplit = finalSplittableTiles[tileToSplitIndex];
+                
+                grid[tileToSplit.y][tileToSplit.x] = null;
+                tilesOnBoard.splice(tilesOnBoard.findIndex(t => t.x === tileToSplit.x && t.y === tileToSplit.y), 1);
+
+                const v1 = Math.floor(Math.random() * (tileToSplit.value - 1)) + 1;
+                const v2 = tileToSplit.value - v1;
+
+                placeTile(v1, tileToSplit);
+                tilesOnBoard.push({ ...tileToSplit, value: v1 });
+
+                const directions = [{x:0,y:1},{x:0,y:-1},{x:1,y:0},{x:-1,y:0}].sort(() => Math.random() - 0.5);
+                let placedV2 = false;
+                for (const dir of directions) {
+                    const slideToPos = findRandomReachableCell(grid, tileToSplit, dir);
+                    if (slideToPos) {
+                        placeTile(v2, slideToPos);
+                        tilesOnBoard.push({ ...slideToPos, value: v2 });
+                        placedV2 = true;
+                        break;
+                    }
+                }
+                if (!placedV2) {
+                    grid[tileToSplit.y][tileToSplit.x] = { value: tileToSplit.value, color: TILE_COLORS[tileToSplit.value - 1], id: Math.random(), isStone: false };
+                    tilesOnBoard.push(tileToSplit);
+                }
+            }
+        }
+
+        function hasAdjacentEmptyCell(grid, pos) {
+            const directions = [{x:0,y:1},{x:0,y:-1},{x:1,y:0},{x:-1,y:0}];
+            for (const dir of directions) {
+                const newPos = { x: pos.x + dir.x, y: pos.y + dir.y };
+                if (newPos.x >= 0 && newPos.x < GRID_SIZE && newPos.y >= 0 && newPos.y < GRID_SIZE && grid[newPos.y][newPos.x] === null) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function placeTile(value, pos) {
+            if(pos && !grid[pos.y][pos.x]) {
+                grid[pos.y][pos.x] = { value, color: TILE_COLORS[value - 1], id: Math.random(), isStone: false };
+                return true;
+            }
+            return false;
+        }
+
+        function findRandomEmptyCell(grid) {
+            const emptyCells = [];
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (!grid[y][x]) emptyCells.push({ x, y });
+                }
+            }
+            if (emptyCells.length === 0) return null;
+            return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+        }
+        
+        function findRandomReachableCell(grid, startPos, direction) {
+            const reachableCells = [];
+            let currentPos = { ...startPos };
+            while (true) {
+                const nextPos = { x: currentPos.x + direction.x, y: currentPos.y + direction.y };
+                if (nextPos.x < 0 || nextPos.x >= GRID_SIZE || nextPos.y < 0 || nextPos.y >= GRID_SIZE || grid[nextPos.y][nextPos.x]) {
+                    break;
+                }
+                reachableCells.push(nextPos);
+                currentPos = nextPos;
+            }
+            
+            if (reachableCells.length === 0) return null;
+            return reachableCells[Math.floor(Math.random() * reachableCells.length)];
+        }
+
+        // --- 描画関連 ---
+        function resizeCanvas() {
+            const container = document.getElementById('game-container');
+            const headerHeight = container.querySelector('div').offsetHeight;
+            const availableHeight = container.clientHeight - headerHeight;
+            const availableWidth = container.clientWidth;
+            const size = Math.min(availableWidth, availableHeight) * 0.95;
+            canvas.width = size;
+            canvas.height = size;
+            cellSize = canvas.width / GRID_SIZE;
+            if (gameState !== 'title' && gameState !== 'loading') {
+                drawGame();
+            }
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGrid();
+            
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const tile = grid[y][x];
+                    if (tile) {
+                        let isAnimating = false;
+                        for(const anim of activeAnimations) {
+                            if (anim.tile.id === tile.id) {
+                                isAnimating = true;
+                                break;
+                            }
+                        }
+                        if (!isAnimating) drawTile(x, y, tile);
+                    }
+                }
+            }
+            
+            if (gameMode === 'linkAttack') drawLinkPath();
+            activeAnimations.forEach(anim => drawAnimatedTile(anim));
+            
+            if (gameState === 'stage_clear') drawStageClearScreen();
+
+            drawParticles(); 
+            if (gameMode === 'linkAttack') updateAndDrawScoreAnimations(performance.now());
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#475569'; // slate-600
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let i = 0; i <= GRID_SIZE; i++) {
+                ctx.moveTo(i * cellSize, 0); ctx.lineTo(i * cellSize, canvas.height);
+                ctx.moveTo(0, i * cellSize); ctx.lineTo(canvas.width, i * cellSize);
+            }
+            ctx.stroke();
+        }
+
+        function drawTile(gridX, gridY, tile, scale = 1, pixelX, pixelY) {
+            const x = pixelX !== undefined ? pixelX : gridX * cellSize;
+            const y = pixelY !== undefined ? pixelY : gridY * cellSize;
+            const size = cellSize * scale;
+            const offset = (cellSize - size) / 2;
+            const padding = cellSize * 0.05;
+            const innerSize = size - padding * 2;
+
+            ctx.save();
+            if (tile.isStone) {
+                const stoneColor = '#a1a1aa'; // slate-400
+                const stoneShadowColor = '#71717a'; // slate-500
+                const stoneTextColor = '#27272a'; // slate-800
+
+                ctx.fillStyle = stoneShadowColor;
+                ctx.fillRect(x + offset + padding, y + offset + padding, innerSize, innerSize);
+                ctx.fillStyle = stoneColor;
+                ctx.fillRect(x + offset + padding, y + offset + padding, innerSize - 2, innerSize - 2);
+                
+                ctx.fillStyle = stoneTextColor;
+                ctx.font = `bold ${innerSize * 0.5}px Poppins`;
+            } else {
+                ctx.fillStyle = tile.color;
+                ctx.globalAlpha = 1;
+                // Highlight tiles in current chain
+                if (gameMode === 'linkAttack' && currentChain.some(p => p.x === gridX && p.y === gridY)) {
+                   ctx.globalAlpha = 0.6;
+                }
+                ctx.fillRect(x + offset + padding, y + offset + padding, innerSize, innerSize);
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${innerSize * 0.5}px Poppins`;
+            }
+
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            if (gameMode === 'secretSurvival' && !tile.isStone) {
+                const symbol = SYMBOLS[tile.value - 1];
+                ctx.fillText(symbol, x + cellSize / 2, y + cellSize / 2 + 2);
+            } else {
+                ctx.fillText(tile.value, x + cellSize / 2, y + cellSize / 2 + 2);
+            }
+            ctx.restore();
+        }
+        
+        function drawAnimatedTile(animation) {
+            if (animation.tile.id === -1) return; // Skip dummy animation tile
+            const { tile, startPixel, endPixel } = animation;
+            let progress = animation.progress;
+
+            if (animation.isBounce) {
+                if (progress <= 0.5) {
+                    progress = progress * 2; // Map 0 -> 0.5 to 0 -> 1 (forward)
+                } else {
+                    progress = (1 - progress) * 2; // Map 0.5 -> 1 to 1 -> 0 (backward)
+                }
+            }
+
+            const currentX = startPixel.x + (endPixel.x - startPixel.x) * progress;
+            const currentY = startPixel.y + (endPixel.y - startPixel.y) * progress;
+            drawTile(0, 0, tile, 1, currentX, currentY);
+        }
+
+        function drawParticles() {
+            ctx.save();
+            particles.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = `rgba(${hexToRgb(p.color)}, ${p.life})`;
+                ctx.fill();
+                p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life -= 0.015; // Slower fade
+                if (p.life <= 0) particles.splice(i, 1);
+            });
+            ctx.restore();
+        }
+        
+        function drawStageClearScreen() {
+            ctx.fillStyle = 'rgba(40, 50, 70, 0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let progress = 1;
+            if (stageClearAnimation.active) {
+                progress = Math.min(1, (performance.now() - stageClearAnimation.startTime) / stageClearAnimation.duration);
+            }
+            const ease = t => 1 - Math.pow(1 - t, 3);
+            const easedProgress = ease(progress);
+
+            const isTimeAttack = gameMode.includes('Attack') && gameMode !== 'linkAttack';
+            const stageText = isTimeAttack ? 'クリア！' : `ステージ ${currentStage}`;
+            const clearText = isTimeAttack ? formatTime(timeLimit) : 'クリア！';
+            
+            const centerX = canvas.width / 2;
+            const startX1 = -canvas.width / 2;
+            const startX2 = canvas.width * 1.5;
+            
+            const currentX1 = startX1 + (centerX - startX1) * easedProgress;
+            const currentX2 = startX2 + (centerX - startX2) * easedProgress;
+
+            ctx.fillStyle = '#fde047';
+            ctx.font = `bold ${cellSize * 1.2}px Poppins`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            if (isTimeAttack) {
+                 ctx.fillText(clearText, centerX, canvas.height / 2);
+            } else {
+                ctx.fillText(stageText, currentX1, canvas.height / 2 - cellSize * 0.9);
+                ctx.fillText(clearText, currentX2, canvas.height / 2 + cellSize * 0.5);
+            }
+
+
+            if (gameMode === 'survival' || gameMode === 'tenSurvival' || gameMode === 'stoneSurvival' || gameMode === 'secretSurvival') {
+                ctx.fillStyle = 'white';
+                ctx.font = `normal ${cellSize * 0.5}px Inter`;
+                ctx.fillText('ボーナスタイム +10秒！', centerX, canvas.height / 2 + cellSize * 1.6);
+            }
+
+            if (!stageClearAnimation.active && !isTimeAttack) {
+                const alpha = 0.6 + Math.sin(performance.now() / 300) * 0.4;
+                ctx.globalAlpha = alpha;
+                ctx.font = `normal ${cellSize * 0.5}px Inter`;
+                ctx.fillText('クリックして次へ', centerX, canvas.height / 2 + cellSize * 2.5);
+                ctx.globalAlpha = 1.0;
+            }
+        }
+        
+        function initTitleBackground() {
+            titleBgCanvas.width = window.innerWidth;
+            titleBgCanvas.height = window.innerHeight;
+            
+            const bgCellSize = Math.min(titleBgCanvas.width, titleBgCanvas.height) / 10;
+            const cols = Math.ceil(titleBgCanvas.width / bgCellSize);
+            const rows = Math.ceil(titleBgCanvas.height / bgCellSize);
+            
+            bgCtx.clearRect(0, 0, titleBgCanvas.width, titleBgCanvas.height);
+            bgCtx.globalAlpha = 0.1; 
+            
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const value = Math.floor(Math.random() * 10) + 1;
+                    const tile = {
+                        x: x * bgCellSize,
+                        y: y * bgCellSize,
+                        size: bgCellSize,
+                        value: value,
+                        color: TILE_COLORS[value - 1]
+                    };
+                    
+                    bgCtx.fillStyle = tile.color;
+                    bgCtx.fillRect(tile.x + 2, tile.y + 2, tile.size - 4, tile.size - 4);
+
+                    bgCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                    bgCtx.font = `bold ${tile.size * 0.5}px Poppins`;
+                    bgCtx.textAlign = 'center';
+                    bgCtx.textBaseline = 'middle';
+                    bgCtx.fillText(tile.value, tile.x + tile.size / 2, tile.y + tile.size / 2 + 2);
+                }
+            }
+            bgCtx.globalAlpha = 1.0;
+        }
+
+        // --- ゲームロジック・アニメーション ---
+        function gameLoop(timestamp) {
+            if (!lastFrameTime) lastFrameTime = timestamp;
+            let deltaTime = timestamp - lastFrameTime;
+            lastFrameTime = timestamp;
+
+            if (deltaTime > 200) { 
+                deltaTime = 33; 
+            }
+            
+            const isTimeLimitMode = gameMode === 'survival' || gameMode === 'tenSurvival' || gameMode === 'stoneSurvival' || gameMode === 'linkAttack' || gameMode === 'secretSurvival';
+            const isTimeAttack = gameMode.includes('Attack') && gameMode !== 'linkAttack';
+
+            if (isTimeLimitMode && gameState !== 'game_over' && gameState !== 'title' && gameState !== 'loading' && gameState !== 'stage_clear') {
+                const previousTime = timeLimit;
+                timeLimit -= deltaTime;
+                if (timeLimit <= 0) {
+                    timeLimit = 0;
+                    handleGameOver();
+                }
+                
+                if (gameMode !== 'linkAttack') {
+                    const currentHourglassCount = Math.floor(timeLimit / 10000);
+                    const previousHourglassCountForCheck = Math.floor(previousTime / 10000);
+                    if (currentHourglassCount < previousHourglassCountForCheck && currentStage !== 1) {
+                        triggerHourglassConsumeAnimation();
+                    }
+                }
+
+            } else if (isTimeAttack && gameState !== 'game_over' && gameState !== 'title' && gameState !== 'loading' && gameState !== 'stage_clear') {
+                timeLimit += deltaTime;
+            }
+            
+            if (timeBonusAnimation.active) {
+                const animProgress = Math.min(1, (timestamp - timeBonusAnimation.startTime) / timeBonusAnimation.duration);
+                const ease = t => t * (2 - t);
+                timeLimit = timeBonusAnimation.startValue + (timeBonusAnimation.endValue - timeBonusAnimation.startValue) * ease(animProgress);
+                if (animProgress >= 1) {
+                    timeLimit = timeBonusAnimation.endValue;
+                    timeBonusAnimation.active = false;
+                }
+            }
+            
+            if (stageClearAnimation.active) {
+                const progress = (timestamp - stageClearAnimation.startTime) / stageClearAnimation.duration;
+                if (progress >= 1) {
+                    stageClearAnimation.active = false;
+                    if (isTimeAttack) {
+                        handleGameOver();
+                    }
+                }
+            }
+            
+            if (isTimeLimitMode) {
+                const seconds = timeLimit / 1000;
+                timeValueSpan.textContent = `${seconds.toFixed(1)}秒`;
+                
+                if (!isHourglassAnimating && gameMode !== 'linkAttack') {
+                    updateHourglassDisplay(Math.floor(timeLimit / 10000));
+                }
+
+                const gaugePercent = (gameMode === 'linkAttack') 
+                    ? (timeLimit / INITIAL_TIME) * 100 
+                    : (timeLimit % 10000) / 10000 * 100;
+                timeGaugeBar.style.width = `${gaugePercent}%`;
+
+                const isSurvivalType = gameMode === 'survival' || gameMode === 'tenSurvival' || gameMode === 'stoneSurvival' || gameMode === 'secretSurvival';
+                if (isSurvivalType) {
+                    if (timeLimit < 10000) {
+                        timeGaugeBar.classList.remove('bg-green-500');
+                        timeGaugeBar.classList.add('bg-red-500');
+                    } else {
+                        timeGaugeBar.classList.remove('bg-red-500');
+                        timeGaugeBar.classList.add('bg-green-500');
+                    }
+                } else { // For linkAttack
+                    if (timeLimit > 3000) {
+                         timeGaugeBar.classList.remove('bg-red-500');
+                         timeGaugeBar.classList.add('bg-green-500');
+                    } else {
+                         timeGaugeBar.classList.remove('bg-green-500');
+                         timeGaugeBar.classList.add('bg-red-500');
+                    }
+                }
+
+
+                if (seconds <= 3.05 && !flashTriggers.s3) { flashTriggers.s3 = true; flashTime(); }
+                if (seconds <= 2.05 && !flashTriggers.s2) { flashTriggers.s2 = true; flashTime(); }
+                if (seconds <= 1.05 && !flashTriggers.s1) { flashTriggers.s1 = true; flashTime(); }
+
+                if (seconds > 3 && !timeDisplayWrapper.classList.contains('blinking')) {
+                    timeDisplayWrapper.classList.remove('text-red-500');
+                    timeDisplayWrapper.classList.add('text-cyan-400');
+                }
+            } else if (isTimeAttack) {
+                 timeValueSpan.textContent = formatTime(timeLimit);
+            }
+
+            if (gameState === 'animating' || (gameMode === 'linkAttack' && activeAnimations.length > 0)) {
+                let allDone = true;
+                for (let i = activeAnimations.length - 1; i >= 0; i--) {
+                    const anim = activeAnimations[i];
+                    const duration = anim.isBounce ? 400 : 200; // Make bounce faster
+                    let progress = (timestamp - anim.startTime) / duration;
+                    progress = Math.min(progress, 1);
+                    anim.progress = progress;
+                    if (progress < 1) {
+                        allDone = false;
+                    } else {
+                        if (anim.onComplete) anim.onComplete();
+                        activeAnimations.splice(i, 1);
+                    }
+                }
+                if (allDone && gameState === 'animating') {
+                    gameState = 'awaiting_input';
+                    checkWinCondition();
+                }
+            }
+            
+            if (gameState !== 'title') {
+                drawGame();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        function formatTime(ms) {
+            return `${Math.floor(ms / 1000)}秒`;
+        }
+
+        function flashTime() {
+            let blinkCount = 0;
+            timeDisplayWrapper.classList.add('blinking');
+            const intervalId = setInterval(() => {
+                timeDisplayWrapper.classList.toggle('text-red-500');
+                timeDisplayWrapper.classList.toggle('text-cyan-400');
+                blinkCount++;
+                if (blinkCount >= 6) {
+                    clearInterval(intervalId);
+                    timeDisplayWrapper.classList.remove('blinking');
+                    timeDisplayWrapper.classList.add('text-red-500');
+                    timeDisplayWrapper.classList.remove('text-cyan-400');
+                }
+            }, 100);
+        }
+
+        function startMove(startPos, direction) {
+            const movingTile = grid[startPos.y][startPos.x];
+            if (!movingTile) return false;
+
+            const dx = direction.x;
+            const dy = direction.y;
+
+            let collisionGridPos = { ...startPos };
+            let nextPos = { ...startPos };
+            let targetTile = null;
+
+            while (true) {
+                nextPos.x += dx;
+                nextPos.y += dy;
+                if (nextPos.x < 0 || nextPos.x >= GRID_SIZE || nextPos.y < 0 || nextPos.y >= GRID_SIZE) {
+                    targetTile = 'wall';
+                    break; 
+                }
+                if (grid[nextPos.y][nextPos.x] !== null) {
+                    targetTile = grid[nextPos.y][nextPos.x];
+                    collisionGridPos = { ...nextPos };
+                    break;
+                }
+                collisionGridPos = { ...nextPos };
+            }
+
+            const isInvalidCombination = targetTile !== 'wall' && targetTile !== null && (targetTile.isStone || (movingTile.value + targetTile.value > 10));
+            
+            if (targetTile === 'wall' || isInvalidCombination) {
+                let bounceEndPos;
+                if (targetTile === 'wall') {
+                    bounceEndPos = collisionGridPos;
+                } else { 
+                    bounceEndPos = { x: collisionGridPos.x - dx, y: collisionGridPos.y - dy };
+                }
+                
+                if (bounceEndPos.x === startPos.x && bounceEndPos.y === startPos.y) {
+                    return false; 
+                }
+
+                gameState = 'animating';
+                activeAnimations.push({
+                    tile: movingTile,
+                    startPixel: { x: startPos.x * cellSize, y: startPos.y * cellSize },
+                    endPixel: { x: bounceEndPos.x * cellSize, y: bounceEndPos.y * cellSize },
+                    progress: 0,
+                    startTime: performance.now(),
+                    isBounce: true
+                });
+                return true;
+            }
+
+            // Valid move logic
+            gameState = 'animating';
+            grid[startPos.y][startPos.x] = null;
+
+            const onComplete = () => {
+                if (targetTile) { // A merge is happening
+                    const newValue = movingTile.value + targetTile.value;
+                    if (newValue === 10) {
+                        if (gameMode.includes('ten') || gameMode.includes('stone')) {
+                            grid[collisionGridPos.y][collisionGridPos.x].value = 10;
+                            grid[collisionGridPos.y][collisionGridPos.x].color = TILE_COLORS[9];
+                            if (gameMode === 'stoneTimeAttack' || gameMode === 'stoneSurvival' || gameMode === 'stoneEndless') {
+                                grid[collisionGridPos.y][collisionGridPos.x].isStone = true;
+                            }
+                        } else {
+                            grid[collisionGridPos.y][collisionGridPos.x] = null;
+                        }
+                        createParticles(collisionGridPos.x, collisionGridPos.y);
+                    } else {
+                        grid[collisionGridPos.y][collisionGridPos.x].value = newValue;
+                        grid[collisionGridPos.y][collisionGridPos.x].color = TILE_COLORS[newValue - 1];
+                    }
+                } else { // Just moving to an empty space
+                    grid[collisionGridPos.y][collisionGridPos.x] = movingTile;
+                }
+                moveHistory.push(JSON.parse(JSON.stringify(grid)));
+            };
+            
+            activeAnimations.push({
+                tile: movingTile,
+                startPixel: { x: startPos.x * cellSize, y: startPos.y * cellSize },
+                endPixel: { x: collisionGridPos.x * cellSize, y: collisionGridPos.y * cellSize },
+                progress: 0,
+                startTime: performance.now(),
+                onComplete
+            });
+
+            return true;
+        }
+        
+        function checkWinCondition() {
+            if (gameMode === 'linkAttack') return;
+
+            const is10ClearMode = gameMode.includes('ten') || gameMode.includes('stone');
+            let isClear = false;
+
+            if (is10ClearMode) {
+                let nonStoneTiles = [];
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        if (grid[y][x] && !grid[y][x].isStone) {
+                            nonStoneTiles.push(grid[y][x]);
+                        }
+                    }
+                }
+                
+                if (nonStoneTiles.length > 0 && nonStoneTiles.every(tile => tile.value === 10)) {
+                    isClear = true;
+                } else if (nonStoneTiles.length === 0 && (gameMode === 'stoneTimeAttack' || gameMode === 'stoneSurvival' || gameMode === 'stoneEndless')) {
+                     isClear = true;
+                }
+
+            } else {
+                let tileCount = 0;
+                 for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        if (grid[y][x] !== null) {
+                            tileCount++;
+                            break;
+                        }
+                    }
+                }
+                if (tileCount === 0) isClear = true;
+            }
+
+
+            if (isClear) {
+                gameState = 'stage_clear';
+                
+                if (gameMode === 'stoneSurvival' || gameMode === 'stoneEndless') {
+                    for (let y = 0; y < GRID_SIZE; y++) {
+                        for (let x = 0; x < GRID_SIZE; x++) {
+                            if (grid[y][x] !== null && !grid[y][x].isStone) {
+                                createParticles(x, y);
+                                grid[y][x].isStone = true;
+                            }
+                        }
+                    }
+                } else if (gameMode === 'tenSurvival' || gameMode === 'tenEndless') {
+                     for (let y = 0; y < GRID_SIZE; y++) {
+                        for (let x = 0; x < GRID_SIZE; x++) {
+                            if (grid[y][x] !== null) {
+                                createParticles(x, y);
+                            }
+                        }
+                    }
+                    setTimeout(() => {
+                        grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+                    }, 200);
+                } else if (gameMode.includes('Attack')) {
+                     for (let y = 0; y < GRID_SIZE; y++) {
+                        for (let x = 0; x < GRID_SIZE; x++) {
+                            if (grid[y][x] !== null) {
+                                createParticles(x, y);
+                            }
+                        }
+                    }
+                }
+
+                if (gameMode === 'survival' || gameMode === 'tenSurvival' || gameMode === 'stoneSurvival' || gameMode === 'secretSurvival') {
+                    const now = performance.now();
+                    timeBonusAnimation = {
+                        active: true,
+                        startTime: now,
+                        duration: 1500,
+                        startValue: timeLimit,
+                        endValue: timeLimit + TIME_BONUS
+                    };
+                    triggerHourglassAddAnimation();
+                }
+                stageClearAnimation = {
+                    active: true, startTime: performance.now(), duration: 1500
+                };
+            }
+        }
+
+        function handleGameOver() {
+            const wasClear = gameState === 'stage_clear';
+            gameState = 'game_over';
+            activeAnimations = [];
+            
+            const completedModes = JSON.parse(localStorage.getItem('completedModes')) || {};
+            completedModes[gameMode] = true;
+            localStorage.setItem('completedModes', JSON.stringify(completedModes));
+
+            const isTimeAttack = gameMode.includes('Attack') && gameMode !== 'linkAttack';
+            
+            if (gameMode === 'linkAttack') {
+                gameOverTitle.textContent = '終了！';
+                finalScoreLabel.textContent = 'スコア:';
+                finalScoreValue.textContent = formatNumberWithCommas(linkAttackScore);
+                registerScoreButton.classList.remove('hidden');
+            } else if (isTimeAttack && !wasClear) {
+                gameOverTitle.textContent = 'ゲームオーバー';
+                finalScoreLabel.textContent = '経過時間:';
+                finalScoreValue.textContent = formatTime(timeLimit);
+                registerScoreButton.classList.add('hidden');
+            } else if (isTimeAttack && wasClear) {
+                gameOverTitle.textContent = 'クリア！';
+                finalScoreLabel.textContent = 'クリアタイム:';
+                finalScoreValue.textContent = formatTime(timeLimit);
+                registerScoreButton.classList.remove('hidden');
+            } else {
+                gameOverTitle.textContent = 'ゲームオーバー';
+                finalScoreLabel.textContent = '最終ステージ:';
+                finalScoreValue.textContent = currentStage;
+                registerScoreButton.classList.remove('hidden');
+            }
+
+            gameOverModal.classList.remove('hidden');
+            registerScoreButton.disabled = false;
+            registerScoreButton.textContent = 'ハイスコア登録';
+            registerScoreButton.classList.remove('bg-gray-400');
+            
+            const savedName = localStorage.getItem('slidePuzzlePlayerName');
+            if (savedName) {
+                playerNameInput.value = savedName;
+            }
+        }
+
+        function saveScore() {
+            const name = playerNameInput.value.trim();
+            if (!name) {
+                // Using a custom modal/alert in the future would be better than `alert`
+                const tempAlert = document.createElement('div');
+                tempAlert.textContent = '名前を入力してください。';
+                tempAlert.style.cssText = 'position:fixed; top:10px; left:50%; transform:translateX(-50%); background:red; color:white; padding:10px 20px; border-radius:8px; z-index:1000;';
+                document.body.appendChild(tempAlert);
+                setTimeout(() => tempAlert.remove(), 3000);
+                return;
+            }
+            localStorage.setItem('slidePuzzlePlayerName', name);
+
+            const isTimeAttack = gameMode.includes('Attack') && gameMode !== 'linkAttack';
+            let scoreToSave;
+            if (gameMode === 'linkAttack') {
+                scoreToSave = linkAttackScore;
+            } else if (isTimeAttack) {
+                scoreToSave = timeLimit;
+            } else {
+                scoreToSave = currentStage;
+            }
+
+            registerScoreButton.disabled = true;
+            registerScoreButton.textContent = '登録中...';
+            google.script.run.withSuccessHandler(onScoreSaved).withFailureHandler(onScoreSaveFailure).saveScore(name, scoreToSave, gameMode);
+        }
+        
+        function onScoreSaveFailure(error) {
+            const tempAlert = document.createElement('div');
+            tempAlert.textContent = 'スコアの登録に失敗しました。';
+            tempAlert.style.cssText = 'position:fixed; top:10px; left:50%; transform:translateX(-50%); background:red; color:white; padding:10px 20px; border-radius:8px; z-index:1000;';
+            document.body.appendChild(tempAlert);
+            setTimeout(() => tempAlert.remove(), 3000);
+            registerScoreButton.disabled = false;
+            registerScoreButton.textContent = 'ハイスコア登録';
+        }
+
+        function onScoreSaved(response) {
+            // If the save failed but scores were returned (from the error block in GAS), update them anyway
+            if(response.highScores) {
+                allHighScores = response.highScores;
+            }
+
+            if (response.status === 'success') {
+                registerScoreButton.textContent = '登録完了！';
+                registerScoreButton.classList.add('bg-gray-400');
+                setTimeout(() => {
+                    gameOverModal.classList.add('hidden');
+                    // Call showTitleScreen with a flag to prevent a redundant getHighScores call
+                    showTitleScreen(true);
+                }, 1000);
+            } else {
+                onScoreSaveFailure(); // Use the same failure display logic
+            }
+        }
+
+        function displayHighScores(scores, targetElement, scoreType = 'stage') {
+            targetElement.innerHTML = '';
+            const listContainer = document.createElement('div');
+            listContainer.className = 'space-y-1';
+
+            if (!scores) {
+                let placeholderHTML = '';
+                for (let i = 0; i < 10; i++) {
+                    placeholderHTML += `<div class="flex items-center p-1 rounded-md"><span class="w-8 text-right pr-2 font-bold text-slate-500">${i + 1}.</span><span class="text-slate-500" style="opacity: ${1 - i * 0.08};">読み込み中...</span></div>`;
+                }
+                listContainer.innerHTML = placeholderHTML;
+                targetElement.appendChild(listContainer);
+                return;
+            }
+
+            for (let i = 0; i < 10; i++) {
+                const item = document.createElement('div');
+                item.className = 'flex items-center p-1 rounded-md transition-colors';
+
+                const rank = document.createElement('span');
+                rank.className = 'w-8 text-right pr-2 font-bold text-slate-400';
+                rank.textContent = `${i + 1}.`;
+                item.appendChild(rank);
+
+                const scoreText = document.createElement('span');
+                
+                if (scores[i]) {
+                    const score = scores[i];
+                    item.classList.add('text-white');
+                    if (score.isCurrentUser) {
+                        item.classList.add('bg-red-800'); // Highlight the current user's score
+                    }
+
+                    const scoreNum = Number(score.score) || 0;
+                    let scoreValue;
+                    if (scoreType === 'time') {
+                        scoreValue = `${scoreNum}秒`;
+                    } else if (scoreType === 'score') {
+                        scoreValue = `${formatNumberWithCommas(scoreNum)}点`;
+                    } else {
+                        scoreValue = `ステージ ${scoreNum}`;
+                    }
+                    scoreText.innerHTML = `<span class="font-bold">${score.name}</span>: ${scoreValue}`;
+                } else {
+                    item.classList.add('text-slate-500');
+                    scoreText.textContent = '未登録';
+                }
+                
+                item.appendChild(scoreText);
+                listContainer.appendChild(item);
+            }
+            
+            targetElement.appendChild(listContainer);
+        }
+
+        function createParticles(gridX, gridY) {
+            const pixelX = (gridX + 0.5) * cellSize;
+            const pixelY = (gridY + 0.5) * cellSize;
+            const particleColors = [TILE_COLORS[9], '#FFFFFF', '#fde047']; // Gold, White, Yellow
+
+            for (let i = 0; i < 50; i++) { // Increased particle count
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 6 + 2; // Increased speed
+                particles.push({
+                    x: pixelX, y: pixelY,
+                    vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+                    size: Math.random() * 4 + 2, // Increased size
+                    life: Math.random() * 0.7 + 0.5, // Increased lifespan
+                    color: particleColors[Math.floor(Math.random() * particleColors.length)]
+                });
+            }
+        }
+
+        function updateHourglassDisplay(count) {
+            hourglassContainer.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const hg = document.createElement('span');
+                hg.textContent = '⌛';
+                hg.className = 'text-xl';
+                hourglassContainer.appendChild(hg);
+            }
+        }
+
+        function triggerHourglassConsumeAnimation() {
+            const firstHourglass = hourglassContainer.querySelector('span:not([style*="visibility: hidden"])');
+            if (!firstHourglass) return;
+
+            const fromRect = firstHourglass.getBoundingClientRect();
+            const toRect = timeGaugeContainer.getBoundingClientRect();
+            
+            firstHourglass.style.visibility = 'hidden';
+            animateElement(fromRect, toRect, 'consume');
+        }
+
+        function triggerHourglassAddAnimation() {
+            isHourglassAnimating = true;
+            const fromRect = timeGaugeContainer.getBoundingClientRect();
+            const hgContainerRect = hourglassContainer.getBoundingClientRect();
+            const lastHg = hourglassContainer.lastChild;
+            
+            const targetX = lastHg ? lastHg.getBoundingClientRect().right : hgContainerRect.left;
+            const targetY = hgContainerRect.top;
+
+            const toRect = {
+                left: targetX,
+                top: targetY,
+                width: hgContainerRect.height,
+                height: hgContainerRect.height
+            };
+            
+            const onAnimationComplete = () => {
+                updateHourglassDisplay(Math.floor(timeLimit / 10000));
+                isHourglassAnimating = false;
+            };
+            
+            animateElement(fromRect, toRect, 'add', onAnimationComplete);
+        }
+
+        function animateElement(fromRect, toRect, type, onCompleteCallback = null) {
+            const animatedElRect = animatedHourglass.getBoundingClientRect();
+            const offsetX = animatedElRect.width / 2;
+            const offsetY = animatedElRect.height / 2;
+
+            const fromX = fromRect.left + fromRect.width / 2 - offsetX;
+            const fromY = fromRect.top + fromRect.height / 2 - offsetY;
+            const toX = toRect.left + toRect.width / 2 - offsetX;
+            const toY = toRect.top + toRect.height / 2 - offsetY;
+
+            animatedHourglass.style.left = `0px`;
+            animatedHourglass.style.top = `0px`;
+            animatedHourglass.style.transform = `translate(${fromX}px, ${fromY}px)`;
+            animatedHourglass.style.opacity = 1;
+
+            const duration = 800;
+            const startTime = performance.now();
+
+            function animLoop(currentTime) {
+                const elapsedTime = currentTime - startTime;
+                const progress = Math.min(elapsedTime / duration, 1);
+                const ease = t => 1 - Math.pow(1 - t, 3);
+                const easedProgress = ease(progress);
+
+                const currentX = fromX + (toX - fromX) * easedProgress;
+                const currentY = fromY + (toY - fromY) * easedProgress - Math.sin(progress * Math.PI) * 50;
+
+                animatedHourglass.style.transform = `translate(${currentX}px, ${currentY}px)`;
+
+                if (progress < 1) {
+                    requestAnimationFrame(animLoop);
+                } else {
+                    animatedHourglass.style.opacity = 0;
+                    if (onCompleteCallback) {
+                        onCompleteCallback();
+                    }
+                }
+            }
+            requestAnimationFrame(animLoop);
+        }
+
+
+        // --- イベントハンドラ ---
+        function getEventCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+        }
+
+        function onPointerDown(e) {
+            if (e.target.closest('.control-button') || e.target.closest('.start-button')) return;
+
+            if (gameState === 'stage_clear' && activeAnimations.length === 0) {
+                const isTimeAttack = gameMode.includes('Attack') && gameMode !== 'linkAttack';
+                if (isTimeAttack) return; // Time attack ends on clear
+                currentStage++;
+                setupStage(currentStage);
+                return;
+            }
+            if (gameState !== 'awaiting_input') return;
+            e.preventDefault();
+            const pos = getEventCoords(e);
+            const gridX = Math.floor(pos.x / cellSize);
+            const gridY = Math.floor(pos.y / cellSize);
+            if (grid[gridY] && grid[gridY][gridX]) {
+                if (grid[gridY][gridX].isStone) return;
+                gameState = 'dragging';
+                dragStartPos = pos;
+                selectedTile = { x: gridX, y: gridY };
+
+                window.addEventListener('mouseup', onPointerUp, { once: true });
+                window.addEventListener('touchend', onPointerUp, { once: true });
+            }
+        }
+
+        function onPointerUp(e) {
+            if (gameState !== 'dragging') return;
+            
+            const pos = getEventCoords(e);
+            const deltaX = pos.x - dragStartPos.x;
+            const deltaY = pos.y - dragStartPos.y;
+
+            let moveStarted = false;
+            if (Math.abs(deltaX) > SWIPE_THRESHOLD || Math.abs(deltaY) > SWIPE_THRESHOLD) {
+                let direction;
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    direction = { x: deltaX > 0 ? 1 : -1, y: 0 };
+                } else {
+                    direction = { x: 0, y: deltaY > 0 ? 1 : -1 };
+                }
+                moveStarted = startMove(selectedTile, direction);
+            }
+            
+            if (!moveStarted) {
+                gameState = 'awaiting_input';
+            }
+            
+            dragStartPos = null;
+            selectedTile = null;
+        }
+
+        // --- ナンバーリンク用イベントハンドラ ---
+        function onLinkStart(e) {
+            if (gameState !== 'awaiting_input') return;
+            e.preventDefault();
+            isLinking = true;
+            currentChain = [];
+            linkSum = 0;
+
+            const pos = getEventCoords(e);
+            const gridX = Math.floor(pos.x / cellSize);
+            const gridY = Math.floor(pos.y / cellSize);
+            addTileToChain(gridX, gridY);
+        }
+
+        function onLinkMove(e) {
+            if (!isLinking || gameState !== 'awaiting_input') return;
+            e.preventDefault();
+            const pos = getEventCoords(e);
+            const gridX = Math.floor(pos.x / cellSize);
+            const gridY = Math.floor(pos.y / cellSize);
+            addTileToChain(gridX, gridY);
+        }
+
+        function onLinkEnd(e) {
+            if (!isLinking) return;
+            isLinking = false;
+            if (linkSum > 0 && linkSum % 10 === 0) {
+                // This case is handled in addTileToChain
+            } else {
+                currentChain = [];
+                linkSum = 0;
+                linkLastDigitValue.textContent = '0';
+                linkLastDigitTile.style.backgroundColor = '#475569';
+                drawGame();
+            }
+        }
+
+        function addTileToChain(x, y) {
+            if (!isLinking) return;
+            if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return;
+
+            // 戻る操作の判定（チェーン内の最後から2番目のタイルに戻った場合）
+            if (currentChain.length > 1) {
+                const secondToLastTile = currentChain[currentChain.length - 2];
+                if (secondToLastTile.x === x && secondToLastTile.y === y) {
+                    const removedTile = currentChain.pop(); // 最後のタイルをチェーンから削除
+                    linkSum -= removedTile.value; // 合計値から削除したタイルの値を引く
+        
+                    // UIを更新
+                    const lastDigit = linkSum % 10;
+                    linkLastDigitValue.textContent = lastDigit;
+                    // 合計が0になったら色をリセット、そうでなければ対応する色に設定
+                    const color = lastDigit === 0 ? (linkSum > 0 ? TILE_COLORS[9] : '#475569') : TILE_COLORS[lastDigit - 1];
+                    linkLastDigitTile.style.backgroundColor = color;
+                    
+                    // ゲームループが次のフレームで描画を更新します
+                    return; 
+                }
+            }
+        
+            const tile = grid[y][x];
+            if (!tile) return; // タイルがないマスは無視
+        
+            // 既に追加されているタイルへの操作は無視（ループ防止）
+            const alreadyInChain = currentChain.some(p => p.x === x && p.y === y);
+            if (alreadyInChain) return; 
+        
+            // 最初のタイルでない場合、直前のタイルと隣接しているかチェック
+            if (currentChain.length > 0) {
+                const lastTile = currentChain[currentChain.length - 1];
+                const dx = Math.abs(x - lastTile.x);
+                const dy = Math.abs(y - lastTile.y);
+                if (dx + dy !== 1) return; // 隣接していなければ無視
+            }
+        
+            // 新しいタイルをチェーンに追加
+            currentChain.push({ x, y, value: tile.value });
+            linkSum += tile.value;
+            
+            // UIを更新
+            const lastDigit = linkSum % 10;
+            linkLastDigitValue.textContent = lastDigit;
+            const color = lastDigit === 0 ? TILE_COLORS[9] : TILE_COLORS[lastDigit - 1];
+            linkLastDigitTile.style.backgroundColor = color;
+        
+            // 合計が10の倍数になったらタイルを消す処理
+            if (linkSum > 0 && linkSum % 10 === 0) {
+                isLinking = false;
+                gameState = 'animating';
+                
+                const scoreGained = Math.pow(currentChain.length, 3);
+                const lastTilePos = currentChain[currentChain.length - 1];
+                createScoreAnimation(lastTilePos, scoreGained);
+        
+                setTimeout(() => {
+                    if (gameState === 'game_over') return;
+                    clearLinkedTiles();
+                }, 50);
+            }
+        }
+
+        function drawLinkPath() {
+            if (currentChain.length < 1) return;
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = cellSize * 0.15;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.beginPath();
+            const first = currentChain[0];
+            ctx.moveTo((first.x + 0.5) * cellSize, (first.y + 0.5) * cellSize);
+
+            for (let i = 1; i < currentChain.length; i++) {
+                const point = currentChain[i];
+                ctx.lineTo((point.x + 0.5) * cellSize, (point.y + 0.5) * cellSize);
+            }
+            ctx.stroke();
+        }
+
+        function clearLinkedTiles() {
+            currentChain.forEach(p => {
+                createParticles(p.x, p.y);
+                grid[p.y][p.x] = null;
+            });
+            currentChain = [];
+            linkSum = 0;
+            linkLastDigitValue.textContent = '0';
+            linkLastDigitTile.style.backgroundColor = '#475569';
+            applyGravity();
+        }
+
+        function applyGravity() {
+            const fallAnimations = [];
+            for (let x = 0; x < GRID_SIZE; x++) {
+                let emptySpaces = 0;
+                for (let y = GRID_SIZE - 1; y >= 0; y--) {
+                    if (grid[y][x] === null) {
+                        emptySpaces++;
+                    } else if (emptySpaces > 0) {
+                        const tile = grid[y][x];
+                        const startY = y;
+                        const endY = y + emptySpaces;
+                        grid[endY][x] = tile;
+                        grid[y][x] = null;
+
+                        fallAnimations.push({
+                            tile: tile,
+                            startPixel: { x: x * cellSize, y: startY * cellSize },
+                            endPixel: { x: x * cellSize, y: endY * cellSize },
+                            progress: 0,
+                            startTime: performance.now()
+                        });
+                    }
+                }
+            }
+
+            const onGravityComplete = () => {
+                refillBoard();
+            };
+
+            if (fallAnimations.length > 0) {
+                const masterAnimation = {
+                    tile: { id: -1 },
+                    progress: 0,
+                    startTime: performance.now(),
+                    onComplete: onGravityComplete
+                };
+                activeAnimations.push(...fallAnimations, masterAnimation);
+            } else {
+                onGravityComplete();
+            }
+        }
+
+        function refillBoard() {
+            const refillAnimations = [];
+            for (let x = 0; x < GRID_SIZE; x++) {
+                let emptyCount = 0;
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    if (grid[y][x] === null) emptyCount++;
+                    else break;
+                }
+
+                for (let i = 0; i < emptyCount; i++) {
+                    const y = emptyCount - 1 - i;
+                    const value = Math.floor(Math.random() * 9) + 1;
+                    const newTile = {
+                        value: value,
+                        color: TILE_COLORS[value - 1],
+                        id: Math.random(),
+                        isStone: false
+                    };
+                    grid[y][x] = newTile;
+
+                    refillAnimations.push({
+                        tile: newTile,
+                        startPixel: { x: x * cellSize, y: (y - emptyCount) * cellSize },
+                        endPixel: { x: x * cellSize, y: y * cellSize },
+                        progress: 0,
+                        startTime: performance.now()
+                    });
+                }
+            }
+            activeAnimations.push(...refillAnimations);
+        }
+
+        function createScoreAnimation(tilePos, score) {
+            const startX = (tilePos.x + 0.5) * cellSize;
+            const startY = (tilePos.y + 0.5) * cellSize;
+
+            const scoreRect = linkScoreValueHeader.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+
+            const endX = scoreRect.left - canvasRect.left + scoreRect.width / 2;
+            const endY = scoreRect.top - canvasRect.top + scoreRect.height / 2;
+
+            scoreAnimations.push({
+                text: `+${formatNumberWithCommas(score)}`,
+                score: score,
+                startX: startX,
+                startY: startY,
+                endX: endX,
+                endY: endY,
+                startTime: performance.now(),
+                alpha: 1,
+                state: 'pausing', // 'pausing', 'moving'
+            });
+        }
+
+        function updateAndDrawScoreAnimations(timestamp) {
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+
+            for (let i = scoreAnimations.length - 1; i >= 0; i--) {
+                const anim = scoreAnimations[i];
+                const elapsedTime = timestamp - anim.startTime;
+                const pauseDuration = 500;
+                const moveDuration = 800;
+
+                if (anim.state === 'pausing') {
+                    if (elapsedTime > pauseDuration) {
+                        anim.state = 'moving';
+                        anim.startTime = timestamp;
+                    }
+                    ctx.font = `bold ${cellSize * 0.6}px Poppins`;
+                    ctx.fillStyle = `rgba(255, 215, 0, ${anim.alpha})`;
+                    ctx.strokeText(anim.text, anim.startX, anim.startY);
+                    ctx.fillText(anim.text, anim.startX, anim.startY);
+
+                } else if (anim.state === 'moving') {
+                    const progress = Math.min(elapsedTime / moveDuration, 1);
+                    const ease = t => t * t;
+                    const easedProgress = ease(progress);
+
+                    const currentX = anim.startX + (anim.endX - anim.startX) * easedProgress;
+                    const currentY = anim.startY + (anim.endY - anim.startY) * easedProgress;
+                    const scale = 1 - (easedProgress * 0.5);
+                    anim.alpha = 1 - easedProgress;
+
+                    ctx.font = `bold ${cellSize * 0.6 * scale}px Poppins`;
+                    ctx.fillStyle = `rgba(255, 215, 0, ${anim.alpha})`;
+                    ctx.strokeText(anim.text, currentX, currentY);
+                    ctx.fillText(anim.text, currentX, currentY);
+
+                    if (progress >= 1) {
+                        linkAttackScore += anim.score;
+                        linkScoreValueHeader.textContent = formatNumberWithCommas(linkAttackScore);
+                        triggerScoreFlash();
+                        scoreAnimations.splice(i, 1);
+                    }
+                }
+            }
+            ctx.restore();
+        }
+
+        function triggerScoreFlash() {
+            const scoreElement = linkScoreValueHeader.parentElement;
+            scoreElement.classList.add('scale-150', 'duration-100');
+            setTimeout(() => {
+                scoreElement.classList.remove('scale-150');
+            }, 100);
+        }
+
+        // --- イベントリスナー設定 ---
+        window.addEventListener('resize', resizeCanvas);
+        retryButton.addEventListener('click', retryStage);
+        undoButton.addEventListener('click', undoMove);
+        giveUpButton.addEventListener('click', handleGameOver);
+        registerScoreButton.addEventListener('click', saveScore);
+        restartButton.addEventListener('click', () => {
+            gameOverModal.classList.add('hidden');
+            showTitleScreen();
+        });
+        survivalButton.addEventListener('click', () => startGame('survival'));
+        endlessButton.addEventListener('click', () => startGame('endless'));
+        tenSurvivalButton.addEventListener('click', () => startGame('tenSurvival'));
+        tenEndlessButton.addEventListener('click', () => startGame('tenEndless'));
+        stoneSurvivalButton.addEventListener('click', () => startGame('stoneSurvival'));
+        stoneEndlessButton.addEventListener('click', () => startGame('stoneEndless'));
+        timeAttackButton.addEventListener('click', () => startGame('timeAttack'));
+        stoneTimeAttackButton.addEventListener('click', () => startGame('stoneTimeAttack'));
+        linkAttackButton.addEventListener('click', () => startGame('linkAttack'));
+        secretSurvivalButton.addEventListener('click', () => startGame('secretSurvival'));
+        
+        tabSurvival.addEventListener('click', () => switchRankingTab('survival'));
+        tabEndless.addEventListener('click', () => switchRankingTab('endless'));
+        tabTenSurvival.addEventListener('click', () => switchRankingTab('tenSurvival'));
+        tabTenEndless.addEventListener('click', () => switchRankingTab('tenEndless'));
+        tabStoneSurvival.addEventListener('click', () => switchRankingTab('stoneSurvival'));
+        tabStoneEndless.addEventListener('click', () => switchRankingTab('stoneEndless'));
+        tabTimeAttack.addEventListener('click', () => switchRankingTab('timeAttack'));
+        tabStoneTimeAttack.addEventListener('click', () => switchRankingTab('stoneTimeAttack'));
+        tabLinkAttack.addEventListener('click', () => switchRankingTab('linkAttack'));
+        tabSecretSurvival.addEventListener('click', () => switchRankingTab('secretSurvival'));
+
+        // --- ゲーム開始 ---
+        showTitleScreen();
+    </script>
+</body>
+</html>
