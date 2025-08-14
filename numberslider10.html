@@ -262,6 +262,7 @@
         const INITIAL_TIME = 90000; // Default time, now mainly for linkAttack
         const TIME_BONUS = 10000;
         const SYMBOLS = ['★', '●', '▲', '■', '◆', '♥', '♠', '♣', '♪', '⑩'];
+        const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx1b0xlGVFA1MxwDV1idy0Dy0HHbf1UUV8YdxE0_42Jwl_PWdlYgdVSd2aVD1QFZEct/exec';
 
         // --- ゲーム状態管理 ---
         let gameState = 'title';
@@ -350,7 +351,23 @@
             
             // Only call getHighScores if we don't have fresh data from a save operation
             if (!scoresAreFresh) {
-                google.script.run.withSuccessHandler(onHighScoresLoaded).withFailureHandler(onGetScoresFailure).getHighScores();
+//                google.script.run.withSuccessHandler(onHighScoresLoaded).withFailureHandler(onGetScoresFailure).getHighScores();
+                const name = localStorage.getItem('slidePuzzlePlayerName') || 'noname';
+                fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'text/plain;charset=utf-8',
+                    },
+                    // どの処理をしたいか 'action' で指定
+                    body: JSON.stringify({ action: 'getHighScores', name: name })
+                  })
+                  .then(response => response.json())
+                  .then(data => {
+                    console.log('ハイスコアデータ:', data);
+                    // ここで取得したハイスコアを画面に表示する処理などを書く
+                    displayScores(data);
+                  })
+                  .catch(error => console.error('ハイスコア取得エラー:', error));
             }
         }
 
@@ -1302,7 +1319,35 @@
 
             registerScoreButton.disabled = true;
             registerScoreButton.textContent = '登録中...';
-            google.script.run.withSuccessHandler(onScoreSaved).withFailureHandler(onScoreSaveFailure).saveScore(name, scoreToSave, gameMode);
+//            google.script.run.withSuccessHandler(onScoreSaved).withFailureHandler(onScoreSaveFailure).saveScore(name, scoreToSave, gameMode);
+            // 送信するデータを作成
+            const data = {
+              name: name,
+              scoreToSave: scoreToSave,
+              gameMode: gameMode
+            };
+            fetch(GAS_WEB_APP_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'text/plain;charset=utf-8', // GASのPOSTでは 'text/plain' が一般的
+              },
+              body: JSON.stringify(data) // JavaScriptオブジェクトをJSON文字列に変換
+            })
+            .then(response => response.json()) // GASからの応答をJSONとして解釈
+            .then(result => {
+              // 成功時の処理 (withSuccessHandlerの代わり)
+              if (result.status === 'success') {
+                onScoreSaved(result); // 元の成功時関数を呼び出す
+              } else {
+                // 失敗時の処理 (withFailureHandlerの代わり)
+                onScoreSaveFailure({ message: result.message }); // エラー情報を渡して呼び出す
+              }
+            })
+            .catch(error => {
+              // ネットワークエラーなど、通信自体の失敗時の処理 (withFailureHandlerの代わり)
+              console.error('Error:', error);
+              onScoreSaveFailure(error); // 元の失敗時関数を呼び出す
+            });
         }
         
         function onScoreSaveFailure(error) {
