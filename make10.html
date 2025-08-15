@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>１０にできるかな？</title>
+    <title>１０にできるかな？v0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
@@ -355,7 +355,7 @@
 
         // --- GLOBAL EVENT LISTENERS ---
         
-        // New, more robust touch controls using a clone
+        // Touch controls using a clone
         document.addEventListener('touchstart', (e) => {
             const target = e.target.closest('.operator-card');
             if (target) {
@@ -429,6 +429,12 @@
         newGameButton.addEventListener('click', startGame);
         undoButton.addEventListener('click', undoMove);
         giveUpButton.addEventListener('click', showSolution);
+        
+        // Add touchend listeners for mobile compatibility to prevent click delay/issues
+        newGameButton.addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
+        undoButton.addEventListener('touchend', (e) => { e.preventDefault(); undoMove(); });
+        giveUpButton.addEventListener('touchend', (e) => { e.preventDefault(); showSolution(); });
+
         document.body.addEventListener('click', initAudio, { once: true });
         document.body.addEventListener('touchend', initAudio, { once: true });
 
