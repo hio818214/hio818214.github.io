@@ -24,11 +24,14 @@
             transform: scale(1.1);
             border-style: dashed;
         }
-        .operator-card.dragging {
+        .operator-card.dragging-mouse { /* For mouse drag */
+             opacity: 0.5;
+        }
+        .dragging-touch { /* For touch drag clone */
             opacity: 0.8;
             transform: scale(1.1);
             cursor: grabbing;
-            transition: none; /* Disable transition while dragging for smooth movement */
+            transition: none;
         }
         /* Custom animation for the win message */
         @keyframes tada {
@@ -101,12 +104,9 @@
         let history = []; 
         const OPERATORS = ['+', '-', '×', '÷'];
         
-        // Drag & Drop State
-        let draggedItem = null; 
-        let touchStartPos = { x: 0, y: 0 };
-        let elementStartPos = { x: 0, y: 0 };
-        let originalParent = null;
-        let originalNextSibling = null;
+        // Drag & Drop State for Touch
+        let touchDragClone = null;
+        let touchDraggedOperator = '';
 
         // --- SOUND EFFECTS SETUP ---
         let audioStarted = false;
@@ -234,8 +234,8 @@
         }
 
         function addDragListeners(element) {
-            element.addEventListener('dragstart', (e) => { e.target.classList.add('dragging'); e.dataTransfer.setData('text/plain', e.target.textContent); });
-            element.addEventListener('dragend', (e) => { e.target.classList.remove('dragging'); });
+            element.addEventListener('dragstart', (e) => { e.target.classList.add('dragging-mouse'); e.dataTransfer.setData('text/plain', e.target.textContent); });
+            element.addEventListener('dragend', (e) => { e.target.classList.remove('dragging-mouse'); });
         }
 
         function addDropListeners(element) {
@@ -355,41 +355,34 @@
 
         // --- GLOBAL EVENT LISTENERS ---
         
-        // New, more robust touch controls
+        // New, more robust touch controls using a clone
         document.addEventListener('touchstart', (e) => {
             const target = e.target.closest('.operator-card');
             if (target) {
                 initAudio();
-                draggedItem = target;
+                touchDraggedOperator = target.textContent;
                 
-                originalParent = draggedItem.parentNode;
-                originalNextSibling = draggedItem.nextSibling;
-                const rect = draggedItem.getBoundingClientRect();
-                elementStartPos = { x: rect.left, y: rect.top };
+                touchDragClone = target.cloneNode(true);
+                touchDragClone.classList.add('dragging-touch');
+                touchDragClone.style.position = 'absolute';
+                touchDragClone.style.zIndex = '1000';
+                touchDragClone.style.pointerEvents = 'none'; 
+                document.body.appendChild(touchDragClone);
 
                 const touch = e.touches[0];
-                touchStartPos = { x: touch.clientX, y: touch.clientY };
-
-                draggedItem.style.position = 'fixed';
-                draggedItem.style.left = `${elementStartPos.x}px`;
-                draggedItem.style.top = `${elementStartPos.y}px`;
-                draggedItem.style.zIndex = '1000';
-                document.body.appendChild(draggedItem);
-                draggedItem.classList.add('dragging');
+                touchDragClone.style.left = `${touch.clientX - touchDragClone.offsetWidth / 2}px`;
+                touchDragClone.style.top = `${touch.clientY - touchDragClone.offsetHeight / 2}px`;
             }
         }, { passive: false });
 
         document.addEventListener('touchmove', (e) => {
-            if (draggedItem) {
+            if (touchDragClone) {
                 e.preventDefault();
                 const touch = e.touches[0];
-                
-                const dx = touch.clientX - touchStartPos.x;
-                const dy = touch.clientY - touchStartPos.y;
-                draggedItem.style.left = `${elementStartPos.x + dx}px`;
-                draggedItem.style.top = `${elementStartPos.y + dy}px`;
+                touchDragClone.style.left = `${touch.clientX - touchDragClone.offsetWidth / 2}px`;
+                touchDragClone.style.top = `${touch.clientY - touchDragClone.offsetHeight / 2}px`;
 
-                const draggedRect = draggedItem.getBoundingClientRect();
+                const draggedRect = touchDragClone.getBoundingClientRect();
                 document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
                 const slots = document.querySelectorAll('.operator-slot');
                 for (const slot of slots) {
@@ -403,9 +396,9 @@
         }, { passive: false });
 
         document.addEventListener('touchend', (e) => {
-            if (draggedItem) {
+            if (touchDragClone) {
                 let foundTarget = null;
-                const draggedRect = draggedItem.getBoundingClientRect();
+                const draggedRect = touchDragClone.getBoundingClientRect();
 
                 document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
                 
@@ -423,18 +416,12 @@
                         target: foundTarget,
                         preventDefault: () => {}
                     };
-                    handleDrop(simulatedEvent, draggedItem.textContent);
-                    draggedItem.remove(); 
-                } else {
-                    originalParent.insertBefore(draggedItem, originalNextSibling);
-                    draggedItem.style.position = '';
-                    draggedItem.style.left = '';
-                    draggedItem.style.top = '';
-                    draggedItem.style.zIndex = '';
+                    handleDrop(simulatedEvent, touchDraggedOperator);
                 }
 
-                draggedItem.classList.remove('dragging');
-                draggedItem = null;
+                touchDragClone.remove();
+                touchDragClone = null;
+                touchDraggedOperator = '';
             }
         });
 
