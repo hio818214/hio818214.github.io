@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>ナンバースライダーde１０v5</title>
+    <title>ナンバースライダーde１０v6</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1320,10 +1320,10 @@
 //            google.script.run.withSuccessHandler(onScoreSaved).withFailureHandler(onScoreSaveFailure).saveScore(name, scoreToSave, gameMode);
             // 送信するデータを作成
             const data = {
-                action: 'saveScore',
+              action: 'saveScore',
               name: name,
-              scoreToSave: scoreToSave,
-              gameMode: gameMode
+              score: scoreToSave,
+              mode: gameMode
             };
             fetch(GAS_WEB_APP_URL, {
               method: 'POST',
