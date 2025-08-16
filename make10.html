@@ -12,7 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
     <style>
         body {
-            font-family: 'M PLUS+Rounded 1c', sans-serif;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
             touch-action: none; /* Disable browser default touch actions like scroll/zoom */
             overflow: hidden; /* Prevent scrolling during drag */
         }
@@ -117,10 +117,17 @@
         const undoSynth = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination();
         const startSynth = new Tone.Synth({ oscillator: { type: 'sine' } }).toDestination();
 
-        function initAudio() {
+        async function initAudio() {
             if (audioStarted) return;
-            Tone.start();
-            audioStarted = true;
+            // Tone.start() must be called in response to a user gesture.
+            try {
+                await Tone.start();
+                console.log("Audio context started successfully.");
+                audioStarted = true;
+            } catch (e) {
+                // This error is expected on initial page load without user interaction.
+                console.error("Tone.js could not be started: ", e);
+            }
         }
 
         // --- PUZZLE GENERATION LOGIC ---
@@ -141,6 +148,7 @@
             for (const op1 of OPERATORS) {
                 for (const op2 of OPERATORS) {
                     for (const op3 of OPERATORS) {
+                        // Pattern 1: ((a op1 b) op2 c) op3 d
                         let res1 = calculate(a, op1, b);
                         if (res1 !== null) {
                             let res2 = calculate(res1, op2, c);
@@ -151,6 +159,8 @@
                                 }
                             }
                         }
+
+                        // Pattern 2: (a op1 (b op2 c)) op3 d
                         let res_a = calculate(b, op2, c);
                         if (res_a !== null) {
                             let res_b = calculate(a, op1, res_a);
@@ -161,6 +171,8 @@
                                 }
                             }
                         }
+                        
+                        // Pattern 3: (a op1 b) op2 (c op3 d)
                         let res_d = calculate(a, op1, b);
                         let res_e = calculate(c, op3, d);
                         if (res_d !== null && res_e !== null) {
@@ -233,18 +245,30 @@
             });
         }
 
+        // 修正点: e.target を element に変更して、イベントリスナーがアタッチされた要素を確実に参照するようにする
         function addDragListeners(element) {
-            element.addEventListener('dragstart', (e) => { e.target.classList.add('dragging-mouse'); e.dataTransfer.setData('text/plain', e.target.textContent); });
-            element.addEventListener('dragend', (e) => { e.target.classList.remove('dragging-mouse'); });
+            element.addEventListener('dragstart', (e) => { 
+                element.classList.add('dragging-mouse'); 
+                e.dataTransfer.setData('text/plain', element.textContent); 
+            });
+            element.addEventListener('dragend', (e) => { 
+                element.classList.remove('dragging-mouse'); 
+            });
         }
 
         function addDropListeners(element) {
-            element.addEventListener('dragover', (e) => { e.preventDefault(); element.classList.add('drag-over'); });
-            element.addEventListener('dragleave', () => { element.classList.remove('drag-over'); });
+            element.addEventListener('dragover', (e) => { 
+                e.preventDefault(); 
+                element.classList.add('drag-over'); 
+            });
+            element.addEventListener('dragleave', (e) => { 
+                element.classList.remove('drag-over'); 
+            });
             element.addEventListener('drop', handleDrop);
         }
 
-        function handleDrop(e, operatorOverride) {
+        async function handleDrop(e, operatorOverride) {
+            await initAudio();
             e.preventDefault();
             const slot = e.target.closest('.operator-slot');
             if (!slot) return;
@@ -277,7 +301,9 @@
                 showMessage("0では割れません！", "fail"); return;
             }
             
-            dropSynth.triggerAttackRelease("C4", "8n");
+            if (audioStarted) {
+                dropSynth.triggerAttackRelease("C4", "8n", Tone.now());
+            }
             let finalResult = (result % 1 !== 0) ? parseFloat(result.toFixed(2)) : result;
             
             const newState = [...currentState];
@@ -297,15 +323,19 @@
 
             if (currentState.length === 1) {
                 const finalResult = currentState[0];
+                setGameEndState(); // Call this for both success and fail
                 if (finalResult === 10 || finalResult === -10) {
-                    setGameEndState();
                     showMessage("クリア！おめでとう！", "success");
-                    successSynth.triggerAttackRelease(["C5", "E5", "G5"], "8n", Tone.now());
+                    if (audioStarted) {
+                        successSynth.triggerAttackRelease(["C5", "E5", "G5"], "8n", Tone.now());
+                    }
                     board.children[0].classList.replace('bg-yellow-200', 'bg-green-400');
                     board.children[0].classList.add('text-white', 'tada-animation');
                 } else {
                     showMessage(`残念、${finalResult}です`, "fail");
-                    failSynth.triggerAttackRelease(["C3", "D#3", "G#3"], "4n");
+                    if (audioStarted) {
+                        failSynth.triggerAttackRelease(["C3", "D#3", "G#3"], "4n", Tone.now());
+                    }
                     board.children[0].classList.replace('bg-yellow-200', 'bg-red-400');
                     board.children[0].classList.add('text-white');
                 }
@@ -326,28 +356,36 @@
             giveUpButton.disabled = true;
         }
 
-        function undoMove() {
+        async function undoMove() {
+            await initAudio();
+            if (undoButton.disabled) return;
             if (history.length > 1) {
-                undoSynth.triggerAttackRelease("8n");
+                if (audioStarted) {
+                    undoSynth.triggerAttackRelease("8n", Tone.now());
+                }
                 history.pop();
                 showMessage('', null);
                 updateUIFromHistory();
             }
         }
 
-        function showSolution() {
+        async function showSolution() {
+            await initAudio();
+            if (giveUpButton.disabled) return;
             showMessage(`答えの一例: ${currentSolution}`, 'info');
             setGameEndState();
         }
 
-        function startGame() {
-            initAudio(); 
+        async function startGame() {
+            await initAudio(); 
             const { puzzle, solution } = generatePuzzle();
             initialNumbers = puzzle;
             currentSolution = solution;
             const initialState = initialNumbers.reduce((acc, num) => [...acc, num, 'slot'], []).slice(0, -1);
             history = [initialState];
-            startSynth.triggerAttackRelease("C5", "8n");
+            if (audioStarted) {
+                startSynth.triggerAttackRelease("C5", "8n", Tone.now());
+            }
             renderOperators();
             updateUIFromHistory();
             showMessage('', null);
@@ -359,7 +397,7 @@
         document.addEventListener('touchstart', (e) => {
             const target = e.target.closest('.operator-card');
             if (target) {
-                initAudio();
+                initAudio(); // Don't need to await here, subsequent calls will handle it
                 touchDraggedOperator = target.textContent;
                 
                 touchDragClone = target.cloneNode(true);
@@ -425,16 +463,32 @@
             }
         });
 
-        // Other global listeners
-        newGameButton.addEventListener('click', startGame);
-        undoButton.addEventListener('click', undoMove);
-        giveUpButton.addEventListener('click', showSolution);
-        
-        // Add touchend listeners for mobile compatibility to prevent click delay/issues
-        newGameButton.addEventListener('touchend', (e) => { e.preventDefault(); startGame(); });
-        undoButton.addEventListener('touchend', (e) => { e.preventDefault(); undoMove(); });
-        giveUpButton.addEventListener('touchend', (e) => { e.preventDefault(); showSolution(); });
+        function setupButton(button, actionFn) {
+            let touchendFired = false;
 
+            button.addEventListener('touchend', async (e) => {
+                e.preventDefault();
+                touchendFired = true;
+                await actionFn();
+            });
+
+            button.addEventListener('click', async (e) => {
+                // If touchend has already handled this action, do nothing.
+                if (touchendFired) {
+                    touchendFired = false; // Reset for the next interaction
+                    return;
+                }
+                e.preventDefault();
+                await actionFn();
+            });
+        }
+
+        setupButton(newGameButton, startGame);
+        setupButton(undoButton, undoMove);
+        setupButton(giveUpButton, showSolution);
+
+        // These listeners will attempt to start the audio on any interaction,
+        // which is a good fallback for priming the audio context.
         document.body.addEventListener('click', initAudio, { once: true });
         document.body.addEventListener('touchend', initAudio, { once: true });
 
