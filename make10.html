@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>１０にできるかな？v0</title>
+    <title>１０にできるかな？v1</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
@@ -245,7 +245,6 @@
             });
         }
 
-        // 修正点: e.target を element に変更して、イベントリスナーがアタッチされた要素を確実に参照するようにする
         function addDragListeners(element) {
             element.addEventListener('dragstart', (e) => { 
                 element.classList.add('dragging-mouse'); 
@@ -323,8 +322,9 @@
 
             if (currentState.length === 1) {
                 const finalResult = currentState[0];
-                setGameEndState(); // Call this for both success and fail
+                // 修正点: ゲーム終了状態にするのはクリアした時だけにする
                 if (finalResult === 10 || finalResult === -10) {
+                    setGameEndState(); // Call this only on success
                     showMessage("クリア！おめでとう！", "success");
                     if (audioStarted) {
                         successSynth.triggerAttackRelease(["C5", "E5", "G5"], "8n", Tone.now());
@@ -332,6 +332,7 @@
                     board.children[0].classList.replace('bg-yellow-200', 'bg-green-400');
                     board.children[0].classList.add('text-white', 'tada-animation');
                 } else {
+                    // 失敗した場合はメッセージを表示するだけで、ボタンは有効のままにする
                     showMessage(`残念、${finalResult}です`, "fail");
                     if (audioStarted) {
                         failSynth.triggerAttackRelease(["C3", "D#3", "G#3"], "4n", Tone.now());
