@@ -1,0 +1,1827 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ダイスハンド・クエスト</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap">
+<style>
+/* ── 単一ビジュアル世界（レトロRPGのCRT画面）にコミットした設計 ───────── */
+:root{
+  --void:#0a0b12;        /* 画面外の暗がり */
+  --cabinet:#161826;     /* 筐体 */
+  --cabinet-hi:#232640;
+  --win:#0d1436;         /* RPGウィンドウ地 */
+  --win-edge:#e8e3d3;    /* ウィンドウ縁（羊皮紙白） */
+  --floor:#3a3d5c;       /* 洞窟床 */
+  --floor-dark:#252840;
+  --ink:#e8e3d3;
+  --ink-dim:#9a9ab5;
+  --gold:#f2c14e;
+  --gold-dark:#c9971f;
+  --blood:#c0392b;
+  --moss:#6aa84f;
+  --sky:#5b8dd6;
+  --card:#efe7cf;
+  --card-edge:#a89268;
+  --cell:54px;
+  --tile:44px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:
+    radial-gradient(120% 90% at 50% 0%, #1b1d30 0%, var(--void) 70%),
+    var(--void);
+  color:var(--ink);
+  font-family:'DotGothic16','Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif;
+  font-size:15px;
+  line-height:1.6;
+  -webkit-font-smoothing:none;
+  padding:20px 16px 56px;
+}
+.wrap{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+
+/* ── ヘッダ ─────────────────────────────────────────────── */
+.brand{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;padding:0 2px}
+.brand h1{
+  margin:0;font-family:'Press Start 2P',monospace;font-size:17px;letter-spacing:.06em;
+  color:var(--gold);text-shadow:0 3px 0 #6b4e0d;text-wrap:balance;
+}
+.brand .jp{font-size:14px;color:var(--ink-dim);letter-spacing:.14em}
+.brand .tag{
+  font-size:11px;letter-spacing:.18em;color:#8f8a72;
+  border:1px solid #3a3c52;padding:3px 9px;
+}
+/* デバッグ用オートモード */
+.autobox{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:11px}
+.autobox .albl{font-size:9px;letter-spacing:.22em;color:#5f6289}
+.autobox .ahint{font-size:10px;color:#5f6289}
+
+/* ── 筐体・画面 ──────────────────────────────────────────── */
+.cab{
+  background:linear-gradient(180deg,var(--cabinet-hi),var(--cabinet));
+  border:3px solid #0a0b12;
+  box-shadow:0 0 0 1px #40446a inset, 0 14px 34px rgba(0,0,0,.6);
+  padding:12px;
+}
+/* 画面の高さを固定し、各段に固定の高さを与える。
+   伸び縮みするのはステージだけ ── 手札レールは常に同じ位置に留まる */
+.screen{
+  background:linear-gradient(180deg,#111530,#080a18);
+  border:3px solid #000;
+  box-shadow:0 0 0 2px #4a4e7d inset;
+  padding:12px;display:flex;flex-direction:column;gap:10px;
+  position:relative;overflow:hidden;
+  height:776px;
+}
+.screen>.hud{flex:0 0 auto}
+.screen>.msgwin{flex:0 0 auto;height:96px;overflow-y:auto;scrollbar-width:thin}
+.screen>#optArea{flex:0 0 auto;height:98px;overflow-y:auto}
+.screen>.menubar{flex:0 0 auto;min-height:26px}
+.screen>.rail{flex:0 0 auto;min-height:104px}
+.screen::after{ /* 走査線 */
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px);
+}
+
+/* ── HUD ───────────────────────────────────────────────── */
+.hud{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px}
+.hud .chip{
+  border:2px solid var(--win-edge);background:var(--win);
+  padding:3px 8px;display:flex;align-items:center;gap:6px;
+}
+.hud .lbl{color:var(--ink-dim);font-size:11px;letter-spacing:.1em}
+.hud .num{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--gold);font-variant-numeric:tabular-nums}
+.hpbar{width:96px;height:10px;background:#000;border:1px solid #555a80;padding:1px}
+.hpbar i{display:block;height:100%;background:linear-gradient(90deg,#8fdc5a,#4f9a2f)}
+.hpbar.low i{background:linear-gradient(90deg,#e57373,#a12b1f)}
+.xpbar{width:52px;height:6px;background:#000;border:1px solid #4a4e7d;padding:1px}
+.xpbar i{display:block;height:100%;background:linear-gradient(90deg,#7fb6f5,#3f6fb5)}
+.hud .num.gold{color:var(--gold)}
+.hud .where{margin-left:auto;color:var(--ink-dim);letter-spacing:.08em}
+
+/* ── ステージ ────────────────────────────────────────────── */
+.stage{
+  flex:1 1 auto;min-height:0;overflow:auto;position:relative;
+  background:
+    linear-gradient(180deg,#1a1d38 0%, #0e1024 100%);
+  border:2px solid #2f335a;
+  display:flex;align-items:center;justify-content:center;padding:10px;
+}
+
+/* ボード */
+.board{position:relative}
+.link{position:absolute;background:var(--floor);box-shadow:0 0 0 1px #191b2c}
+.link.on{background:var(--floor)}
+.tileNode.spent{background:linear-gradient(180deg,#2a2d47,#1e2136);box-shadow:0 2px 0 #0c0d18,0 0 0 1px #3a3e63 inset}
+.tileNode{
+  position:absolute;width:var(--tile);height:var(--tile);
+  background:linear-gradient(180deg,var(--floor),var(--floor-dark));
+  border:2px solid #191b2c;box-shadow:0 2px 0 #0c0d18, 0 0 0 1px #565b87 inset;
+  display:flex;align-items:center;justify-content:center;
+  transition:opacity .35s ease, transform .35s ease;
+}
+.tileNode.gone{opacity:.15;transform:scale(.86)}
+.tileNode.fresh{animation:pop .4s steps(4) both}
+@keyframes pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+.tileNode.here{box-shadow:0 2px 0 #0c0d18, 0 0 0 2px var(--gold) inset}
+.tileNode .tl{position:absolute;bottom:-15px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--ink-dim);white-space:nowrap}
+.avatar{position:absolute;width:var(--tile);height:var(--tile);display:flex;align-items:center;justify-content:center;
+  transition:left .16s linear, top .16s linear;z-index:5;pointer-events:none}
+.avatar .bob{animation:bob .7s steps(2) infinite}
+@keyframes bob{0%,100%{transform:translateY(-2px)}50%{transform:translateY(1px)}}
+
+/* パネル系ステージ */
+.panel{width:100%;max-width:760px}
+.panel h2{margin:0 0 10px;font-size:15px;letter-spacing:.1em;color:var(--gold)}
+.paramGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px 10px}
+.paramGrid .p{display:flex;justify-content:space-between;gap:6px;border-bottom:1px dotted #3a3e63;padding:1px 2px;font-size:12px}
+.paramGrid .p b{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--gold);font-variant-numeric:tabular-nums}
+.paramGrid .p.pending b{color:#4a4e70}
+.paramGrid .p.now{background:#252b52;outline:1px solid var(--gold)}
+
+.sceneArt{display:flex;flex-direction:column;align-items:center;gap:8px}
+.sceneArt .cap{font-size:12px;color:var(--ink-dim);letter-spacing:.1em}
+
+/* 戦闘 */
+.battle{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%}
+.enemyBox{display:flex;flex-direction:column;align-items:center;gap:3px}
+.enemyBox .nm{font-size:13px;letter-spacing:.08em;display:flex;align-items:center;gap:6px}
+.enemyBox .sk{font-size:9px;letter-spacing:.08em;color:var(--blood);border:1px solid #6b2f2f;padding:1px 5px}
+.ehn{font-size:10px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+/* 行動順（素早さ順）。いま動くユニットを光らせる */
+.turnbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;font-size:10px}
+.turnbar b{color:#4a4e70}
+.turnbar .tu{border:1px solid #3c4170;padding:2px 7px;color:var(--ink-dim);letter-spacing:.06em}
+.turnbar .tu i{font-style:normal;font-family:'Press Start 2P',monospace;font-size:8px;color:var(--sky);margin-left:5px}
+.turnbar .tu.now{border-color:var(--gold);color:var(--gold);background:#2a2445}
+.turnbar .tu.out{opacity:.35;text-decoration:line-through}
+/* 味方の並び。HPは戦闘中も常時表示 */
+.party{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.pu{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 8px;border:1px solid transparent}
+.pu.now{border-color:var(--gold);background:#221f3c}
+.pu.out{opacity:.4}
+.pu .nm{font-size:11px}
+.phb{width:66px;height:7px;background:#000;border:1px solid #555a80;padding:1px}
+.phb i{display:block;height:100%;background:linear-gradient(90deg,#8fdc5a,#4f9a2f)}
+.phb.low i{background:linear-gradient(90deg,#e57373,#a12b1f)}
+.hpn{font-size:9px;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.chip.downed{opacity:.5;border-style:dashed}
+.enemyBox.hit{animation:shake .28s steps(3) 2}
+@keyframes shake{0%,100%{transform:translateX(0)}33%{transform:translateX(-6px)}66%{transform:translateX(6px)}}
+.ehp{width:170px;height:9px;background:#000;border:1px solid #6b2f2f;padding:1px}
+.ehp i{display:block;height:100%;background:linear-gradient(90deg,#e2705f,#8b2420)}
+
+/* ── メッセージウィンドウ ─────────────────────────────────── */
+.msgwin{
+  border:3px solid var(--win-edge);background:var(--win);
+  padding:9px 12px;min-height:62px;position:relative;
+  box-shadow:0 0 0 3px #000 inset;
+}
+.msgwin p{margin:0;white-space:pre-wrap}
+body.awaitNext .cab,body.awaitNext .screen{cursor:pointer}
+body.awaitNext .msgwin{box-shadow:0 0 0 3px #000 inset,0 0 0 1px var(--gold)}
+.msgwin .next{
+  position:absolute;right:10px;bottom:6px;background:none;border:0;cursor:pointer;
+  color:var(--gold);font-size:15px;animation:blink 1s steps(2) infinite;font-family:inherit;
+}
+@keyframes blink{50%{opacity:.15}}
+.roll{font-family:'Press Start 2P',monospace;color:var(--gold)}
+
+/* ── 選択肢 ──────────────────────────────────────────────── */
+.opts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px}
+.opt{display:flex;align-items:center;gap:8px;padding:3px 6px;border:1px solid transparent;font-size:13px}
+.opt .n{
+  font-family:'Press Start 2P',monospace;font-size:11px;width:20px;height:20px;flex:0 0 auto;
+  display:flex;align-items:center;justify-content:center;
+  background:#000;border:1px solid #5d6291;color:var(--ink-dim);
+}
+.opt.lit{border-color:var(--gold);background:#242a50}
+.opt.lit .n{background:var(--gold);color:#1a1400;border-color:var(--gold)}
+.opt.dead{opacity:.45}
+.hint{font-size:12px;color:var(--ink-dim);letter-spacing:.06em}
+.hint b{color:var(--gold)}
+
+/* ── メニュー & 引き出し ─────────────────────────────────── */
+.menubar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px}
+.menubar .mlbl{letter-spacing:.18em;color:#7d80a6;font-size:10px}
+.menubar .btn.sm.on{background:var(--gold);color:#231a00;border-color:#8a6a12}
+.menubar .btn.sm b{color:var(--gold);font-family:'Press Start 2P',monospace;font-size:9px}
+.menubar .btn.sm.on b{color:#231a00}
+.menubar .mnote{color:var(--moss);letter-spacing:.06em}
+.menubar .mnote.dim{color:#6f7292}
+.menubar .mtoast{color:var(--gold);border-left:2px solid var(--gold);padding-left:7px;letter-spacing:.04em}
+/* 引き出しはレイアウトを押し広げないようオーバーレイで開く */
+#drawer{position:absolute;left:12px;right:12px;bottom:112px;z-index:30}
+.drawer{border:2px solid #6a70ad;background:#141834;padding:8px 10px;
+  box-shadow:0 -6px 18px rgba(0,0,0,.55);max-height:250px;overflow-y:auto}
+.dhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border-bottom:1px solid #3c4170;padding-bottom:6px;margin-bottom:8px;
+  font-size:11px;letter-spacing:.16em;color:var(--gold)}
+.dhint{margin:8px 0 0;font-size:10px;color:#61648a;letter-spacing:.04em}
+.ilist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.ilist li{display:flex;align-items:center;gap:9px;border-bottom:1px dotted #333757;padding-bottom:5px}
+.ilist li:last-child{border-bottom:0;padding-bottom:0}
+.ilist b{font-size:13px}
+.idesc{font-size:11px;color:var(--ink-dim);line-height:1.45}
+.ilist li>div{flex:1}
+.ipass{font-size:10px;color:#6f7292;border:1px solid #3c4170;padding:2px 6px}
+.dnote{margin:8px 0 0;font-size:12px;color:var(--gold);border-top:1px dotted #3c4170;padding-top:6px}
+.scols{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;font-size:12px}
+.pmini{display:flex;flex-wrap:wrap;gap:2px 8px;margin-top:4px}
+.pmini span{font-size:10.5px;color:var(--ink-dim)}
+.pmini i{font-style:normal;font-family:'Press Start 2P',monospace;font-size:9px;color:var(--gold);margin-left:3px}
+
+/* ── 手札レール ──────────────────────────────────────────── */
+/* 手札レール：いま手札を切れるのか、メッセージ送り中なのかを常に明示する */
+.rail{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.railBody{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.railHead{
+  display:flex;align-items:center;gap:8px;height:20px;flex:0 0 auto;
+  font-size:11px;letter-spacing:.12em;color:#7d80a6;
+  border-left:3px solid #3c4170;padding-left:8px;
+}
+.railHead .sub{color:#61648a;letter-spacing:.04em}
+.rail.armed .railHead{border-left-color:var(--gold);color:var(--gold)}
+.rail.armed .railHead .sub{color:#a99664}
+.railHead .dot{animation:blink 1s steps(2) infinite}
+/* 選べる時：カードは通常色。選べない時：はっきり灰色にして沈める（見えたまま残す） */
+.rail.armed .hand{filter:none}
+.rail:not(.armed) .hand{filter:grayscale(1) brightness(.62);opacity:.6}
+.piles{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--ink-dim);
+  min-width:96px;min-height:74px}
+.hand{min-height:74px;align-items:flex-start}
+.piles b{font-family:'Press Start 2P',monospace;font-size:11px;color:var(--ink);font-variant-numeric:tabular-nums}
+.hand{display:flex;gap:8px;flex-wrap:wrap}
+.card{
+  width:52px;height:74px;background:linear-gradient(170deg,#fbf5e4,var(--card));
+  border:2px solid var(--card-edge);box-shadow:0 3px 0 #6d5c39;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  cursor:pointer;color:#2a2213;position:relative;
+  transition:transform .12s steps(2), box-shadow .12s;
+  font-family:inherit;padding:0;
+}
+.card:disabled{cursor:default;pointer-events:none;box-shadow:0 3px 0 #2f3350}
+.card:not(:disabled):hover,.card:not(:disabled):focus-visible{transform:translateY(-7px);box-shadow:0 8px 0 #6d5c39;outline:none}
+.card:not(:disabled):focus-visible{border-color:var(--gold)}
+.card .v{font-family:'Press Start 2P',monospace;font-size:20px;line-height:1;color:#2a2213}
+.card .k{font-size:10px;letter-spacing:.1em;color:#7a6a45}
+.card.dice{background:linear-gradient(170deg,#e6ecfb,#cdd8f2);border-color:#7b88b8;box-shadow:0 3px 0 #4d5680}
+.card.dice:not(:disabled):hover{box-shadow:0 8px 0 #4d5680}
+.dieArt{display:block;line-height:0;filter:drop-shadow(0 2px 0 rgba(40,50,90,.5))}
+.card.dice:not(:disabled):hover .dieArt{animation:tumble .5s steps(2) infinite}
+@keyframes tumble{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+
+/* ── 汎用ボタン ──────────────────────────────────────────── */
+.btn{
+  font-family:inherit;font-size:13px;cursor:pointer;color:var(--ink);
+  background:#20244a;border:2px solid var(--win-edge);padding:5px 14px;
+}
+.btn[disabled]{opacity:.4;cursor:default}
+.btn:hover,.btn:focus-visible{background:#2e3466;outline:none}
+.btn:focus-visible{border-color:var(--gold)}
+.btn.gold{background:var(--gold);color:#231a00;border-color:#8a6a12;font-weight:700}
+.btn.gold:hover{background:#ffd76a}
+.btn.sm{font-size:11px;padding:2px 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* デッキ編集 */
+.deckEd{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:10px 0}
+.deckEd .ce{border:2px solid #3c4170;background:#161a35;padding:6px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.deckEd .ce .t{font-size:11px;color:var(--ink-dim)}
+.deckEd .ce .c{font-family:'Press Start 2P',monospace;font-size:14px;color:var(--gold)}
+.total{font-family:'Press Start 2P',monospace;font-size:12px}
+.total.bad{color:var(--blood)}
+.total.ok{color:var(--moss)}
+
+/* ── 仕様メモ ────────────────────────────────────────────── */
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:0;border:1px solid #2c2f4c}
+.notes section{padding:14px 16px;border-right:1px solid #2c2f4c}
+.notes section:last-child{border-right:0}
+.notes h3{margin:0 0 8px;font-size:11px;letter-spacing:.16em;color:var(--gold);text-transform:uppercase}
+.notes ul{margin:0;padding-left:1.1em;font-size:12.5px;color:#bcbcd2}
+.notes li{margin-bottom:5px}
+.notes li b{color:var(--ink)}
+.credit{font-size:11px;color:#6f7292;padding:0 2px}
+.credit a{color:#8f93bd}
+
+@media (max-width:720px){
+  :root{--cell:42px;--tile:34px}
+  .opts{grid-template-columns:1fr}
+  .paramGrid{grid-template-columns:repeat(2,1fr)}
+  .screen{height:800px}
+  .screen>#optArea{height:176px}   /* 6択が1列になるぶん確保 */
+  .stage{overflow:auto}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="brand">
+    <h1>DICEHAND QUEST</h1>
+    <span class="jp">すごろくRPG 操作モック</span>
+    <span class="tag">PROTOTYPE v0.1</span>
+    <div class="autobox" id="autoBox"></div>
+  </div>
+
+  <div class="cab">
+    <div class="screen">
+      <div class="hud" id="hud"></div>
+      <div class="stage" id="stage"></div>
+      <div class="msgwin" id="msgwin"><p id="msg"></p></div>
+      <div id="optArea"></div>
+      <div class="menubar" id="menubar"></div>
+      <div id="drawer"></div>
+      <div class="rail" id="rail">
+        <div class="railHead" id="railHead"></div>
+        <div class="railBody">
+          <div class="piles" id="piles"></div>
+          <div class="hand" id="hand"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <section>
+      <h3>このモックで触れる仕様</h3>
+      <ul>
+        <li><b>デッキ20枚／手札6枚</b>。1枚使ったら1枚ドロー。山札が尽きると補充が止まって手札が減っていき、<b>0枚になった時だけ</b>捨札をシャッフルして6枚ドロー ── 1周ちょうど20手</li>
+        <li><b>カードの数字＝次の行動</b>。ボードでは進む数、選択場面では6択のうち何番を選ぶか</li>
+        <li><b>サイコロカード</b>は切った瞬間に1〜6を抽選（初期デッキは 1〜6 各1枚＋サイコロ14枚）</li>
+        <li><b>選択肢は常に6択</b>。ユニークでなくてよい（道具屋・ギルドで実演）</li>
+        <li><b>マス目イベント</b>：モンスター／トラップ（4以上で解除）／宝箱／回復／ボス。<b>宝箱の中身は世界に1つだけ</b>で、一度取れば以後は空マス（地上は往復するので、無限回収を止める在庫管理が要る）</li>
+        <li><b>敵を倒すと経験値・お金・低確率でドロップ</b>。経験値が貯まるとパーティ共通のレベルが上がり、主人公は最大HP+4・力+1、仲間は最大HP+3・力+1。お金は宿屋（15G）・道具屋（松明30G／薬草20G／ロープ25G）・露店（薬草10G）で使う ── <b>タダの全快が無くなり、稼ぎと消費が回る</b></li>
+        <li><b>戦闘は素早さ順のターン制</b>。主人公は手札を切って攻撃（ダメージ＝力＋数字で、大きい数字ほど強い）、<b>仲間は自分でサイコロを振って自動で攻撃</b>する（ダメージ＝力＋出目）</li>
+        <li><b>敵は生きている誰かをランダムに殴り、たまに全体スキル</b>を撃つ（大コウモリ「超音波」／オーガ「薙ぎ払い」／主「灼熱の吐息」など）。仲間のHPは体力×3で、戦闘をまたいで持ち越し、宿屋・教会・泉・薬草で回復する</li>
+        <li><b>手札とは別のメニュー</b>：アイテム使用・ステータス確認・デッキ内訳はカードを消費せずいつでも開ける（薬草でHP回復、ロープで次の判定に+2）</li>
+        <li><b>街の選択肢は「用事が尽きたら消える」</b>。宿屋はHP全快なら最初から出ず、ギルドは<em>受注済み かつ 仲間が上限</em>になって初めて消える（出入りで1回きりの用事はリセット）</li>
+        <li>消えた枠は<b>予備の施設 → ギルド → 街を出る</b>の順で上書きされる。ギルドは拠点なので、用事が残っている限り空き枠がギルドで埋まり、ギルドまで用済みになって初めて「街を出る」だけが残る</li>
+        <li><b>ギルドの中も6択でフラグ管理</b>。中身は「依頼を受ける」「仲間を募集する」「依頼の進み具合を聞く」「ギルドを出る」の4種。受注中は「受ける」が「進み具合を聞く」に、仲間が上限になると「募集する」が消え、空いた枠は「ギルドを出る」で埋まる</li>
+        <li><b>地上は世界にただ1枚の2次元マップ</b>。全マスが単一のワールド座標（列1〜14／行1〜7）を持ち、ラーゼ(1,4)とミルド(13,4)は同じ平面の東西に置かれる。街道は<b>1本を共有</b>し、ラーゼ→ミルドとミルド→ラーゼは同じマス列を逆にたどる（どちらも12歩）。ダンジョンは屋内なのでボードごとのローカル座標</li>
+        <li><b>目的地へのルートは常に固定</b>。「街×目的地」ごとに通るマス列を持っているだけで、分岐点にプレイヤーの選択は無い。ルートが変わるのは<b>マスイベントで脇道が解放された時だけ</b>（洞窟と灯台跡の隠し通路）。<b>盤面には今回通るルートだけ</b>を、その外接矩形に詰めて描く</li>
+        <li><b>街は2つ、依頼は全10種</b>。ラーゼ（洞窟・廃坑・湖畔＋ミルドへの護衛）とミルド（霧の森・涸れ井戸・崩れた砦・塩の洞・灯台跡＋ラーゼへの帰路）。受けた依頼が街道の分岐と目的地を決め、街を出た後は<b>迷わず目的地へ向かう移動フェーズ</b>に入る。未受注なら街道へ出る前に門番が引き止める</li>
+        <li><b>移動依頼で拠点が入れ替わる</b>。門をくぐるとその街が拠点になり、ギルドの依頼一覧も入れ替わる（移動依頼だけは何度でも受注可）。依頼を達成したら街へ戻り、そのまま次の依頼を受けられる</li>
+        <li>6件を超える依頼は6番の「ほかの依頼を見る」でめくる ── <b>6択の制約を崩さずに件数を増やす</b>形</li>
+        <li><b>モンスターはボードに入るたび復活</b>。マスの状態は持ち越さず、<b>自分より後ろのマスは空白</b>になる ── 止まったマスだけが解決済みで、通り過ぎた宝箱は取り逃す</li>
+        <li><b>隠し通路</b>：隠しマスで<em>6を切れば発見</em>、それ以外なら何事もなく出目ぶん正規ルートを進む（手番を損しない）。松明の有無で変わるのは<b>気づけるかどうか</b>だけ ── あれば「6で隠し通路へ進行する」と提示され、無ければたまたま6を切った時に発見する。発見するとボードが迂回路に組み替わり、進むのは次の手札で決める</li>
+        <li><b>仲間キャラメイク</b>：20パラメータを20回の手札選択で決定（数字＋3）。主人公は全て6固定</li>
+      </ul>
+    </section>
+    <section>
+      <h3>触って確認したい論点</h3>
+      <ul>
+        <li>サイコロ14枚は<b>制御できない感</b>が強い。デッキ編成画面で比率を変えて手触りを比べられます</li>
+        <li>戦闘の6択が全部同じ「攻撃」なので、<b>戦闘中だけ6択の提示は不要かも</b>（進行時と同じ「何枚ぶん斬るか」のUIに寄せる案）</li>
+        <li>仲間は素早さ・力・体力の3つしか使っていません。<b>残り17パラメータの使い道</b>が決まると、20回の選択に意味が出ます（器用さ＝罠解除の補助、知力＝魔法、魅力＝街の選択肢が増える等）</li>
+        <li>街の選択肢が「街を出る」で埋まっていくため、<b>長居するほど出ざるを得なくなる</b>圧が生まれます。回復や買い物を何回できるかがそのまま難易度になります</li>
+        <li>ルート固定＋敵復活なので、<b>同じ依頼を受け直すと必ず同じ道・同じ敵</b>になります。周回の作業感を避けるには、依頼ごとに敵の配置を変えるか、隠し通路のような「解放される脇道」を各ボードに用意するのが効きそうです</li>
+        <li>街道の分岐点はプレイヤーの選択が無い（行き先で自動決定）ので、<b>分岐マスでも6択を出して寄り道させる</b>案は検討の余地があります</li>
+        <li>ラーゼ⇔ミルドは12歩と長く、松明の宝箱(5,4)や山賊の縄(8,4)を街道の途中で共有します。<b>同じマスを何度も通る</b>ので、往復のたびに敵が復活する現状だと移動が作業になりやすい ── 移動依頼だけ道中を短縮する、街道に近道を作る、などが要検討です</li>
+        <li>ボードで大きい数字が常に得ではない設計（止まりたいマスがある）にできているか</li>
+        <li>山札が尽きた後の<b>手札6枚→0枚の「絞られていく6手」</b>が周期の山場になります。ここで欲しい数字が残っているかが読み合いの中心（画面左下に「山札切れ」と出ます）</li>
+        <li>仲間の20回選択は<b>デッキちょうど1周（20枚）</b>。所持カードの内訳がそのまま仲間の能力分布になります</li>
+        <li>隠し通路の合図を<b>6</b>にしてあります。5マス目から6進むと正規ルートではボスまで飛び越えてしまうため、「その場で捨てても惜しくない数字」を合図にする設計。合図を2にすると正規ルートの短い刻みを潰してしまいます（マスごとに合図の数字を変えられる作りです）</li>
+      </ul>
+    </section>
+    <section>
+      <h3>デバッグ用オートモード</h3>
+      <ul>
+        <li>右上の<b>「▶ オート再生」</b>（または <b>A</b> キー）で、メッセージ送りと手札のランダム選択を自動で回します。速度は4段階</li>
+        <li>入力待ちを監視して代わりに押しているだけなので、<b>ゲーム側の処理は本番と同じ</b>経路を通ります ── 長時間回して詰み・無限ループ・数値バランスを見るのに使えます</li>
+        <li>途中でオートを止めればその場から手動に戻せます。窓が開いていれば自動で閉じ、力尽きた／全依頼達成の時は自動で街から再開します</li>
+      </ul>
+    </section>
+    <section>
+      <h3>グラフィック素材について</h3>
+      <ul>
+        <li>今出ているドット絵は<b>このモック用に描き起こした8×8プレースホルダー</b>です（外部素材ゼロ・権利クリア）</li>
+        <li>フリー素材に差し替える口はコード先頭の <b>SHEET</b> に用意済み。PNGを data URI にして
+            <code>SHEET.src / tile / w / map</code> を埋めるだけで全スプライトが入れ替わります</li>
+        <li>候補：<b>Kenney</b>（CC0・商用可・表記不要／16×16 RPGパック）、
+            <b>ぴぽや倉庫</b>（規約内で商用可・和風RPG向け）、
+            <b>OpenGameArt「16x16 Fantasy tileset」by Jerom</b>（CC-BY-SA 3.0・派生物も同ライセンスになる点に注意）</li>
+        <li>社外に出す企画モックなら<b>CC0のKenney系</b>が安全。CC-BY-SAは継承条項があるため、
+            社内検討用に留めるのが無難です</li>
+      </ul>
+    </section>
+  </div>
+
+  <p class="credit" id="credit"></p>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   ドット絵スプライト（8x8・4色ベース／このモック用に描き起こし）
+   ※フリー素材PNGに差し替える場合は SHEET モードの解説を参照
+   ══════════════════════════════════════════════════════════ */
+const PAL={
+ '0':'#10121c','1':'#1b1e2e','2':'#4a4e69','3':'#6b708d','4':'#9aa0bd',
+ '5':'#f5f1e6','6':'#f0c090','7':'#c98d5b','8':'#3f6fb5','9':'#2a4a80',
+ 'a':'#c0392b','b':'#8b2420','c':'#6aa84f','d':'#47733a','e':'#f2c14e',
+ 'f':'#c9971f','g':'#8a5a34','h':'#5c3a20','i':'#7b4ea3','j':'#b07fd0',
+ 'k':'#e07b39','l':'#f7d97a'
+};
+const SPRITES={
+ hero:['..0000..','.0eeee0.','.066660.','.060060.','.066660.','68888886','.888888.','..h..h..'],
+ slime:['........','..cccc..','.cccccc.','cc0cc0cc','cccccccc','cccccccc','.dddddd.','..d..d..'],
+ bat:['........','i..ii..i','ii.ii.ii','iiiiiiii','.iaiiai.','..iiii..','...ii...','........'],
+ goblin:['.c....c.','.cccccc.','ccc00ccc','.cccccc.','..caac..','.cggggc.','.c.cc.c.','..h..h..'],
+ ogre:['..hhhh..','.gggggg.','g0gggg0g','.gggggg.','.g5aa5g.','gggggggg','.gg..gg.','.h....h.'],
+ boss:['i......i','ii.aa.ii','.iiiiii.','.ieiiei.','.iiiiii.','.i5555i.','ii.ii.ii','.i....i.'],
+ chest:['........','.hhhhhh.','.effffe.','.hhhhhh.','.fffeff.','.hhhhhh.','.h....h.','........'],
+ trap:['........','.4.44.4.','.4.44.4.','44.44.44','44444444','22222222','........','........'],
+ torch:['...l....','..lkl...','..lkl...','...k....','...g....','...g....','...h....','........'],
+ town:['..0000..','.044440.','.043340.','.044440.','.04hh40.','.04hh40.','.44hh44.','........'],
+ cave:['.222222.','22200222','22000022','20000002','20000002','20000002','20000002','22222222'],
+ spring:['........','.888888.','.855558.','.888888.','..4444..','..4444..','.444444.','........'],
+ ally:['..8888..','.08ee80.','.066660.','.060060.','.066660.','c888888c','.888888.','..h..h..'],
+ fork:['........','.hhhhh..','.hgggh..','...g....','..hhhh..','..hggh..','...g....','...h....'],
+ /* サイコロそのもの：アイソメの立方体（上1・左2・右3の目が見える＝数字を示さない） */
+ die:[
+  '......5555......',
+  '....55555555....',
+  '..555555555555..',
+  '5555555005555555',
+  '5555555005555555',
+  '4455555555555533',
+  '4444555555553333',
+  '4444445555333333',
+  '4400444430033333',
+  '4400444430030033',
+  '4444400433330033',
+  '4444400433003333',
+  '..444444330033..',
+  '....44443333....',
+  '......4433......',
+  '................'
+ ]
+};
+/* ── フリー素材スプライトシートへの差し替え口 ─────────────────
+   SHEET.src に PNG の data URI（またはローカルHTMLならファイルパス）を入れ、
+   SHEET.tile にタイル1辺のpx、SHEET.w にシート全体の幅px、
+   SHEET.map に各名前のタイル座標 [列,行] を入れれば、以下の自作ドット絵を
+   まるごと差し替えられる。src が null の間は自作8x8スプライトで描画する。
+   例（16x16タイル、シート幅256pxの場合）:
+     SHEET.src='data:image/png;base64,iVBOR...';
+     SHEET.tile=16; SHEET.w=256;
+     SHEET.map={hero:[0,0],slime:[3,5],goblin:[4,5],chest:[7,2], ...};
+   ※公開する場合は素材のライセンス表記（作者名・CC種別）を credit に追記する
+   ───────────────────────────────────────────────────────── */
+const SHEET={src:null,tile:16,w:256,map:{}};
+
+const _cache={};
+function spr(name,px){
+  if(SHEET.src&&SHEET.map[name]){
+    const [cx,cy]=SHEET.map[name], sc=px/SHEET.tile;
+    return '<div role="img" aria-label="'+name+'" style="width:'+px+'px;height:'+px+'px;'+
+      'image-rendering:pixelated;background-image:url('+SHEET.src+');'+
+      'background-size:'+(SHEET.w*sc)+'px auto;'+
+      'background-position:-'+(cx*px)+'px -'+(cy*px)+'px"></div>';
+  }
+  const k=name+'@'+px; if(_cache[k]) return _cache[k];
+  const rows=SPRITES[name]||SPRITES.slime, n=rows.length;
+  let r='';
+  for(let y=0;y<n;y++) for(let x=0;x<rows[y].length;x++){
+    const ch=rows[y][x]; if(ch==='.'||!PAL[ch]) continue;
+    r+='<rect x="'+x+'" y="'+y+'" width="1" height="1" fill="'+PAL[ch]+'"/>';
+  }
+  const svg='<svg viewBox="0 0 '+n+' '+n+'" width="'+px+'" height="'+px+'" '+
+    'shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">'+r+'</svg>';
+  return _cache[k]=svg;
+}
+
+/* ══════════════════════════════════════════════════════════
+   静的データ（世界は誰が何度やっても同じ）
+   ══════════════════════════════════════════════════════════ */
+const PARAMS=['力','体力','器用さ','素早さ','知力','精神','魅力','運','命中','回避',
+              '防御','抵抗','気力','直感','胆力','統率','交渉','感知','手先','忍耐'];
+
+/* アイテム：手札とは別に、いつでもメニューから使える（カードを消費しない） */
+const ITEMS={
+  '松明':{icon:'torch',passive:true,
+    desc:'暗がりを照らす。隠し通路マスで発見の判定が出るようになる（持っているだけで効果／消費しない）'},
+  '薬草':{icon:'spring',
+    desc:'パーティ全員のHPを10回復する。1つ消費',
+    use:()=>{
+      const hurt=(S.hp<S.maxHp)||S.party.some(p=>p.hp<p.maxHp);
+      if(!hurt) return '傷はない。使う必要がなさそうだ。';
+      const h=healParty(10);
+      return S.party.length?'全員が10（シドは'+h+'）回復した。':'HPが'+h+'回復した。'; }},
+  'ロープ':{icon:'chest',
+    desc:'次の判定の出目に+2される。1つ消費',
+    use:()=>{ S.bonus+=2; return 'ロープを構えた。次の判定の出目に+2される。'; }},
+  '秘宝の欠片':{icon:'chest',passive:true,quest:true,
+    desc:'洞窟の奥にあった欠片。持ち帰ることが目的（効果はモック未実装）'}
+};
+function gain(name,n){ S.items[name]=(S.items[name]||0)+(n||1); }
+function has(name){ return (S.items[name]||0)>0; }
+function useItem(name){
+  const it=ITEMS[name];
+  if(!it||!it.use||!has(name)) return;
+  const note=it.use();
+  if(note.indexOf('必要がなさそう')>=0){ S.drawerNote=note; render(); return; }
+  S.items[name]--;
+  if(S.items[name]<=0) delete S.items[name];
+  S.drawer=null; S.drawerNote='';        // 使ったら引き出しは閉じる
+  toast(name+'を使った ── '+note);
+  render();
+}
+/* 引き出しを閉じたあとの結果表示（メッセージ窓は上書きしない） */
+function toast(t){
+  S.toast=t; clearTimeout(S._toastT);
+  S._toastT=setTimeout(()=>{ S.toast=''; render(); },3000);
+}
+
+/* spd＝素早さ（行動順はこの値の大きい順、同値は味方が先）
+   exp/gold＝撃破報酬、drop＝低確率で落とすアイテム */
+const ENEMIES={
+  slime :{name:'スライム',  sprite:'slime', hp:14,atk:3, spd:3,  exp:5, gold:6,  drop:{item:'薬草',  rate:.10}},
+  bat   :{name:'大コウモリ',sprite:'bat',   hp:18,atk:4, spd:9,  exp:8, gold:9,  drop:{item:'薬草',  rate:.10}, skill:{name:'超音波',  rate:.25}},
+  goblin:{name:'ゴブリン',  sprite:'goblin',hp:22,atk:5, spd:5,  exp:10,gold:12, drop:{item:'ロープ',rate:.12}, skill:{name:'石つぶて',rate:.20}},
+  ogre  :{name:'オーガ',    sprite:'ogre',  hp:34,atk:8, spd:4,  exp:18,gold:22, drop:{item:'薬草',  rate:.15}, skill:{name:'薙ぎ払い',rate:.30}},
+  boss  :{name:'洞窟の主',  sprite:'boss',  hp:52,atk:10,spd:7,  exp:30,gold:40, drop:{item:'松明',  rate:.25}, skill:{name:'灼熱の吐息',rate:.35}},
+  /* ── ミルド近郊の敵 ── */
+  wolf  :{name:'荒野の狼',  sprite:'goblin',hp:20,atk:6, spd:8,  exp:12,gold:14, drop:{item:'薬草',  rate:.12}, skill:{name:'咆哮',    rate:.20}},
+  wisp  :{name:'火の玉',    sprite:'slime', hp:16,atk:5, spd:10, exp:9, gold:10, drop:{item:'松明',  rate:.10}, skill:{name:'火花',    rate:.25}},
+  bandit:{name:'ならず者の頭',sprite:'ogre',hp:40,atk:9, spd:6,  exp:26,gold:35, drop:{item:'ロープ',rate:.20}, skill:{name:'乱れ斬り',rate:.30}},
+  keeper:{name:'灯台の守り手',sprite:'boss',hp:48,atk:9, spd:6,  exp:28,gold:36, drop:{item:'薬草',  rate:.20}, skill:{name:'閃光',    rate:.30}}
+};
+
+/* ── 成長：パーティ共通のレベル。上げると主人公も仲間も少し強くなる ── */
+function needExp(lv){ return 10+lv*8; }
+function heroPow(){ return 6+(S.lv-1); }
+function levelUp(){
+  S.lv++;
+  S.maxHp+=4; S.hp+=4;
+  S.party.forEach(p=>{ p.maxHp+=3; p.hp+=3; });
+}
+/* 撃破報酬：経験値・お金・低確率ドロップ。レベルアップ判定もここで行う */
+function grantRewards(def){
+  const r={exp:def.exp||8, gold:def.gold||10, drop:null, ups:[]};
+  S.exp+=r.exp; S.gold+=r.gold;
+  if(def.drop && Math.random()<def.drop.rate){ r.drop=def.drop.item; gain(r.drop); }
+  while(S.exp>=needExp(S.lv)){ S.exp-=needExp(S.lv); levelUp(); r.ups.push(S.lv); }
+  return r;
+}
+
+/* ── 値段表：確定入手をやめ、お金で買う形にする ── */
+const PRICES={'松明':30,'薬草':20,'ロープ':25};
+const INN_COST=15, STALL_COST=10;
+
+/* ══════════════════════════════════════════════════════════
+   マップ
+   ・地上（world）は世界にただ1枚。すべてのマスが単一のワールド座標を持ち、
+     街も目的地も同じ平面に配置される。ラーゼ⇔ミルドの街道は1本を共有し、
+     帰路は同じマスを逆にたどる。
+   ・目的地へのルートは ROUTES に「街×目的地」ごとのマス列として固定で持つ。
+     分岐点にプレイヤーの選択は無く、ルートが変わるのはマスイベントで
+     脇道が解放された時だけ。
+   ・ダンジョンは屋内なのでボードごとのローカル座標。n / nx をたどる。
+
+   地上の全体図（列1〜14／行1〜7）
+     行1            湖畔                    霧の森      砦
+     行2                    洞窟            ロープ 通路   灯台
+     行3            通路    通路            通路   罠(砦)  狼
+     行4  ラーゼ ── 分岐W ── 泉 松明 分岐C 敵 罠 通路 分岐E 狼 分岐E2 ミルド ── 通路
+     行5            通路                    通路   泉
+     行6            敵                      罠     通路
+     行7            廃坑                    井戸   塩の洞
+   ══════════════════════════════════════════════════════════ */
+const BOARDS={
+  world:{
+    id:'world',name:'地上マップ',rows:[1,7],cols:15,start:1,
+    intro:'街道に出た。目的地までの道のりは決まっている。',
+    /* 街×目的地ごとの固定ルート。ラーゼ⇔ミルドは同じマス列の往復になる */
+    routes:{
+      'raze>lake' :[1,2,3,31,32,33],
+      'raze>mine' :[1,2,3,34,35,36],
+      'raze>cave' :[1,2,3,4,5,6,61,62],
+      'raze>mild' :[1,2,3,4,5,6,7,8,9,10,11,12,13],
+      'raze>none' :[1,2,3,4,5,6,61,62],
+      'mild>forest':[13,12,11,10,101,102,103],
+      'mild>well'  :[13,12,11,10,104,105,106],
+      'mild>fort'  :[13,12,121,122,123],
+      'mild>salt'  :[13,12,124,125,126],
+      'mild>light' :[13,14,141,142],
+      'mild>raze'  :[13,12,11,10,9,8,7,6,5,4,3,2,1],
+      'mild>none'  :[13,12,11,10,9,8,7,6,5,4,3,2,1]
+    },
+    nodes:{
+      /* ── 東西を貫く街道（行4）。ラーゼ(1,4)からミルド(13,4)まで1本 ── */
+      1  :{c:1, r:4,t:'town',s:'town',l:'ラーゼの街'},
+      2  :{c:2, r:4,t:'mon',e:'slime',s:'slime'},
+      3  :{c:3, r:4,t:'fork'},
+      4  :{c:4, r:4,t:'spring',s:'spring',l:'泉'},
+      5  :{c:5, r:4,t:'chest',s:'chest',item:'松明',l:'宝箱'},
+      6  :{c:6, r:4,t:'fork'},
+      7  :{c:7, r:4,t:'mon',e:'bat',s:'bat'},
+      8  :{c:8, r:4,t:'trap',s:'trap',need:3,l:'山賊の縄'},
+      9  :{c:9, r:4,t:'plain'},
+      10 :{c:10,r:4,t:'fork'},
+      11 :{c:11,r:4,t:'mon',e:'wolf',s:'goblin'},
+      12 :{c:12,r:4,t:'fork'},
+      13 :{c:13,r:4,t:'town',s:'town',l:'ミルドの街'},
+      14 :{c:14,r:4,t:'plain'},
+      /* ── ラーゼ側の支線 ── */
+      31 :{c:3, r:3,t:'plain'},                                   /* 北へ：湖畔 */
+      32 :{c:3, r:2,t:'mon',e:'slime',s:'slime'},
+      33 :{c:3, r:1,t:'gate',s:'spring',l:'北の湖畔'},
+      34 :{c:3, r:5,t:'plain'},                                   /* 南へ：廃坑 */
+      35 :{c:3, r:6,t:'mon',e:'goblin',s:'goblin'},
+      36 :{c:3, r:7,t:'gate',s:'cave',l:'東の廃坑'},
+      61 :{c:6, r:3,t:'mon',e:'goblin',s:'goblin'},               /* 北へ：洞窟 */
+      62 :{c:6, r:2,t:'gate',s:'cave',l:'風穴の洞窟'},
+      /* ── ミルド側の支線 ── */
+      101:{c:10,r:3,t:'plain'},                                   /* 北へ：霧の森 */
+      102:{c:10,r:2,t:'chest',s:'chest',item:'ロープ',l:'宝箱'},
+      103:{c:10,r:1,t:'gate',s:'cave',l:'霧の森'},
+      104:{c:10,r:5,t:'plain'},                                   /* 南へ：涸れ井戸 */
+      105:{c:10,r:6,t:'trap',s:'trap',need:3,l:'朽ちた縄'},
+      106:{c:10,r:7,t:'gate',s:'cave',l:'涸れ井戸'},
+      121:{c:12,r:3,t:'trap',s:'trap',need:3,l:'追い剥ぎの罠'},    /* 北へ：崩れた砦 */
+      122:{c:12,r:2,t:'plain'},
+      123:{c:12,r:1,t:'gate',s:'cave',l:'崩れた砦'},
+      124:{c:12,r:5,t:'spring',s:'spring',l:'泉'},                 /* 南へ：塩の洞 */
+      125:{c:12,r:6,t:'plain'},
+      126:{c:12,r:7,t:'gate',s:'cave',l:'塩の洞'},
+      141:{c:14,r:3,t:'mon',e:'wisp',s:'slime'},                   /* ミルドの東：灯台跡 */
+      142:{c:14,r:2,t:'gate',s:'cave',l:'灯台跡'}
+    }
+  },
+  /* 風穴の洞窟：隠し通路（脇道）だけがイベントで解放される */
+  cave:{
+    id:'cave',name:'風穴の洞窟',rows:[2,3],cols:10,start:0,
+    intro:'洞窟に踏み込んだ。奥に「主の間」がある。',
+    hiddenAt:5, hiddenNum:6, branchStart:20, skips:[6,7],
+    nodes:{
+      0 :{c:0,r:2,t:'entry',s:'cave',l:'入口',n:1},
+      1 :{c:1,r:2,t:'plain',n:2},
+      2 :{c:2,r:2,t:'mon',e:'goblin',s:'goblin',n:3},
+      3 :{c:3,r:2,t:'plain',n:4},
+      4 :{c:4,r:2,t:'trap',s:'trap',need:4,l:'落石',n:5},
+      5 :{c:5,r:2,t:'hidden',n:6},
+      6 :{c:6,r:2,t:'mon',e:'ogre',s:'ogre',n:7},
+      7 :{c:7,r:2,t:'trap',s:'trap',need:4,l:'毒矢',n:8},
+      8 :{c:8,r:2,t:'plain',n:9},
+      9 :{c:9,r:2,t:'boss',e:'boss',s:'boss',l:'主の間',n:null},
+      20:{c:5,r:3,t:'plain',n:21},
+      21:{c:6,r:3,t:'chest',s:'chest',item:'秘宝の欠片',l:'秘宝',n:22},
+      22:{c:7,r:3,t:'plain',n:23},
+      23:{c:8,r:3,t:'plain',n:8}
+    }
+  },
+  /* 東の廃坑：罠が多く、最奥は鉱石 */
+  mine:{
+    id:'mine',name:'東の廃坑',rows:[1,2],cols:6,start:0,
+    intro:'廃坑の坑道へ。足場が抜けかけている ── 罠が多い。',
+    nodes:{
+      0:{c:0,r:2,t:'entry',s:'cave',l:'坑口',n:1},
+      1:{c:1,r:2,t:'trap',s:'trap',need:3,l:'崩れた足場',n:2},
+      2:{c:2,r:2,t:'mon',e:'bat',s:'bat',n:3},
+      3:{c:3,r:2,t:'plain',n:4},
+      4:{c:3,r:1,t:'mon',e:'goblin',s:'goblin',n:5},
+      5:{c:4,r:1,t:'trap',s:'trap',need:4,l:'坑内ガス',n:6},
+      6:{c:5,r:1,t:'goal',s:'chest',item:'鉄鉱石',l:'鉱脈',n:null}
+    }
+  },
+  /* 北の湖畔：短いが敵が硬い。最奥は薬草の群生地 */
+  lake:{
+    id:'lake',name:'北の湖畔',rows:[0,1],cols:6,start:0,
+    intro:'湖畔に着いた。薬草の群生地は岸沿いのいちばん奥。',
+    nodes:{
+      0:{c:0,r:1,t:'entry',s:'spring',l:'岸辺',n:1},
+      1:{c:1,r:1,t:'plain',n:2},
+      2:{c:2,r:1,t:'mon',e:'ogre',s:'ogre',n:3},
+      3:{c:2,r:0,t:'spring',s:'spring',l:'湧き水',n:4},
+      4:{c:3,r:0,t:'mon',e:'bat',s:'bat',n:5},
+      5:{c:4,r:0,t:'goal',s:'chest',item:'薬草の束',l:'群生地',n:null}
+    }
+  },
+
+  /* ── ここからミルド近郊の5ダンジョン ───────────────────── */
+  forest:{
+    id:'forest',name:'霧の森',rows:[1,2],cols:5,start:0,
+    intro:'霧の森。視界が悪く、足元の罠に気づきにくい。',
+    nodes:{
+      0:{c:0,r:2,t:'entry',s:'cave',l:'森の入口',n:1},
+      1:{c:1,r:2,t:'mon',e:'wisp',s:'slime',n:2},
+      2:{c:2,r:2,t:'trap',s:'trap',need:3,l:'霧のぬかるみ',n:3},
+      3:{c:3,r:2,t:'plain',n:4},
+      4:{c:3,r:1,t:'mon',e:'wolf',s:'goblin',n:5},
+      5:{c:4,r:1,t:'goal',s:'chest',item:'月光きのこ',l:'群生地',n:null}
+    }
+  },
+  well:{
+    id:'well',name:'涸れ井戸',rows:[0,2],cols:4,start:0,
+    intro:'涸れ井戸の底へ降りる。縄は朽ちかけている。',
+    nodes:{
+      0:{c:0,r:2,t:'entry',s:'cave',l:'井戸口',n:1},
+      1:{c:1,r:2,t:'plain',n:2},
+      2:{c:2,r:2,t:'trap',s:'trap',need:4,l:'朽ちた縄',n:3},
+      3:{c:2,r:1,t:'mon',e:'goblin',s:'goblin',n:4},
+      4:{c:2,r:0,t:'chest',s:'chest',item:'薬草',l:'落とし物',n:5},
+      5:{c:3,r:0,t:'goal',s:'chest',item:'井戸の魔石',l:'魔石',n:null}
+    }
+  },
+  fort:{
+    id:'fort',name:'崩れた砦',rows:[1,2],cols:6,start:0,
+    intro:'崩れた砦。ならず者が住み着いている ── 頭を討てば依頼は終わる。',
+    nodes:{
+      0:{c:0,r:2,t:'entry',s:'cave',l:'砦門',n:1},
+      1:{c:1,r:2,t:'mon',e:'goblin',s:'goblin',n:2},
+      2:{c:2,r:2,t:'plain',n:3},
+      3:{c:3,r:2,t:'trap',s:'trap',need:4,l:'仕掛け弓',n:4},
+      4:{c:4,r:2,t:'mon',e:'wolf',s:'goblin',n:5},
+      5:{c:4,r:1,t:'plain',n:6},
+      6:{c:5,r:1,t:'boss',e:'bandit',s:'ogre',l:'頭の間',n:null}
+    }
+  },
+  salt:{
+    id:'salt',name:'塩の洞',rows:[1,2],cols:5,start:0,
+    intro:'塩の洞。柱がもろく、崩落しやすい。',
+    nodes:{
+      0:{c:0,r:2,t:'entry',s:'cave',l:'洞口',n:1},
+      1:{c:1,r:2,t:'trap',s:'trap',need:3,l:'塩柱の崩落',n:2},
+      2:{c:2,r:2,t:'mon',e:'wisp',s:'slime',n:3},
+      3:{c:3,r:2,t:'plain',n:4},
+      4:{c:3,r:1,t:'mon',e:'wolf',s:'goblin',n:5},
+      5:{c:4,r:1,t:'goal',s:'chest',item:'塩の結晶',l:'結晶',n:null}
+    }
+  },
+  /* 灯台跡：ミルド側にも隠し通路を1つ（合図は3） */
+  light:{
+    id:'light',name:'灯台跡',rows:[0,2],cols:6,start:0,
+    intro:'灯台跡。最上部の火を灯すのが依頼だが、守り手が居座っている。',
+    hiddenAt:2, hiddenNum:3, branchStart:20, skips:[3,4],
+    nodes:{
+      0 :{c:0,r:2,t:'entry',s:'cave',l:'灯台の入口',n:1},
+      1 :{c:1,r:2,t:'mon',e:'wolf',s:'goblin',n:2},
+      2 :{c:2,r:2,t:'hidden',n:3},
+      3 :{c:3,r:2,t:'trap',s:'trap',need:4,l:'崩れた階段',n:4},
+      4 :{c:4,r:2,t:'plain',n:5},
+      5 :{c:4,r:1,t:'mon',e:'wisp',s:'slime',n:6},
+      6 :{c:4,r:0,t:'boss',e:'keeper',s:'boss',l:'灯室',n:null},
+      20:{c:2,r:1,t:'plain',n:21},
+      21:{c:3,r:1,t:'chest',s:'chest',item:'ロープ',l:'物置',n:5}
+    }
+  }
+};
+
+/* 街：それぞれ自分の街道と依頼リストを持つ。移動依頼で拠点が入れ替わる */
+const TOWNS={
+  raze:{name:'ラーゼの街', field:'world', quests:['cave','mine','lake','toMild'],
+        rumor:'「風穴の洞窟にゃ抜け道があるらしい。松明が無きゃ気づけんがな」\n「街道の泉のそばに宝箱があるとか」'},
+  mild:{name:'ミルドの街', field:'world', quests:['forest','well','fort','salt','light','toRaze'],
+        rumor:'「灯台跡にも抜け道があるって話だ。合図の数は洞窟とは違うらしい」\n「砦の頭は乱れ斬りを使う。仲間の体力が要る」'}
+};
+
+/* ギルドの依頼：受注した依頼が街道の行き先とダンジョンを決める。
+   dest は街道の分岐キー、board は目的地のボード。
+   moveTo を持つ依頼は「移動依頼」で、門をくぐると拠点の街が変わる（何度でも受注可）。 */
+const QUESTS={
+  /* ラーゼの街 */
+  cave  :{town:'raze',dest:'cave', short:'洞窟の主 討伐', title:'風穴の洞窟の主を討伐せよ',   gate:'風穴の洞窟', board:'cave'},
+  mine  :{town:'raze',dest:'mine', short:'鉄鉱石の回収',   title:'東の廃坑から鉄鉱石を回収せよ', gate:'東の廃坑',   board:'mine'},
+  lake  :{town:'raze',dest:'lake', short:'薬草の採取',     title:'北の湖畔で薬草を採取せよ',     gate:'北の湖畔',   board:'lake'},
+  toMild:{town:'raze',dest:'mild', short:'ミルドへ隊商護衛',title:'隊商をミルドの街まで護衛せよ', gate:'ミルドの街', moveTo:'mild',repeat:true},
+  /* ミルドの街 */
+  forest:{town:'mild',dest:'forest',short:'月光きのこ採取',title:'霧の森で月光きのこを採ってこい', gate:'霧の森',    board:'forest'},
+  well  :{town:'mild',dest:'well',  short:'井戸の魔石回収',title:'涸れ井戸の底から魔石を回収せよ', gate:'涸れ井戸',  board:'well'},
+  fort  :{town:'mild',dest:'fort',  short:'ならず者討伐',  title:'崩れた砦のならず者の頭を討て',   gate:'崩れた砦',  board:'fort'},
+  salt  :{town:'mild',dest:'salt',  short:'塩の結晶採掘',  title:'塩の洞から結晶を掘り出せ',       gate:'塩の洞',    board:'salt'},
+  light :{town:'mild',dest:'light', short:'灯台の守り手',  title:'灯台跡の守り手を鎮め、火を灯せ', gate:'灯台跡',    board:'light'},
+  toRaze:{town:'mild',dest:'raze',  short:'ラーゼへ薬を運ぶ',title:'ラーゼの街へ薬を届けよ',       gate:'ラーゼの街',moveTo:'raze',repeat:true}
+};
+/* 今いる街で受けられる依頼（移動依頼は何度でも受けられる） */
+function openQuests(){
+  return TOWNS[S.town].quests.filter(k=>QUESTS[k].repeat||!S.doneQuests.includes(k));
+}
+function allQuestsDone(){
+  return Object.keys(QUESTS).filter(k=>!QUESTS[k].repeat).every(k=>S.doneQuests.includes(k));
+}
+
+/* ══════════════════════════════════════════════════════════
+   状態
+   ══════════════════════════════════════════════════════════ */
+const S={
+  scene:'title', mode:'none',
+  hp:30, maxHp:30,
+  items:{}, party:[], bonus:0, town:'raze', quest:null, doneQuests:[], dest:'none',
+  gold:30, lv:1, exp:0, taken:{},        /* taken＝回収済みの宝箱（世界に1回だけ） */
+  flags:{}, townSlots:[],
+  drawer:null, drawerNote:'', toast:'', combat:null,
+  auto:false, autoSpeed:1,
+  deckPlan:{1:1,2:1,3:1,4:1,5:1,6:1,dice:14},
+  deck:[],hand:[],discard:[],
+  board:null,node:0,branch:false,cleared:{},
+  opts:[],hint:'',need:0,needExact:false,cardWait:false,awaitMsg:false,
+  paramWork:null, enemy:null, enemyMax:0, enemyHit:false,
+  freshNodes:[]
+};
+const OWNED={num:4,dice:20};
+let uid=0, resolveNext=null, resolveCard=null, busy=false;
+
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rnd=n=>Math.floor(Math.random()*n);
+
+/* ── デッキ操作 ─────────────────────────────────────────── */
+function buildDeck(){
+  const d=[];
+  for(let v=1;v<=6;v++) for(let i=0;i<S.deckPlan[v];i++) d.push({id:++uid,v});
+  for(let i=0;i<S.deckPlan.dice;i++) d.push({id:++uid,v:0});
+  S.deck=shuffle(d); S.hand=[]; S.discard=[]; drawHand();
+}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+/* 手札は0枚になったときだけ、まとめて6枚ドローする（山札が尽きたら捨札をシャッフル） */
+function drawHand(){
+  let reshuffled=false;
+  while(S.hand.length<6){
+    if(!S.deck.length){
+      if(!S.discard.length) break;
+      S.deck=shuffle(S.discard); S.discard=[]; reshuffled=true;
+    }
+    S.hand.push(S.deck.pop());
+  }
+  return reshuffled;
+}
+function deckTotal(){let t=S.deckPlan.dice;for(let v=1;v<=6;v++)t+=S.deckPlan[v];return t;}
+
+/* ── メッセージ / 入力待ち ──────────────────────────────── */
+function say(t){ $('msg').innerHTML=t; }
+/* メッセージ送り：画面のどこをクリックしても進む（Space / Enter でも進む） */
+function waitNext(label){
+  const w=$('msgwin');
+  const b=document.createElement('button');
+  b.className='next'; b.textContent='▼'; b.setAttribute('aria-label',label||'つづける（画面クリックで進む）');
+  w.appendChild(b);
+  document.body.classList.add('awaitNext');
+  S.awaitMsg=true; renderRail();       // 手札を「選べない」表示に切り替える
+  return new Promise(res=>{
+    let fired=false;
+    const finish=()=>{
+      if(fired) return; fired=true;
+      document.removeEventListener('pointerdown',onClick,true);
+      document.removeEventListener('keydown',onKey,true);
+      document.body.classList.remove('awaitNext');
+      S.awaitMsg=false; renderRail();
+      b.remove(); resolveNext=null; res();
+    };
+    const onClick=e=>{
+      // ▼以外のボタン・リンクは本来の動作を優先（メッセージ送りにしない）
+      const t=e.target.closest&&e.target.closest('button,a');
+      if(t && !t.classList.contains('next')) return;
+      finish();
+    };
+    const onKey=e=>{
+      if(e.key===' '||e.key==='Enter'||e.key==='z'){ e.preventDefault(); finish(); }
+    };
+    resolveNext=finish;
+    document.addEventListener('pointerdown',onClick,true);
+    document.addEventListener('keydown',onKey,true);
+  });
+}
+function waitCard(){ return new Promise(res=>{ resolveCard=res; }); }
+
+/* ══════════════════════════════════════════════════════════
+   オートモード（デバッグ用）
+   待機を挟みながら、メッセージ送りと手札のランダム選択を自動で行う。
+   入力待ちを監視して代わりに押すだけなので、ゲーム側の処理には手を入れない。
+   ══════════════════════════════════════════════════════════ */
+const AUTO_SPEEDS=[{l:'ゆっくり',ms:900},{l:'ふつう',ms:450},{l:'はやい',ms:180},{l:'爆速',ms:60}];
+function toggleAuto(){ S.auto=!S.auto; render(); if(S.auto) autoLoop(); }
+function cycleAutoSpeed(){ S.autoSpeed=(S.autoSpeed+1)%AUTO_SPEEDS.length; render(); }
+async function autoLoop(){
+  if(S._autoRunning) return;
+  S._autoRunning=true;
+  while(S.auto){
+    const wait=AUTO_SPEEDS[S.autoSpeed].ms;
+    await sleep(wait);
+    if(!S.auto) break;
+    if(S.drawer){ closeDrawer(); continue; }              // 開いた窓は閉じる
+    if(busy) continue;                                     // 演出中は待つ
+    if(S.cardWait && S.hand.length){                       // 手札をランダムに1枚切る
+      await playCard(rnd(S.hand.length));
+      continue;
+    }
+    if(resolveNext){ resolveNext(); continue; }            // メッセージを送る
+    if(S.scene==='title'){ startGame(); continue; }        // タイトルなら開始
+    if(S.scene==='clear'||S.scene==='over'){ restart(); continue; }
+  }
+  S._autoRunning=false;
+  render();
+}
+document.addEventListener('keydown',e=>{        // A キーでも切り替え
+  if(e.key==='a'||e.key==='A'){ const t=e.target; if(t&&t.tagName==='INPUT') return; toggleAuto(); }
+});
+
+async function choose(prompt,labels,hint){
+  S.mode='choice'; S.opts=labels; S.hint=hint||'手札を1枚切って、その数字の選択肢を選ぶ';
+  S.cardWait=true; say(prompt); render();
+  const {v}=await waitCard();
+  S.cardWait=false; S.mode='none'; S.opts=[]; render();
+  return v;
+}
+async function check(prompt,need,exact){
+  S.mode='check'; S.need=need; S.needExact=!!exact; S.opts=[]; S.hint='';
+  S.cardWait=true; say(prompt); render();
+  const {v}=await waitCard();
+  S.cardWait=false; S.mode='none';
+  let eff=v;
+  if(S.bonus){ eff=v+S.bonus; S.lastBonus=S.bonus; S.bonus=0; } else S.lastBonus=0;
+  render();
+  return eff;
+}
+async function moveTurn(prompt){
+  S.mode='move'; S.opts=[]; S.hint='';
+  S.cardWait=true; say(prompt); render();
+  const {v}=await waitCard();
+  S.cardWait=false; S.mode='none'; render();
+  return v;
+}
+
+/* ── カードを切る ───────────────────────────────────────── */
+async function playCard(i){
+  if(!resolveCard||busy) return;
+  const card=S.hand[i];
+  if(!card) return;
+  busy=true; S.cardWait=false;
+  S.hand.splice(i,1);
+  S.discard.push(card);
+  render();
+  let v=card.v;
+  if(v===0){
+    const base=$('msg').innerHTML;
+    for(let k=0;k<7;k++){ say(base+'\n<span class="roll">サイコロ … '+(1+rnd(6))+'</span>'); await sleep(70); }
+    v=1+rnd(6);
+    say(base+'\n<span class="roll">サイコロ … '+v+' ！</span>');
+    await sleep(420);
+  }
+  /* 通常は1枚使ったら1枚ドロー。山札が尽きたら補充されず手札が減り、
+     0枚になった時だけ捨札をシャッフルして6枚ドローする。＝1周ちょうど20手 */
+  let note='';
+  if(S.deck.length>0){
+    S.hand.push(S.deck.pop());       // 右端に補充（残りは左へ詰まる）
+  }else if(S.hand.length===0){
+    drawHand();
+    note='手札を使い切った。捨札をシャッフルして山札に戻し、6枚ドローした。';
+  }
+  render();
+  if(note){ say(note); await sleep(820); }
+  busy=false;
+  const r=resolveCard; resolveCard=null; r({card,v});
+}
+
+/* ══════════════════════════════════════════════════════════
+   描画
+   ══════════════════════════════════════════════════════════ */
+function render(){ renderHud(); renderStage(); renderOpts(); renderMenu(); renderDrawer(); renderRail(); renderAuto(); }
+
+/* デバッグ用オートモードのつまみ */
+function renderAuto(){
+  const b=$('autoBox'); if(!b) return;
+  b.innerHTML='<span class="albl">DEBUG</span>'+
+    '<button class="btn sm'+(S.auto?' gold':'')+'" onclick="toggleAuto()">'+
+      (S.auto?'■ オート停止':'▶ オート再生')+'</button>'+
+    '<button class="btn sm" onclick="cycleAutoSpeed()">速度：'+AUTO_SPEEDS[S.autoSpeed].l+'</button>'+
+    '<span class="ahint">A キーでも切替</span>';
+}
+
+/* ── 手札とは別のメニュー（カードを消費しない行動） ───────── */
+function toggleDrawer(k){ S.drawer=S.drawer===k?null:k; S.drawerNote=''; render(); }
+function closeDrawer(){ if(!S.drawer) return; S.drawer=null; S.drawerNote=''; render(); }
+/* Esc でも閉じられるようにする（メッセージ送りのキーとは干渉しない） */
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeDrawer(); });
+/* 引き出しの外をクリックしたら閉じる。
+   引き出しの中（アイテムを使う等）とメニューのボタンは対象外。
+   閉じるためのクリックはそこで消費し、メッセージ送りには渡さない
+   （このリスナは読み込み時に登録されるので、waitNext のものより先に走る） */
+document.addEventListener('pointerdown',e=>{
+  if(!S.drawer) return;
+  const t=e.target;
+  if(t.closest && (t.closest('#drawer')||t.closest('#menubar'))) return;
+  closeDrawer();
+  e.stopImmediatePropagation();
+  e.preventDefault();
+},true);
+function renderMenu(){
+  if(S.scene==='title'||S.scene==='deck'){ $('menubar').innerHTML=''; return; }
+  const items=Object.keys(S.items).length;
+  const usable=Object.keys(S.items).filter(k=>ITEMS[k]&&ITEMS[k].use).length;
+  $('menubar').innerHTML=
+    '<span class="mlbl">メニュー</span>'+
+    '<button class="btn sm'+(S.drawer==='item'?' on':'')+'" onclick="toggleDrawer(\'item\')">'+
+      (S.drawer==='item'?'✕ ':'')+'アイテムを使う'+(usable?' <b>'+usable+'</b>':'')+'</button>'+
+    '<button class="btn sm'+(S.drawer==='status'?' on':'')+'" onclick="toggleDrawer(\'status\')">'+
+      (S.drawer==='status'?'✕ ':'')+'ステータス</button>'+
+    '<button class="btn sm'+(S.drawer==='deck'?' on':'')+'" onclick="toggleDrawer(\'deck\')">'+
+      (S.drawer==='deck'?'✕ ':'')+'デッキ内容</button>'+
+    (S.bonus?'<span class="mnote">次の判定 +'+S.bonus+'</span>':'')+
+    (S.toast?'<span class="mtoast">'+S.toast+'</span>':
+      '<span class="mnote dim">'+(items?'':'アイテムなし ── 道具屋か宝箱で入手')+'</span>');
+}
+function renderDrawer(){
+  const d=$('drawer');
+  if(!S.drawer||S.scene==='title'||S.scene==='deck'){ d.innerHTML=''; return; }
+  let body='';
+  if(S.drawer==='item'){
+    const keys=Object.keys(S.items);
+    body=keys.length
+      ? '<ul class="ilist">'+keys.map(k=>{
+          const it=ITEMS[k]||{desc:''};
+          return '<li>'+spr(it.icon||'chest',22)+
+            '<div><b>'+k+'</b>'+(S.items[k]>1?' ×'+S.items[k]:'')+
+            '<div class="idesc">'+it.desc+'</div></div>'+
+            (it.use?'<button class="btn sm gold" onclick="useItem(\''+k+'\')">使う</button>'
+                   :'<span class="ipass">常時効果</span>')+'</li>';
+        }).join('')+'</ul>'
+      : '<p class="hint">アイテムを持っていない。道具屋で買うか、宝箱で手に入れる。</p>';
+  }else if(S.drawer==='status'){
+    body='<p class="hint" style="margin:0 0 8px">LV '+S.lv+'　次のレベルまで '+(needExp(S.lv)-S.exp)+
+      '　／　所持金 '+S.gold+'G　（レベルが上がると主人公は最大HP+4・力+1、仲間は最大HP+3・力+1）</p>'+
+      '<div class="scols"><div><b>シド（主人公）</b> <span class="hpn">HP '+Math.max(0,S.hp)+'/'+S.maxHp+
+      '　力'+heroPow()+'</span>'+paramMini(PARAMS.map(()=>6))+'</div>'+
+      (S.party.length?S.party.map(p=>'<div><b>'+p.name+'</b> <span class="hpn">HP '+Math.max(0,p.hp)+'/'+p.maxHp+
+        '　合計'+allySum(p)+'（主人公120）'+(p.hp<=0?' ── 戦闘不能':'')+'</span>'+paramMini(p.vals)+'</div>').join(''):
+       '<div class="hint">仲間はまだいない。ギルドの「仲間を募集する」から。</div>')+'</div>';
+  }else{
+    const cnt={}; [...S.deck,...S.hand,...S.discard].forEach(c=>{cnt[c.v]=(cnt[c.v]||0)+1;});
+    body='<p class="hint">デッキ全'+(S.deck.length+S.hand.length+S.discard.length)+'枚の内訳： '+
+      [1,2,3,4,5,6].map(v=>v+'が'+(cnt[v]||0)+'枚').join(' / ')+' / サイコロ'+(cnt[0]||0)+'枚'+
+      '<br>山札'+S.deck.length+'・手札'+S.hand.length+'・捨札'+S.discard.length+'</p>';
+  }
+  const TITLE={item:'アイテムを使う',status:'ステータス',deck:'デッキ内容'};
+  d.innerHTML='<div class="drawer">'+
+    '<div class="dhead"><span>'+TITLE[S.drawer]+'</span>'+
+      '<button class="btn sm" onclick="closeDrawer()" aria-label="閉じる">閉じる ✕</button></div>'+
+    body+(S.drawerNote?'<p class="dnote">'+S.drawerNote+'</p>':'')+
+    '<p class="dhint">この枠の外をクリック、Esc キー、または上の同じボタンで閉じます</p></div>';
+}
+function paramMini(vals){
+  return '<div class="pmini">'+PARAMS.map((p,i)=>'<span>'+p+'<i>'+(vals[i]==null?'–':vals[i])+'</i></span>').join('')+'</div>';
+}
+
+function renderHud(){
+  if(S.scene==='title'||S.scene==='deck'){ $('hud').innerHTML=
+    '<div class="chip"><span class="lbl">MODE</span><span class="num">SETUP</span></div>'+
+    '<div class="where">世界は固定・ランダムは手札の引きのみ</div>'; return; }
+  const hpChip=(label,hp,mx,dead)=>{
+    const pct=Math.max(0,hp)/mx*100;
+    return '<div class="chip'+(dead?' downed':'')+'"><span class="lbl">'+label+'</span>'+
+      '<div class="hpbar'+(pct<34?' low':'')+'"><i style="width:'+pct+'%"></i></div>'+
+      '<span class="num">'+Math.max(0,hp)+'/'+mx+'</span></div>';
+  };
+  $('hud').innerHTML=
+    '<div class="chip"><span class="lbl">LV</span><span class="num">'+S.lv+'</span>'+
+      '<div class="xpbar" title="次のレベルまで '+(needExp(S.lv)-S.exp)+'">'+
+        '<i style="width:'+Math.min(100,S.exp/needExp(S.lv)*100)+'%"></i></div></div>'+
+    '<div class="chip"><span class="lbl">所持金</span><span class="num gold">'+S.gold+'G</span></div>'+
+    hpChip('シド',S.hp,S.maxHp,S.hp<=0)+
+    S.party.map(p=>hpChip(p.name,p.hp,p.maxHp,p.hp<=0)).join('')+
+    '<div class="chip"><span class="lbl">アイテム</span><span>'+
+      (Object.keys(S.items).length?Object.keys(S.items).map(k=>k+(S.items[k]>1?'×'+S.items[k]:'')).join('・'):'なし')+
+      '</span></div>'+
+    '<div class="chip"><span class="lbl">依頼</span><span style="color:'+(S.quest?'var(--moss)':'var(--ink-dim)')+'">'+
+      (S.quest?QUESTS[S.quest].short+' 受注中':'未受注')+
+      '<span style="color:#6f7292"> / 達成'+S.doneQuests.length+'・'+
+        Object.keys(QUESTS).filter(k=>!QUESTS[k].repeat).length+'</span></span></div>'+
+    '<div class="where">'+(S.board?S.board.name:TOWNS[S.town].name)+'</div>';
+}
+
+/* いま確定しているルート（出発点から目的地まで順に並んだマス列）。
+   地上は ROUTES から「街×目的地」で引く固定ルート。
+   ダンジョンは n / nx をたどる（隠し通路が解放されると経路が差し替わる）。 */
+function routeIds(){
+  const b=S.board;
+  if(b.routes){
+    const r=b.routes[S.town+'>'+S.dest]||b.routes[S.town+'>none'];
+    return r?r.slice():[b.start];
+  }
+  const out=[]; let id=b.start, guard=0;
+  while(id!=null && guard++<200 && out.indexOf(id)<0){ out.push(id); id=nextOf(id); }
+  return out;
+}
+/* 次のマス。地上は固定ルート上の次、ダンジョンは nx（行き先）と隠し通路で決まる */
+function nextOf(id){
+  const b=S.board, n=b&&b.nodes[id];
+  if(!n) return null;
+  if(b.routes){ const r=routeIds(), i=r.indexOf(id); return (i>=0&&i+1<r.length)?r[i+1]:null; }
+  if(S.branch && b.branchStart!=null && id===b.hiddenAt) return b.branchStart;
+  if(n.nx) return (n.nx[S.dest]!=null)?n.nx[S.dest]:n.nx.none;
+  return (n.n!=null)?n.n:null;
+}
+function activeIds(){ return routeIds(); }
+
+function renderStage(){
+  const st=$('stage');
+  if(S.scene==='board'){ st.innerHTML=boardHtml(); return; }
+  if(S.scene==='battle'&&S.combat){
+    const c=S.combat, e=c.units.find(u=>u.kind==='enemy'), act=c.units[c.idx];
+    st.innerHTML='<div class="battle">'+
+      '<div class="turnbar">'+c.units.map((u,i)=>
+        '<span class="tu'+(i===c.idx?' now':'')+(alive(u)?'':' out')+'">'+u.name+'<i>'+u.spd+'</i></span>'
+      ).join('<b>›</b>')+'</div>'+
+      '<div class="enemyBox'+(S.enemyHit?' hit':'')+'">'+
+        spr(e.sprite,104)+'<div class="nm">'+e.name+
+        (e.skill?'<span class="sk">'+e.skill.name+'</span>':'')+'</div>'+
+        '<div class="ehp"><i style="width:'+Math.max(0,e.hp)/e.maxHp*100+'%"></i></div>'+
+        '<div class="ehn">'+Math.max(0,e.hp)+' / '+e.maxHp+'</div></div>'+
+      '<div class="party">'+c.units.filter(u=>u.kind!=='enemy').map(u=>{
+        const hp=hpOf(u), mx=maxOf(u), pct=Math.max(0,hp)/mx*100;
+        return '<div class="pu'+(u===act?' now':'')+(hp>0?'':' out')+'">'+spr(u.sprite,40)+
+          '<div class="nm">'+u.name+'</div>'+
+          '<div class="phb'+(pct<34?' low':'')+'"><i style="width:'+pct+'%"></i></div>'+
+          '<div class="hpn">'+Math.max(0,hp)+'/'+mx+'</div></div>';
+      }).join('')+'</div></div>';
+    return;
+  }
+  if(S.scene==='town'){
+    st.innerHTML='<div class="sceneArt">'+spr('town',120)+
+      '<div class="cap">'+TOWNS[S.town].name+'</div>'+
+      '<div style="display:flex;gap:16px;align-items:flex-end">'+spr('hero',56)+
+      S.party.map(()=>spr('ally',48)).join('')+'</div></div>';
+    return;
+  }
+  if(S.scene==='hero'){
+    st.innerHTML='<div class="panel"><h2>主人公 ── 全パラメータ 6 固定</h2>'+
+      paramGridHtml(PARAMS.map(()=>6),-1)+
+      '<p class="hint" style="margin-top:10px">主人公は全て6。仲間は「手札の数字＋3」で 4〜9 に散る ── 個体差は手札の引きが作る。</p></div>';
+    return;
+  }
+  if(S.scene==='recruit'){
+    const w=S.paramWork;
+    st.innerHTML='<div class="panel"><h2>仲間を募集 ── '+(w.i+1)+' / 20</h2>'+
+      paramGridHtml(w.vals,w.i)+'</div>';
+    return;
+  }
+  if(S.scene==='deck'){ st.innerHTML=deckEdHtml(); return; }
+  if(S.scene==='clear'||S.scene==='over'){
+    const win=S.scene==='clear';
+    st.innerHTML='<div class="panel" style="text-align:center">'+
+      spr(win?'chest':'trap',96)+
+      '<h2 style="margin-top:10px">'+(win?'洞窟の主を倒した！':'力尽きた…')+'</h2>'+
+      '<p class="hint">'+(win?'手札のやりくりで最深部まで到達。':'HPが0になった。街から再挑戦できる。')+'</p>'+
+      '<div class="row" style="justify-content:center;margin-top:12px">'+
+      '<button class="btn gold" onclick="restart()">街から再挑戦</button>'+
+      '<button class="btn" onclick="toTitle()">デッキを組み直す</button></div></div>';
+    return;
+  }
+  /* title */
+  st.innerHTML='<div class="panel" style="text-align:center">'+
+    '<div style="display:flex;justify-content:center;gap:18px;align-items:flex-end;margin-bottom:6px">'+
+      spr('hero',72)+spr('goblin',60)+spr('chest',56)+spr('boss',72)+'</div>'+
+    '<h2>サイコロで決めない、サイコロを手札で持つRPG</h2>'+
+    '<p class="hint" style="max-width:52ch;margin:0 auto">次の行動は常に6択。手札の数字がそのまま「何番を選ぶか」「何マス進むか」になる。'+
+    '思い通りに動きたければ数字カードを、運に任せるならサイコロカードを切る。</p>'+
+    '<div class="row" style="justify-content:center;margin-top:14px">'+
+    '<button class="btn gold" onclick="startGame()">冒険をはじめる</button>'+
+    '<button class="btn" onclick="S.scene=\'deck\';render()">デッキを編成する（20枚）</button></div></div>';
+}
+
+function paramGridHtml(vals,cur){
+  return '<div class="paramGrid">'+PARAMS.map((p,i)=>{
+    const done=vals[i]!=null;
+    return '<div class="p'+(done?'':' pending')+(i===cur?' now':'')+'"><span>'+p+'</span><b>'+(done?vals[i]:'–')+'</b></div>';
+  }).join('')+'</div>';
+}
+
+/* 通り過ぎた（＝自分より後ろの）マスは空白になる。地形そのものは残す */
+const LANDMARK=['town','gate','entry','fork'];
+function boardHtml(){
+  const b=S.board, cell=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell'))||54;
+  const tile=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tile'))||44;
+  const route=routeIds(), here=route.indexOf(S.node);
+  // 今回通るルートだけを描く。盤面はそのルートの外接矩形に合わせて詰める
+  const cs=route.map(id=>b.nodes[id].c), rs=route.map(id=>b.nodes[id].r);
+  const minC=Math.min(...cs), maxC=Math.max(...cs);
+  const minR=Math.min(...rs), maxR=Math.max(...rs);
+  const W=(maxC-minC+1)*cell, H=(maxR-minR+1)*cell+22;
+  const pos=id=>({x:(b.nodes[id].c-minC)*cell,y:(b.nodes[id].r-minR)*cell});
+  const linkHtml=(a,c)=> a.y===c.y
+    ? '<div class="link on" style="left:'+(Math.min(a.x,c.x)+tile)+'px;top:'+(a.y+tile/2-3)+'px;width:'+(cell-tile)+'px;height:6px"></div>'
+    : '<div class="link on" style="left:'+(a.x+tile/2-3)+'px;top:'+(Math.min(a.y,c.y)+tile)+'px;width:6px;height:'+(cell-tile)+'px"></div>';
+  let h='';
+  route.forEach(id=>{ const t=nextOf(id); if(t!=null&&route.indexOf(t)>=0) h+=linkHtml(pos(id),pos(t)); });
+  route.forEach((id,ri)=>{
+    const n=b.nodes[id], p=pos(id);
+    const passed=here>=0 && ri<=here;               // 自分より後ろ＝空白マス
+    const land=LANDMARK.includes(n.t);
+    const empty=n.t==='chest' && S.taken[b.id+':'+id];   // 回収済みの宝箱は空マス
+    const cls='tileNode'+((passed||empty)&&!land?' spent':'')+
+              (id===S.node?' here':'')+(S.freshNodes.includes(id)?' fresh':'');
+    const showSprite=n.s && n.t!=='hidden' && !empty && (land || !passed);
+    h+='<div class="'+cls+'" style="left:'+p.x+'px;top:'+p.y+'px">'+
+       (showSprite?spr(n.s,Math.round(tile*0.72)):'')+
+       (n.l&&!empty&&(land||!passed)?'<span class="tl">'+n.l+'</span>':'')+'</div>';
+  });
+  const pp=pos(S.node);
+  h+='<div class="avatar" style="left:'+pp.x+'px;top:'+(pp.y-10)+'px"><div class="bob">'+spr('hero',Math.round(tile*0.8))+'</div></div>';
+  return '<div class="board" style="width:'+W+'px;height:'+H+'px">'+h+'</div>';
+}
+
+function deckEdHtml(){
+  const t=deckTotal();
+  let h='<div class="panel"><h2>デッキ編成 ── 所持カードから20枚</h2>'+
+    '<p class="hint">数字カードは各'+OWNED.num+'枚まで、サイコロは'+OWNED.dice+'枚まで所持。ちょうど20枚で確定。</p><div class="deckEd">';
+  for(let v=1;v<=6;v++){
+    h+='<div class="ce"><div class="t">数字カード</div>'+cardFace({v},true)+
+       '<div class="c">'+S.deckPlan[v]+' / '+OWNED.num+'</div>'+
+       '<div class="row"><button class="btn sm" onclick="ded('+v+',-1)">−</button>'+
+       '<button class="btn sm" onclick="ded('+v+',1)">＋</button></div></div>';
+  }
+  h+='<div class="ce"><div class="t">サイコロ</div>'+cardFace({v:0},true)+
+     '<div class="c">'+S.deckPlan.dice+' / '+OWNED.dice+'</div>'+
+     '<div class="row"><button class="btn sm" onclick="ded(0,-1)">−</button>'+
+     '<button class="btn sm" onclick="ded(0,1)">＋</button></div></div></div>'+
+   '<div class="row"><span class="total '+(t===20?'ok':'bad')+'">TOTAL '+t+' / 20</span>'+
+   '<button class="btn sm" onclick="resetPlan()">初期デッキに戻す</button>'+
+   '<button class="btn gold" '+(t===20?'':'disabled')+' onclick="startGame()">この20枚で冒険する</button>'+
+   '<button class="btn" onclick="toTitle()">戻る</button></div></div>';
+  return h;
+}
+function ded(v,d){
+  const key=v===0?'dice':v, max=v===0?OWNED.dice:OWNED.num;
+  const nv=S.deckPlan[key]+d;
+  if(nv<0||nv>max) return;
+  S.deckPlan[key]=nv; render();
+}
+function resetPlan(){ S.deckPlan={1:1,2:1,3:1,4:1,5:1,6:1,dice:14}; render(); }
+
+function dieArt(){ return '<span class="dieArt">'+spr('die',34)+'</span>'; }
+function cardFace(c){
+  if(c.v===0) return '<div class="card dice" style="cursor:default">'+dieArt()+'<span class="k">サイコロ</span></div>';
+  return '<div class="card" style="cursor:default"><span class="v">'+c.v+'</span><span class="k">かず</span></div>';
+}
+
+function renderOpts(){
+  const a=$('optArea');
+  if(S.mode==='choice'){
+    a.innerHTML='<div class="opts">'+S.opts.map((l,i)=>
+      '<div class="opt" data-n="'+(i+1)+'"><span class="n">'+(i+1)+'</span><span>'+l+'</span></div>').join('')+
+      '</div><p class="hint" style="margin:6px 0 0">'+S.hint+'</p>';
+  }else if(S.mode==='check'){
+    a.innerHTML=S.needExact
+      ? '<p class="hint">合図は<b>ちょうど'+S.need+'</b>。それ以外を切った場合は、その出目のぶん正規ルートを進むだけ ── 手番は損しない。</p>'
+      : '<p class="hint">判定：<b>'+S.need+'以上</b>のカードを切れば成功。低い数字を切れば失敗する。'+
+        (S.bonus?'（ロープ +'+S.bonus+'）':'')+'</p>';
+  }else if(S.mode==='move'){
+    a.innerHTML='<p class="hint">手札の数字だけ進む。<b>止まったマスのイベントが発生</b>する ── 大きい数字が得とは限らない。</p>';
+  }else if(S.mode==='param'){
+    a.innerHTML='<p class="hint">切った数字<b>＋3</b>がこのパラメータになる（4〜9）。'+
+      '<button class="btn sm" style="margin-left:8px" onclick="autoRest()">残り19個をまとめて決める（モック用）</button></p>';
+  }else a.innerHTML='';
+}
+
+const RAIL_LABEL={
+  choice:['手札を1枚切って選択','切った数字の番号がそのまま選択肢になる'],
+  check :['手札を1枚切って判定','出た数字で成否が決まる'],
+  move  :['手札を1枚切って進む','出た数字ぶん進む'],
+  param :['手札を1枚切って能力を決める','数字＋3がこのパラメータになる'],
+  none  :['手札を1枚切る','']
+};
+function renderRail(){
+  // ウィンドウ（引き出し）を開いている間は手札を選べない
+  const active=S.cardWait && !busy && !S.drawer;
+  // いまの入力モードを手札の上に明示する
+  const rail=$('rail');
+  if(rail){
+    rail.classList.toggle('armed',active);
+    let main,sub;
+    if(S.auto){ main='▶▶ オート再生中'; sub='速度 '+AUTO_SPEEDS[S.autoSpeed].l+' ── 自動でメッセージ送り＋手札をランダム選択（A キーで停止）'; }
+    else if(active){ const L=RAIL_LABEL[S.mode]||RAIL_LABEL.none; main='▶ '+L[0]; sub=L[1]; }
+    else if(S.drawer){ main='■ ウィンドウを開いています'; sub='枠の外をクリック / Esc で閉じると手札を選べます'; }
+    else if(busy){ main='… 処理中'; sub=''; }
+    else if(S.awaitMsg){ main='<span class="dot">▼</span> メッセージ送り中'; sub='画面のどこかをクリック（Space / Enter でも可）── 手札は選べません'; }
+    else if(S.scene==='title'||S.scene==='deck'){ main='デッキ編成中'; sub='20枚そろえて冒険を始める'; }
+    else { main='待機中'; sub='手札は選べません'; }
+    $('railHead').innerHTML=main+(sub?'<span class="sub">'+sub+'</span>':'');
+  }
+  const dry=S.deck.length===0 && S.hand.length>0;
+  $('piles').innerHTML='<div>山札 <b'+(dry?' style="color:var(--blood)"':'')+'>'+S.deck.length+'</b></div>'+
+    '<div>捨札 <b>'+S.discard.length+'</b></div>'+
+    '<div>手札 <b>'+S.hand.length+'</b>/6</div>'+
+    (dry?'<div style="color:var(--blood);font-size:10px;line-height:1.3">山札切れ<br>使い切るまで補充なし</div>':'');
+  $('hand').innerHTML=S.hand.map((c,i)=>{
+    const dice=c.v===0;
+    return '<button class="card'+(dice?' dice':'')+'" data-i="'+i+'" data-v="'+c.v+'" '+(active?'':'disabled')+
+      ' aria-label="'+(dice?'サイコロカード':c.v+'のカード')+'を切る">'+
+      (dice?dieArt()+'<span class="k">サイコロ</span>':'<span class="v">'+c.v+'</span><span class="k">かず</span>')+
+      '</button>';
+  }).join('');
+  if(S.scene==='title'||S.scene==='deck') $('piles').innerHTML='<div>デッキ <b>'+deckTotal()+'</b>/20</div>';
+}
+
+/* 手札ホバーで対応する選択肢を光らせる */
+$('hand').addEventListener('click',e=>{
+  const b=e.target.closest('.card'); if(!b||b.disabled) return;
+  playCard(+b.dataset.i);
+});
+$('hand').addEventListener('mouseover',e=>{
+  const b=e.target.closest('.card'); if(!b) return;
+  const v=+b.dataset.v;
+  document.querySelectorAll('.opt').forEach(o=>{
+    o.classList.toggle('lit', v!==0 && +o.dataset.n===v);
+    o.classList.toggle('dead', v!==0 && +o.dataset.n!==v);
+  });
+});
+$('hand').addEventListener('mouseout',()=>{
+  document.querySelectorAll('.opt').forEach(o=>o.classList.remove('lit','dead'));
+});
+
+/* ══════════════════════════════════════════════════════════
+   ゲーム進行
+   ══════════════════════════════════════════════════════════ */
+function toTitle(){ S.scene='title'; S.mode='none'; resolveCard=null; render(); }
+function restart(){
+  S.hp=S.maxHp; S.board=null; S.branch=false; S.node=0; S.dest='none';
+  buildDeck(); render(); town();
+}
+function startGame(){
+  if(deckTotal()!==20){ S.deckPlan={1:1,2:1,3:1,4:1,5:1,6:1,dice:14}; }
+  S.maxHp=30; S.hp=30; S.items={}; S.party=[]; S.bonus=0; S.town='raze';
+  S.quest=null; S.doneQuests=[]; S.dest='none';
+  S.gold=30; S.lv=1; S.exp=0; S.taken={};
+  S.branch=false; S.board=null; S.flags={};
+  S.drawer=null; S.drawerNote='';
+  buildDeck();
+  S.scene='hero'; render();
+  say('主人公「シド」──基礎パラメータ20個はすべて6。\n強くも弱くもない、標準の器。');
+  waitNext().then(town);
+}
+
+/* ── 街 ─────────────────────────────────────────────── */
+/* 施設は「入ったら消える」ではなく「その施設でやることが尽きたら消える」。
+   done() が真になった施設だけ、予備の施設 → 最終的に「街を出る」で上書きされる。
+   街を出入りすると1回きりの用事（噂・冷やかし等）はリセットされる。 */
+const PARTY_MAX=2;
+const TOWN_ACTS={
+  weapon:{l:'武器屋へ行く',   done:()=>!!S.flags.weapon},
+  shop:  {l:'道具屋へ行く',   done:()=>!!S.flags.shop},
+  inn:   {l:'宿屋へ行く',     done:()=>S.hp>=S.maxHp},
+  guild: {l:'ギルドへ行く',   done:()=>S.quest && S.party.length>=PARTY_MAX},
+  bar:   {l:'酒場で噂を聞く', done:()=>!!S.flags.bar},
+  church:{l:'教会で祈る',     done:()=>S.hp>=S.maxHp},
+  stall: {l:'露店を冷やかす', done:()=>!!S.flags.stall},
+  exit:  {l:'街を出る（街道へ）', done:()=>false}
+};
+const TOWN_BASE=['weapon','shop','inn','guild','bar','exit'];
+const TOWN_SPARE=['church','stall'];
+function resetTown(){ S.flags={}; S.townSlots=TOWN_BASE.slice(); updateTown(); }
+/* 用事が尽きた枠を何で埋めるかの優先順：
+   ① まだ用事のある予備の施設（教会・露店）
+   ② ギルド ── 拠点なので、用事が残っている限りここへ導線を集める
+   ③ 街を出る ── ギルドまで用済みになって初めて、街に留まる理由が無くなる */
+function updateTown(){
+  const spare=TOWN_SPARE.filter(k=>!TOWN_ACTS[k].done()&&!S.townSlots.includes(k));
+  const fill=()=>{
+    while(spare.length){ const k=spare.shift(); if(!TOWN_ACTS[k].done()) return k; }
+    return TOWN_ACTS.guild.done() ? 'exit' : 'guild';
+  };
+  S.townSlots=S.townSlots.map(k=>
+    (k==='exit'||!TOWN_ACTS[k].done()) ? k : fill());
+}
+
+async function town(){
+  S.scene='town'; S.board=null; resetTown(); render();
+  while(true){
+    const n=await choose(TOWNS[S.town].name+'。次は何をしよう？',
+      S.townSlots.map(k=>TOWN_ACTS[k].l),
+      '用事が尽きた施設は消え、別の施設→ギルドで上書きされる。ギルドまで用済みになると「街を出る」だけが残る');
+    const key=S.townSlots[n-1];
+    if(key==='weapon'){ S.flags.weapon=true; say('武器屋。「今日は打つ物がねえ」\n──剣も鎧も、モックでは未実装。'); await waitNext(); }
+    else if(key==='shop'){ await shop(); S.flags.shop=true; }
+    else if(key==='inn'){
+      if(S.gold<INN_COST){ say('宿の主人「一泊'+INN_COST+'Gだよ」\n持ち合わせが足りない。（所持金 '+S.gold+'G）'); }
+      else { S.gold-=INN_COST; healPartyFull(); render();
+        say('宿屋に'+INN_COST+'Gで泊まった。'+(S.party.length?'全員の':'')+'HPが全快した。（残り '+S.gold+'G）'); }
+      await waitNext();
+    }
+    else if(key==='guild') await guild();
+    else if(key==='bar'){ S.flags.bar=true; say('酒場の噂（依頼はギルドでしか受けられない）：\n'+TOWNS[S.town].rumor); await waitNext(); }
+    else if(key==='church'){ const h=healParty(5); render(); say('教会で祈った。'+(S.party.length?'全員が5、シドは':'HPが')+h+'回復した。'); await waitNext(); }
+    else if(key==='stall'){
+      S.flags.stall=true;
+      if(S.gold<STALL_COST){ say('露店「薬草'+STALL_COST+'Gだよ、安いだろ」\n持ち合わせが足りない。'); }
+      else { S.gold-=STALL_COST; gain('薬草'); say('露店で薬草を'+STALL_COST+'Gで買った。（道具屋より安い）'); }
+      render(); await waitNext();
+    }
+    else {
+      // 依頼を受けていれば、行き先を迷わず目的地に定めて出発フェーズへ移る。
+      // 依頼が無いなら街道へ出る前に門番が引き止める（歩き損じない）
+      const q=S.quest?QUESTS[S.quest]:null;
+      if(!q){
+        say('門番「依頼も無しにどこへ行く気だ。門前で追い返すだけだぞ」\n'+
+            '── 街道へ出る前に引き止められた。ギルドで依頼を受けてから出直そう。');
+        await waitNext();
+        resetTown(); render();      // ギルドをすぐ選び直せる
+        continue;
+      }
+      S.dest=q.dest;
+      say('「'+q.title+'」── '+q.gate+'へ発つ。\n分岐から先は'+q.gate+'方面の道に入る。');
+      await waitNext();
+      await fieldBoard();
+      if(S.scene==='over'||S.scene==='clear') return;
+      S.scene='town'; S.dest='none'; resetTown(); render();
+      say(TOWNS[S.town].name+'に戻ってきた。次の依頼を受けられる。');
+      await waitNext();
+    }
+    updateTown(); render();
+  }
+}
+
+async function shop(){
+  const goods=['松明','松明','薬草','薬草','ロープ',null];
+  const n=await choose('道具屋。何を買う？（所持金 '+S.gold+'G）',
+    goods.map(g=>g?g+'を買う（'+PRICES[g]+'G）':'何も買わない'),
+    '選択肢はユニークでなくてよい ── 松明と薬草はそれぞれ2枠ぶん出ている');
+  const g=goods[n-1];
+  if(!g){ say('何も買わずに店を出た。'); }
+  else if(S.gold<PRICES[g]){ say('店主「'+PRICES[g]+'Gだよ。持ち合わせが足りないね」\n（所持金 '+S.gold+'G）'); }
+  else {
+    S.gold-=PRICES[g]; gain(g);
+    say(g+'を'+PRICES[g]+'Gで買った。（残り '+S.gold+'G）'+
+        (g==='松明'?'\n──暗がりで見えなかったものが見えるようになる。':''));
+  }
+  render(); await waitNext();
+}
+
+/* ギルドの中も6択。受注中は「依頼を受ける」が消えて別の選択肢に置き換わり、
+   仲間が上限に達すると「仲間を募集する」が消える。両方尽きた時だけ、
+   街の選択肢から「ギルドへ行く」自体が消える。 */
+const GUILD_LABELS={
+  quest:'依頼を受ける', status:'依頼の進み具合を聞く',
+  recruit:'仲間を募集する', leave:'ギルドを出る'
+};
+function guildSlots(){
+  const canQuest=!S.quest&&openQuests().length>0;
+  const canRec=S.party.length<PARTY_MAX;
+  return [
+    canQuest?'quest'  :(S.quest?'status':'leave'),
+    canRec  ?'recruit':'leave',
+    canQuest?'quest'  :(S.quest?'status':'leave'),
+    canRec  ?'recruit':'leave',
+    canQuest?'quest'  :'leave',
+    'leave'
+  ];
+}
+const allySum=p=>p.vals.reduce((a,b)=>a+b,0);   // 仲間の能力合計（主人公は120）
+/* 依頼は複数パターン。受けた依頼が街道の行き先とダンジョンを決める */
+/* 依頼は街ごとに最大6件。6択に収まらない分は6番の「ほかの依頼を見る」でめくる */
+async function pickQuest(){
+  let page=0;
+  while(true){
+    const open=openQuests(), per=5;
+    const pages=Math.max(1,Math.ceil(open.length/per));
+    const view=open.slice(page*per,page*per+per);
+    const slots=[];
+    for(let i=0;i<5;i++) slots.push(view[i]||null);
+    slots[5]= pages>1 ? '__more' : null;
+    const n=await choose('受付「どの依頼を受ける？」'+(pages>1?'（'+(page+1)+'/'+pages+'）':''),
+      slots.map(k=> k==='__more' ? 'ほかの依頼を見る' : k ? QUESTS[k].short+'（'+QUESTS[k].gate+'）' : 'やめる'),
+      '受けた依頼が街道の行き先と目的地を決める');
+    const k=slots[n-1];
+    if(k==='__more'){ page=(page+1)%pages; continue; }
+    if(!k){ say('「気が変わったら、いつでもどうぞ」'); await waitNext(); return; }
+    S.quest=k; render();
+    say('依頼を受けた ──「'+QUESTS[k].title+'」。\n街を出れば'+QUESTS[k].gate+'へ向かう。');
+    await waitNext();
+    return;
+  }
+}
+async function guild(){
+  while(true){
+    const slots=guildSlots();
+    const n=await choose('ギルド。何をする？',slots.map(k=>GUILD_LABELS[k]),
+      '受注中は「依頼を受ける」が進捗確認に、仲間が'+PARTY_MAX+'人になると「募集する」が消える');
+    const k=slots[n-1];
+    if(k==='leave'){ say('ギルドを出た。'); await waitNext(); return; }
+    if(k==='recruit'){ await recruit(); continue; }
+    if(k==='quest'){ await pickQuest(); continue; }
+    { const q=QUESTS[S.quest];
+      say('受付「'+q.title+'ね。'+q.gate+'まで行かなきゃ終わらないよ」\n街を出れば'+q.gate+'へ向かう。'+
+          (S.doneQuests.length?'\n達成済み：'+S.doneQuests.map(x=>QUESTS[x].short).join('・'):'')); }
+    await waitNext();
+  }
+}
+
+/* ── 仲間キャラメイク：20回の手札選択 ─────────────────── */
+async function recruit(){
+  S.scene='recruit'; S.paramWork={i:0,vals:new Array(20).fill(null)}; render();
+  say('募集に応じた者が現れた。姿はまだ見えない。\nこれから20回、あなたが切った数字＋3がその者の能力になる。');
+  await waitNext();
+  while(S.paramWork.i<20){
+    const w=S.paramWork;
+    S.mode='param'; S.cardWait=true; render();
+    say('その仲間の【'+PARAMS[w.i]+'】はいくつでしょうか？');
+    const r=await waitCard();
+    S.cardWait=false;
+    if(!S.paramWork){ render(); return; }   // 一括決定で抜けた場合
+    S.mode='none';
+    w.vals[w.i]=r.v+3; w.i++; render();
+    await sleep(90);
+  }
+  finishRecruit();
+  await waitNext();
+}
+function autoRest(){
+  const w=S.paramWork; if(!w) return;
+  for(let i=w.i;i<20;i++) w.vals[i]=1+rnd(6)+3;
+  w.i=20; S.mode='none'; S.cardWait=false;
+  const r=resolveCard; resolveCard=null;
+  finishRecruit();
+  if(r) r({card:null,v:0});
+}
+function finishRecruit(){
+  const w=S.paramWork; if(!w) return;
+  const sum=w.vals.reduce((a,b)=>a+b,0);
+  const names=['ミラ','ガロ','ノエル','ザイン','ルカ'];
+  const name=names[S.party.length%names.length];
+  const mx=w.vals[P_VIT]*3;               // 体力×3 が仲間のHP
+  S.party.push({name,vals:w.vals.slice(),hp:mx,maxHp:mx});
+  say(name+'が仲間になった。（HP'+mx+'／素早さ'+w.vals[P_SPD]+'／力'+w.vals[P_STR]+'）\n合計 '+sum+'（主人公は120）── 平均 '+(sum/20).toFixed(1)+'。'+
+      (sum>120?'当たりを引いた。':sum<120?'ハズレ気味。もう一度募集し直すこともできる。':'ちょうど主人公と同じ。'));
+  S.paramWork=null; S.scene='town'; updateTown(); render();
+}
+
+/* ── ボード共通 ─────────────────────────────────────── */
+async function walk(steps){
+  for(let s=0;s<steps;s++){
+    const nx=nextOf(S.node);
+    if(nx==null){ say('目的地に着いた。'); break; }
+    S.node=nx; render(); await sleep(190);
+  }
+}
+
+/* ボードを1本走る。入るたびにモンスターは復活する（マスの状態は持ち越さない） */
+async function runBoard(key){
+  const b=BOARDS[key];
+  S.board=b; S.scene='board'; S.branch=false; S.freshNodes=[];
+  S.node=routeIds()[0];               // 地上は出発した街のマスが起点になる
+  render();
+  say(b.intro); await waitNext();
+  while(true){
+    const v=await moveTurn(b.name+'を進む。何マス進む？');
+    // 隠し通路マスに立っていて合図の数字を切った場合（松明の有無に関わらず発見できる）
+    if(b.hiddenAt!=null && S.node===b.hiddenAt && !S.branch && v===b.hiddenNum){
+      openBranch();
+      say('壁に手をついた拍子に、隙間へ体が傾いだ ── 隠し通路を発見！\nボードが迂回路に組み替わった。進むのは次の手札で決める。');
+      await waitNext();
+      continue;
+    }
+    await walk(v);
+    const done=await tileEvent();
+    if(S.hp<=0){ await gameOver(); return 'dead'; }
+    if(done==='goal') return 'goal';
+    const rt=routeIds();
+    if(S.node===rt[rt.length-1]) return 'goal';   // 終点（門・街）に到達
+  }
+}
+
+async function fieldBoard(){
+  const q=S.quest?QUESTS[S.quest]:null;
+  const r=await runBoard(TOWNS[S.town].field);
+  if(r!=='goal') return;
+  if(!q){   // 通常はここへ来ない（街で引き止める）。念のための保険
+    say('門には縄が張られている。依頼書が無いままでは通れない。\n── 街へ引き返した。');
+    await waitNext(); return;
+  }
+  if(q.moveTo){                    // 移動依頼：門をくぐると拠点の街が変わる
+    S.town=q.moveTo; completeQuest(); render();
+    say(TOWNS[S.town].name+'に到着した。依頼を達成。\nここが新しい拠点になり、この街のギルドで別の依頼を受けられる。');
+    await waitNext(); return;
+  }
+  say('門番に依頼書を見せた。「気をつけてな」\n'+q.gate+'に着いた。');
+  await waitNext();
+  await runBoard(q.board);
+}
+
+function openBranch(){
+  S.branch=true;
+  S.freshNodes=[];
+  let id=S.board.branchStart;
+  while(id!=null && S.board.nodes[id] && S.freshNodes.indexOf(id)<0){
+    S.freshNodes.push(id);
+    id=S.board.nodes[id].n;
+    if(S.board.skips.indexOf(id)>=0 || id===S.board.nodes[S.board.hiddenAt].n) break;
+  }
+  render();
+  setTimeout(()=>{S.freshNodes=[];},600);
+}
+
+/* ── マスイベント ───────────────────────────────────── */
+async function tileEvent(){
+  const b=S.board, n=b.nodes[S.node];
+  if(n.t==='mon'){
+    await battle(ENEMIES[n.e]);
+    if(S.hp<=0) return 'dead';
+    render();
+    return 'ok';
+  }
+  if(n.t==='boss'){
+    say('最奥。'+ENEMIES[n.e].name+'が立ちはだかる。');
+    await waitNext();
+    await battle(ENEMIES[n.e]);
+    if(S.hp<=0) return 'dead';
+    const done=completeQuest(); render();
+    say(ENEMIES[n.e].name+'を倒した ── 依頼を達成。街へ引き返そう。');
+    await waitNext();
+    if(allQuestsDone()){ S.scene='clear'; render(); say('すべての依頼を達成した。プロトタイプはここまで。'); }
+    return 'goal';
+  }
+  if(n.t==='goal'){
+    gain(n.item); completeQuest(); render();
+    say('目的地に着いた ── '+n.item+'を手に入れた。\n依頼を達成。街へ引き返そう。');
+    await waitNext();
+    if(allQuestsDone()){ S.scene='clear'; render(); say('すべての依頼を達成した。プロトタイプはここまで。'); }
+    return 'goal';
+  }
+  if(n.t==='trap'){
+    const need=n.need||4;
+    const v=await check('トラップだ！ '+need+'以上で解除成功',need);
+    const bs=S.lastBonus?'（ロープ+'+S.lastBonus+'込みで'+v+'）':'（'+v+'）';
+    if(v>=need){ say('解除成功'+bs+'。仕掛けを外して先へ進める。'); }
+    else { S.hp-=4; say('解除失敗'+bs+'。'+(n.l||'罠')+'をくらって4ダメージ。'); }
+    render(); await waitNext();
+    return 'ok';
+  }
+  if(n.t==='chest'){
+    const key=b.id+':'+S.node;
+    if(S.taken[key]){        // 中身は世界に1つだけ。回収済みなら空
+      say('宝箱はもう空だ。前に中身を持っていった。');
+      await waitNext(); return 'ok';
+    }
+    gain(n.item); S.taken[key]=true; render();
+    say('宝箱だ！ '+n.item+'を手に入れた。（この宝箱はもう空になる）');
+    await waitNext();
+    return 'ok';
+  }
+  if(n.t==='spring'){
+    const heal=healParty(8); render();
+    say('湧き水を飲んだ。'+(S.party.length?'全員が8、シドは':'HPが')+heal+'回復した。');
+    await waitNext();
+    return 'ok';
+  }
+  if(n.t==='hidden'){
+    if(S.branch){ return 'ok'; }
+    if(has('松明')){
+      const need=S.board.hiddenNum;
+      const v=await check('松明の灯りが壁の裂け目を照らす。\n隠し通路を見つけた！ '+need+'で隠し通路へ進行する\n（'+need+'以外なら、そのまま出目のぶん正規ルートを進む）',need,true);
+      if(v===need){
+        // 発見の判定でカードを1枚使っているので、ここでは進まない。
+        // ボードだけ組み替えて、次の進行はあらためて手札を選ばせる
+        openBranch();
+        say('隠し通路へ進行！ ボードが迂回路に組み替わった。\nここから何マス進むかは、次の手札で決める。');
+        await waitNext();
+        return 'ok';
+      }
+      // 発見しなかった場合は、切ったカードはただの移動として扱う。
+      // 何事もなかったように出目ぶん正規ルートを進む
+      say('（'+v+'）を切った。裂け目には入らず、そのまま'+v+'マス進む。');
+      await waitNext();
+      await walk(v);
+      return await tileEvent();
+    }
+    say('ただの通路のようだ……\n（松明があれば、何かに気づけたかもしれない）');
+    await waitNext();
+    return 'ok';
+  }
+  if(n.t==='gate'){ return 'goal'; }
+  return 'ok';
+}
+
+function completeQuest(){
+  if(!S.quest) return null;
+  const k=S.quest, q=QUESTS[k];
+  if(!q.repeat && S.doneQuests.indexOf(k)<0) S.doneQuests.push(k);  // 移動依頼は何度でも受けられる
+  S.quest=null; S.dest='none';
+  return k;
+}
+
+/* ══════════════════════════════════════════════════════════
+   戦闘：素早さ順のターン制。
+   主人公は手札を切って攻撃、仲間は自分でサイコロを振って自動で攻撃する。
+   ══════════════════════════════════════════════════════════ */
+const P_STR=0, P_VIT=1, P_SPD=3;          // 力・体力・素早さ のインデックス
+/* 仲間のHPは戦闘をまたいで持ち越す（宿屋・教会・泉で回復） */
+function hpOf(u){ return u.kind==='hero'?S.hp : u.kind==='ally'?u.ref.hp : u.hp; }
+function maxOf(u){ return u.kind==='hero'?S.maxHp : u.kind==='ally'?u.ref.maxHp : u.maxHp; }
+function alive(u){ return hpOf(u)>0; }
+function damage(u,d){
+  if(u.kind==='hero') S.hp-=d;
+  else if(u.kind==='ally') u.ref.hp=Math.max(0,u.ref.hp-d);
+  else u.hp-=d;
+}
+/* 主人公と仲間をまとめて回復する（負傷したまま連戦しないよう街と泉で戻す） */
+function healParty(amount){
+  const hero=Math.min(amount,S.maxHp-S.hp); S.hp+=hero;
+  S.party.forEach(p=>{ p.hp=Math.min(p.maxHp,p.hp+amount); });
+  return hero;
+}
+function healPartyFull(){ S.hp=S.maxHp; S.party.forEach(p=>{p.hp=p.maxHp;}); }
+
+function buildUnits(def){
+  const u=[{kind:'hero',name:'シド',sprite:'hero',spd:6,pow:heroPow(),rank:0}];
+  S.party.forEach(p=>u.push({
+    kind:'ally',name:p.name,sprite:'ally',rank:1,ref:p,
+    spd:p.vals[P_SPD], pow:p.vals[P_STR]+(S.lv-1)     // レベルぶん仲間も伸びる
+  }));
+  u.push({kind:'enemy',name:def.name,sprite:def.sprite,rank:2,
+    spd:def.spd, atk:def.atk, skill:def.skill, hp:def.hp, maxHp:def.hp});
+  return u.sort((a,b)=> b.spd-a.spd || a.rank-b.rank);
+}
+
+async function battle(def){
+  const units=buildUnits(def);
+  S.combat={units,idx:0};
+  S.scene='battle'; render();
+  say(def.name+'があらわれた！\n行動順（素早さ順）：'+units.map(u=>u.name+' '+u.spd).join(' → '));
+  await waitNext();
+  const foe=units.find(u=>u.kind==='enemy');
+  let guard=0;
+  while(guard++<60){
+    for(let i=0;i<units.length;i++){
+      const u=units[i];
+      S.combat.idx=i; render();
+      if(!alive(u)) continue;
+      if(u.kind==='hero')      await heroTurn(u,foe);
+      else if(u.kind==='ally') await allyTurn(u,foe);
+      else                     await foeTurn(u,units);
+      if(foe.hp<=0){
+        const r=grantRewards(def); render();
+        say(def.name+'をたおした！\n経験値 '+r.exp+' ／ '+r.gold+'G を得た。'+
+            (r.drop?'\n'+r.drop+'を落とした！':'')+
+            (r.ups.length?'\n★ レベル '+r.ups[r.ups.length-1]+' に上がった！ 最大HPと力が伸びた。':
+              '\n（次のレベルまで '+(needExp(S.lv)-S.exp)+'）'));
+        await waitNext(); S.combat=null; S.scene='board'; render(); return 'win';
+      }
+      if(S.hp<=0){ S.combat=null; return 'dead'; }
+    }
+  }
+  S.combat=null;
+  return S.hp<=0?'dead':'win';
+}
+
+async function heroTurn(u,foe){
+  const n=await choose('シドの番。'+foe.name+'をどうする？',
+    ['剣で攻撃','剣で攻撃','剣で攻撃','剣で攻撃','剣で攻撃','剣で攻撃'],
+    'ダメージ ＝ 力'+u.pow+'（LV'+S.lv+'）＋ 切った数字。大きい数字ほど強い');
+  const dmg=u.pow+n;
+  foe.hp-=dmg; hitFx(); render();
+  say('シドの攻撃（力'+u.pow+'＋数字'+n+'）── '+dmg+'ダメージ。');
+  await waitNext();
+}
+
+/* 仲間は手札を使わず、自分でサイコロを振る */
+async function allyTurn(u,foe){
+  say(u.name+'の番。サイコロを振る …');
+  render(); await sleep(260);
+  for(let k=0;k<5;k++){ say(u.name+'の番。サイコロ … '+(1+rnd(6))); await sleep(80); }
+  const roll=1+rnd(6), dmg=u.pow+roll;
+  foe.hp-=dmg; hitFx(); render();
+  say(u.name+'の攻撃（力'+u.pow+'＋サイコロ'+roll+'）── '+dmg+'ダメージ。');
+  await waitNext();
+}
+
+/* 敵は生きている味方の誰かをランダムに殴る。たまに全体スキルを撃つ */
+async function foeTurn(u,units){
+  const targets=units.filter(x=>x.kind!=='enemy'&&alive(x));
+  if(!targets.length) return;
+  if(u.skill && targets.length>1 && Math.random()<u.skill.rate){
+    const d=Math.max(1,u.atk-2);
+    const fell=[];
+    targets.forEach(t=>{ damage(t,d); if(!alive(t)&&t.kind==='ally') fell.push(t.name); });
+    render();
+    say(u.name+'の【'+u.skill.name+'】── 全員に'+d+'ダメージ！'+
+        (fell.length?'\n'+fell.join('と')+'が倒れた！':''));
+    await waitNext();
+    return;
+  }
+  const t=targets[rnd(targets.length)];
+  damage(t,u.atk); render();
+  let log=u.name+'の攻撃 ── '+t.name+'に'+u.atk+'ダメージ。';
+  if(!alive(t)&&t.kind==='ally') log+='\n'+t.name+'は倒れた！ この戦闘では動けない。';
+  say(log);
+  await waitNext();
+}
+
+function hitFx(){ S.enemyHit=true; setTimeout(()=>{S.enemyHit=false;render();},380); }
+
+async function gameOver(){
+  S.scene='over'; S.mode='none'; render();
+  say('HPが0になった。');
+}
+
+/* ── 起動 ───────────────────────────────────────────── */
+$('credit').textContent='※ドット絵はこのモック用に描き起こした8×8プレースホルダー。フリー素材（CC0推奨）に差し替える場合は SPRITES を画像スプライトシート参照に置き換えてください。';
+buildDeck();
+render();
+say('ダイスハンド・クエスト ── 操作モック。\n「冒険をはじめる」で 主人公確認 → 街（ラーゼ／ミルドの2つ）→ 街道 → 目的地。依頼は全10種。\n右上の「オート再生」で自動プレイのデバッグもできます。');
+</script>
+</body>
+</html>
