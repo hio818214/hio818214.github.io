@@ -63,6 +63,8 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .empty{border:1px dashed var(--line2);border-radius:3px;min-height:58px;display:grid;place-items:center;
   color:#5f586f;font-size:10.5px;letter-spacing:.08em;cursor:pointer;background:#191627;transition:.12s}
 .empty:hover{border-color:var(--gold);color:var(--gold)}
+.empty.selectable{border-color:var(--gold);border-style:solid;color:var(--gold);
+  cursor:crosshair;animation:pulse 1.1s infinite}
 .numctl{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
 .numctl select{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:3px;
   padding:5px 4px;font-family:var(--mono);font-size:11px}
@@ -426,7 +428,10 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
   <b>装備</b>は人間職だけが持てます（武器1・防具1）。基本はステータス補正ですが、まれに<b>個性が1つ付きます</b>（緑のチップ）。
   魔物は装備できないので、<b>装備 ON/OFF</b> で切り替えて勝率を比べてください。
   <b>編成</b>では1陣営50人まで抱えられ、出撃7人を選べます。控えのユニットは盤面の点線枠からも呼び出せます。
-  <b>データ</b>は編成をブラウザに保存します（編集のたびに自動保存）。JSONで書き出して別の環境へ持っていくこともできます。</p>
+  <b>データ</b>は編成をブラウザに保存します（編集のたびに自動保存）。JSONで書き出して別の環境へ持っていくこともできます。<br>
+  <b>隊列</b> — <b>通常攻撃と単体特技は、前列に生存者がいる間は前列しか狙えません</b>（前列が空・全滅なら後列へ）。
+  魔法と範囲攻撃は素通しなので、固めた前列は範囲で崩します。例外は2つ、<b>《挑発》</b>持ちは後列でも狙われ、<b>弓兵（射手）</b>は列を無視して後列を撃てます。
+  コマンドの<b>いれかえ</b>で別列の味方と交代（または空き枠へ移動）でき、<b>後列へ下がったときだけ最大HPの10%を回復</b>します。手番は1つ消費します。</p>
 </div>
 
 <div id="modalHost"></div>
@@ -544,7 +549,7 @@ timid:{name:'臆病',cat:'瀕死',desc:'HPが50%以下の時、敵から狙わ�
 /* ---------- 死亡後 ---------- */
 shuunen:{name:'執念',cat:'死亡後',desc:'倒れる瞬間、最後にもう一度だけ通常攻撃を放つ。',
   death(s,c){ if(c.unit!==s||s.cnt.shuunen)return; s.cnt.shuunen=1;
-    const t=randomTarget(s); if(!t)return; proc(s,'shuunen','最後の一撃');
+    const t=randomTarget(s,true); if(!t)return; proc(s,'shuunen','最後の一撃');
     doAttack(s,t,{power:1.1,noCounter:true,fromDead:true,isExtra:true});}},
 ishi:{name:'遺志',cat:'死亡後',desc:'倒れる時、味方全体に攻撃力+30%（3ターン）を託す。',
   death(s,c){ if(c.unit!==s)return; const t=allies(s).filter(x=>x.alive); if(!t.length)return;
@@ -1365,6 +1370,8 @@ function dodged(a,t){
 }
 function doAttack(a,t,opt={}){
   if((!a.alive&&!opt.fromDead)||!t||!t.alive)return;
+  // 通常攻撃は列の制限を受ける。届かない相手を指定されたら届く相手へ振り替える。
+  if(!canReach(a,t)){ const alt=pickTarget(a,true); if(!alt)return; t=alt; }
   if(dodged(a,t))return;
   if(!hitCheck(a,t)){ pop(t,'MISS','miss'); addLog(`${a.name} の攻撃は外れた`,'l-sys');
     emit('missed',{attacker:a,target:t}); return; }
@@ -1381,8 +1388,12 @@ function castSpell(a,sp,target,o={}){
   const dmgKind=art?'phys':'mag';
   // 特技は命中判定あり。魔法は必中。必中撃は特技だが判定を飛ばす。
   const needHit=art&&!sp.alwaysHit;
+  const phys=isPhysSingle(sp);                  // 単体特技は前列しか狙えない
   const foesOf=()=>aliveOf(otherSide);
-  const oneTarget=()=>{ const t=(target&&target.alive)?target:pickTarget(a); return t?[t]:[]; };
+  const reachOf=()=>phys?reachable(a,otherSide):aliveOf(otherSide);
+  const oneTarget=()=>{
+    let t=(target&&target.alive&&(!phys||canReach(a,target)))?target:pickTarget(a,phys);
+    return t?[t]:[]; };
 
   if(sp.type==='atk'){
     let dealt=0, firstHit=null;
@@ -1390,7 +1401,7 @@ function castSpell(a,sp,target,o={}){
     for(let h=0;h<hits;h++){
       let tg;
       if(sp.scope==='all') tg=foesOf();
-      else if(sp.randomTarget){ const c=foesOf(); if(!c.length)break; tg=[pick(c)]; }
+      else if(sp.randomTarget){ const c=reachOf(); if(!c.length)break; tg=[pick(c)]; }
       else tg=oneTarget();
       if(!tg.length)break;
       for(const t of tg){
@@ -1548,8 +1559,10 @@ function evalGambit(u,row){
 
   if(row.act==='guard') return {cmd:'guard'};
   if(row.act==='attack'){
-    const en=hit.filter(t=>t.side!==u.side);
-    const cand=en.length?en:aliveOf(u.side==='ally'?'foe':'ally');
+    // 通常攻撃は届く相手だけが対象。条件に合う相手が後列にいても殴れない。
+    const reach=reachable(u,u.side==='ally'?'foe':'ally');
+    const en=hit.filter(t=>t.side!==u.side&&reach.includes(t));
+    const cand=en.length?en:reach;
     if(!cand.length)return null;
     return {cmd:'attack',target:weightedPick(cand)};
   }
@@ -1557,7 +1570,8 @@ function evalGambit(u,row){
   const sp=SP[id]; if(!canPay(u,mpCost(u,sp)))return null;
   const wantAlly=['heal','buff','cure','evade'].includes(sp.type);
   if(sp.scope==='all') return {cmd:'spell',sp};
-  const cand=hit.filter(t=>wantAlly?t.side===u.side:t.side!==u.side);
+  let cand=hit.filter(t=>wantAlly?t.side===u.side:t.side!==u.side);
+  if(isPhysSingle(sp)) cand=cand.filter(t=>canReach(u,t));   // 単体特技も列に縛られる
   if(!cand.length)return null;
   const t = (sp.type==='heal'||sp.type==='cure') ? lowestHp(cand)
           : (sp.type==='buff'||sp.type==='evade') ? strongest(cand)
@@ -1570,23 +1584,52 @@ function evalGambit(u,row){
    ========================================================= */
 function targetWeight(t){
   let w=1; for(const f of traitFns(t,'aggro')) w*=f(t)||1;
-  if(isFront(t)) w*=2.2;
+  if(isFront(t)) w*=1.5;
   return w*(1+(1-hpR(t))*0.6);
 }
-function pickTarget(a){
-  const c=aliveOf(a.side==='ally'?'foe':'ally'); if(!c.length)return null;
+
+/* ===== 隊列と射程 =====
+   単体の物理攻撃（通常攻撃・単体特技）は、前列に生存者がいる限り前列しか狙えない。
+   前列が空、または全滅したら後列が対象になる。
+   魔法と範囲攻撃は素通し — 固めた前列を崩す手段として機能させる。
+
+   例外は2つ。
+     《挑発》持ち … 後列にいても狙われる。列を破ることが挑発の固有の仕事になる
+     `射手` タグ … 列を無視して後列を直接狙える。弓兵に役割を与える           */
+function reachable(a,side){
+  const all=aliveOf(side);
+  if(all.length<2) return all;
+  const cls=CLS[a.clsId];
+  if(cls&&cls.tags&&cls.tags.includes('射手')) return all;
+  const front=all.filter(isFront);
+  if(!front.length) return all;
+  const taunt=all.filter(t=>!isFront(t)&&hasT(t,'chouhatsu'));
+  return taunt.length?front.concat(taunt):front;
+}
+const canReach=(a,t)=>!!t&&reachable(a,t.side).includes(t);
+/* 単体の物理攻撃かどうか。範囲と魔法は列を無視する。 */
+const isPhysSingle=sp=>isArt(sp)&&sp.type==='atk'&&sp.scope!=='all';
+
+function pickTarget(a,phys){
+  const other=a.side==='ally'?'foe':'ally';
+  const c=phys?reachable(a,other):aliveOf(other);
+  if(!c.length)return null;
   const w=c.map(targetWeight), s=w.reduce((x,y)=>x+y,0); let r=R(s);
   for(let i=0;i<c.length;i++){ r-=w[i]; if(r<=0)return c[i]; }
   return c[c.length-1];
 }
-function randomTarget(a){ const c=aliveOf(a.side==='ally'?'foe':'ally'); return c.length?pick(c):null; }
+function randomTarget(a,phys){
+  const other=a.side==='ally'?'foe':'ally';
+  const c=phys?reachable(a,other):aliveOf(other);
+  return c.length?pick(c):null;
+}
 function aiAction(u){
   const rows=u.gambits||[];
   for(let i=0;i<rows.length;i++){
     const act=evalGambit(u,rows[i]);
     if(act){ act.gambit=i+1; return act; }
   }
-  const t=pickTarget(u);
+  const t=pickTarget(u,true);
   return t?{cmd:'attack',target:t,gambit:0}:{cmd:'guard',gambit:0};
 }
 
@@ -1615,6 +1658,19 @@ function resolveAction(u,act){
     attacked=true; markAct(u,'attack');
     addLog(`${u.name} のこうげき`,'l-sys');
     doAttack(u,act.target);
+  } else if(act.cmd==='swap'){
+    // 隊列変更。手番を1つ使う。攻撃していないので《熟考》は貯まる。
+    markAct(u,'swap');
+    const t=act.target;
+    if(t&&t.alive&&t.side===u.side){ const from=u.slot; u.slot=t.slot; t.slot=from; }
+    else if(act.slot!=null&&!unitAt(u.side,act.slot)) u.slot=act.slot;
+    const toBack=!isFront(u);
+    addLog(`${u.name} は${toBack?'後列へ下がった':'前列へ出た'}`+(t?`（${t.name} と交代）`:''),'l-sys');
+    // 下がったときだけ息を整える。前に出るのはリスクを取る側なので回復しない。
+    if(toBack&&u.alive){
+      const h=Math.max(1,Math.round(u.maxHp*0.10));
+      healRaw(u,h); addLog(`${u.name} は息を整えた（HP+${h}）`,'l-heal');
+    }
   } else if(act.cmd==='guard'){
     u.guard=true; markAct(u,'guard');
     // 被ダメ軽減だけでは 1 手番を捨てる価値に見合わないので、MPも戻す
@@ -1811,7 +1867,9 @@ function unitHTML(u){
 function renderField(){
   const me=MY(), op=OP(), mn=NET.matched?'自分':'味方', on=NET.matched?'相手':'敵';
   const cell=(side,s)=>{ const u=unitAt(side,s);
-    return u?unitHTML(u):`<div class="empty" data-side="${side}" data-slot="${s}">${MOBILE?'＋':'＋ 配置なし'}</div>`; };
+    if(u) return unitHTML(u);
+    const sel=(selecting&&selecting.slotOk&&selecting.slotOk(side,s))?' selectable':'';
+    return `<div class="empty${sel}" data-side="${side}" data-slot="${s}">${MOBILE?'＋':'＋ 配置なし'}</div>`; };
   if(MOBILE){
     // 縦画面なので横並びのサイドビューは入らない。相手を上・自分を下に置き、
     // 前列が内側（中央寄り）に来るよう並べ替えることで向かい合わせに見せる。
@@ -1831,7 +1889,14 @@ function renderField(){
       openEditor(u); };
   });
   document.querySelectorAll('.empty').forEach(el=>{
-    el.onclick=()=>{ toggleSlot(el.dataset.side,+el.dataset.slot); render(); syncCountUI(); };
+    el.onclick=()=>{
+      const side=el.dataset.side, slot=+el.dataset.slot;
+      // いれかえで空き枠へ移動する場合
+      if(selecting&&selecting.slotOk&&selecting.slotOk(side,slot)){
+        const s=selecting; selecting=null; s.doneSlot(slot); return;
+      }
+      toggleSlot(side,slot); render(); syncCountUI();
+    };
   });
 }
 function renderOrder(){
@@ -1851,7 +1916,7 @@ function renderCmd(u){
     return;
   }
   box.innerHTML=`<div class="who">${u.name}<span>${u.clsName}</span></div>
-    <div class="cmds"><button class="cmd" data-c="attack">たたかう</button><button class="cmd" data-c="guard">ぼうぎょ</button></div>
+    <div class="cmds"><button class="cmd" data-c="attack">たたかう</button><button class="cmd" data-c="guard">ぼうぎょ</button><button class="cmd" data-c="swap"${swapOptions(u).none?' disabled':''}>いれかえ</button></div>
     <div class="spells">${spellsOf(u).map(id=>{const s=SP[id];
       const cost=mpCost(u,s);
       return `<button class="sp${isArt(s)?' art':''}" data-sp="${id}" data-tip="${skillTip(s)}" ${canPay(u,cost)?'':'disabled'}><b>${s.name}</b><i>${s.scope==='all'?'範囲':'単体'}</i><em>${cost}</em></button>`;}).join('')||'<span class="hint">スキルを持っていません</span>'}</div>
@@ -1859,24 +1924,60 @@ function renderCmd(u){
   const atkBtn=box.querySelector('[data-c="attack"]');
   atkBtn.onclick=()=>chooseTarget(u,OP(),t=>send({cmd:'attack',target:t}),
     {el:atkBtn,title:'たたかう',
-     desc:'通常攻撃。命中判定あり。《奪取》《崩し》《毒撃》《吸魔》はこれでのみ発動します。'});
+     desc:'通常攻撃。命中判定あり。前列に生存者がいる間は前列しか狙えません。'
+         +'《奪取》《崩し》《毒撃》《吸魔》はこれでのみ発動します。'},true);
   box.querySelector('[data-c="guard"]').onclick=()=>send({cmd:'guard'});
+  const swBtn=box.querySelector('[data-c="swap"]');
+  if(swBtn&&!swBtn.disabled) swBtn.onclick=()=>chooseSwap(u,swBtn);
   box.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{
     const sp=SP[b.dataset.sp];
     if(sp.scope==='all') return send({cmd:'spell',sp});
+    const phys=isPhysSingle(sp);
     chooseTarget(u,['heal','buff','cure','evade'].includes(sp.type)?MY():OP(),
       t=>send({cmd:'spell',sp,target:t}),
       {el:b,title:sp.name,
-       desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／単体／${TYPE_LABEL[sp.type]}　${sp.desc}`});
+       desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／単体／${TYPE_LABEL[sp.type]}　${sp.desc}`
+           +(phys?'　※前列に生存者がいる間は前列しか狙えません':'')},phys);
   });
+}
+/* いれかえの候補。別列の味方（交代）と、別列の空きスロット（移動）。 */
+function swapOptions(u){
+  const others=aliveOf(u.side).filter(x=>x!==u&&isFront(x)!==isFront(u));
+  const empties=(isFront(u)?[3,4,5,6]:[0,1,2]).filter(s=>!unitAt(u.side,s));
+  return {others,empties,none:!others.length&&!empties.length};
+}
+function chooseSwap(u,btn){
+  const {others,empties}=swapOptions(u);
+  selecting={
+    valid:x=>others.includes(x),
+    done:t=>send({cmd:'swap',target:t}),
+    slotOk:(side,s)=>side===u.side&&empties.includes(s),
+    doneSlot:s=>send({cmd:'swap',slot:s})
+  };
+  renderField();
+  const box=$('#cmdbody');
+  if(box){ box.querySelectorAll('.cmd,.sp').forEach(b=>b.classList.remove('armed'));
+    if(btn) btn.classList.add('armed'); }
+  const h=$('#hint');
+  if(h){
+    h.className='hint armhint';
+    h.innerHTML=`<b class="armname">いれかえ</b>`
+      +`<span class="armdesc">${isFront(u)?'後列':'前列'}へ移ります。手番を1つ使います。`
+      +`後列へ下がったときだけ最大HPの10%を回復します。</span>`
+      +`<span class="armpick">交代する味方、または空いている枠を<b>選んでください</b></span>`
+      +`<button class="cancelsel" id="cancelSel">やめる</button>`;
+    const c=$('#cancelSel');
+    if(c) c.onclick=()=>{ selecting=null; renderCmd(u); renderField(); };
+  }
 }
 function send(act){ const r=resolveCmd; resolveCmd=null; selecting=null; render(); r&&r(act); }
 
 /* 対象選択に入る。
    どのスキルを撃とうとしているのかが分からないと押し間違えるので、
    選んだボタンを光らせ、その説明をコマンド欄の下に出す。 */
-function chooseTarget(u,side,cb,armed){
-  selecting={valid:x=>x.alive&&x.side===side,done:cb};
+function chooseTarget(u,side,cb,armed,physOnly){
+  const reach=physOnly?reachable(u,side):null;
+  selecting={valid:x=>x.alive&&x.side===side&&(!reach||reach.includes(x)),done:cb};
   renderField();
   const box=$('#cmdbody');
   if(box){
@@ -2765,6 +2866,7 @@ function netResolveRole(){
    実際に送るユニットにだけ付けて運ぶ。 */
 function serUnit(u,full){
   const o={id:u.id,hp:u.hp,mp:u.mp,alive:u.alive,guard:u.guard,ct:Math.round(u.ct),name:u.name,
+    slot:u.slot,                                   // いれかえで動くので差分にも載せる
     buffs:u.buffs,ail:u.ail,cnt:u.cnt,traits:u.traits,spells:u.spells};
   if(full) Object.assign(o,{side:u.side,slot:u.slot,cls:u.cls,clsName:u.clsName,clsId:u.clsId,
     clsKind:u.clsKind,varia:u.varia,foeBoost:u.foeBoost,equip:u.equip,
@@ -2852,6 +2954,7 @@ function waitRemoteCommand(u){
 function decodeCmd(actor,m){
   const t=m.targetId!=null?U.find(x=>x.id===m.targetId):null;
   if(m.cmd==='guard') return {cmd:'guard'};
+  if(m.cmd==='swap') return {cmd:'swap',target:(t&&t.side===actor.side)?t:null,slot:m.slot};
   if(m.cmd==='spell'&&m.spellId&&SP[m.spellId]&&actor.spells.includes(m.spellId)){
     const sp=SP[m.spellId];
     return {cmd:'spell',sp,target:(t&&t.alive)?t:null};
@@ -2866,7 +2969,8 @@ async function guestNeedCmd(m){
   current=u; render();
   const act = auto ? aiAction(u) : await waitCommand(u);
   NET.send({t:'cmd',turn:m.turn,cmd:act.cmd,
-    spellId:act.sp?act.sp.id:null, targetId:act.target?act.target.id:null});
+    spellId:act.sp?act.sp.id:null, targetId:act.target?act.target.id:null,
+    slot:act.slot!=null?act.slot:null});
 }
 
 /* --- 編成の変更を送る（ゲスト側のみ。ホストは権威なので送信不要） --- */
