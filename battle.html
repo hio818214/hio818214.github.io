@@ -1,0 +1,3007 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>個性バトル検証盤</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Antique&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+:root{
+  --ink:#141220;
+  --panel:#1c1929;
+  --panel2:#232032;
+  --line:#332e46;
+  --line2:#453e5c;
+  --text:#ece5da;
+  --muted:#9a92ac;
+  --ally:#57c9a4;
+  --ally-dim:#2a5f52;
+  --foe:#e2596d;
+  --foe-dim:#6b2b3a;
+  --gold:#e6b44b;
+  --mana:#74a6e0;
+  --serif:"Zen Antique",serif;
+  --sans:"Zen Kaku Gothic New",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--text);font-family:var(--sans);font-size:13px;
+  background-image:radial-gradient(ellipse 120% 70% at 50% -10%, #241f38 0%, transparent 60%);
+  background-attachment:fixed;}
+button{font-family:inherit;color:inherit}
+.wrap{max-width:1360px;margin:0 auto;padding:14px 16px 26px;display:flex;flex-direction:column;gap:12px}
+
+.top{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px}
+h1{font-family:var(--serif);font-size:26px;margin:0;letter-spacing:.06em;font-weight:400}
+h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28em;color:var(--muted);margin-bottom:3px}
+.controls{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--panel2);border:1px solid var(--line2);border-radius:3px;padding:6px 12px;font-size:12px;cursor:pointer;transition:.12s}
+.btn:hover{border-color:var(--gold);color:var(--gold)}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.btn.on{background:var(--gold);border-color:var(--gold);color:#1a1526;font-weight:700}
+.seg{display:flex;border:1px solid var(--line2);border-radius:3px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:6px 9px;font-size:11px;cursor:pointer;color:var(--muted)}
+.seg button.on{background:var(--line2);color:var(--text)}
+
+.order{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:6px 0}
+.order .lbl{font-size:10px;letter-spacing:.2em;color:var(--muted);flex:0 0 auto;padding-right:4px}
+.otk{flex:0 0 auto;display:flex;align-items:center;gap:5px;padding:3px 8px 3px 4px;border-radius:2px;background:var(--panel);
+  border:1px solid var(--line);font-size:11px;white-space:nowrap}
+.otk i{width:3px;height:15px;border-radius:2px;display:block}
+.otk.now{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.otk.ally i{background:var(--ally)} .otk.foe i{background:var(--foe)}
+
+.field{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:stretch;
+  background:linear-gradient(180deg,#191527 0%,#221d33 62%,#171325 100%);
+  border:1px solid var(--line);border-radius:4px;padding:14px 12px;min-height:330px}
+.side{display:grid;gap:8px;grid-template-columns:1fr 1fr}
+.col{display:flex;flex-direction:column;gap:7px;justify-content:center}
+.rowlabel{font-size:9px;letter-spacing:.22em;color:var(--muted);text-align:center;margin-bottom:1px}
+.mid{width:2px;background:linear-gradient(180deg,transparent,var(--line2),transparent)}
+.empty{border:1px dashed var(--line2);border-radius:3px;min-height:58px;display:grid;place-items:center;
+  color:#5f586f;font-size:10.5px;letter-spacing:.08em;cursor:pointer;background:#191627;transition:.12s}
+.empty:hover{border-color:var(--gold);color:var(--gold)}
+.numctl{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.numctl select{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:3px;
+  padding:5px 4px;font-family:var(--mono);font-size:11px}
+.btn.sm{padding:5px 8px;font-size:11px}
+.tlin{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:3px;
+  padding:5px 4px;font-family:var(--mono);font-size:11px;width:52px;text-align:center}
+.tlin:focus{outline:none;border-color:var(--gold)}
+/* --- 集計パネル --- */
+.simbar{display:flex;height:26px;border:1px solid var(--line2);border-radius:3px;overflow:hidden;
+  font-family:var(--mono);font-size:11px;font-weight:700}
+.simbar span{display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden;white-space:nowrap}
+.simbar .w{background:var(--ally);color:#10201b}
+.simbar .l{background:var(--foe);color:#2a0d14}
+.simbar .d{background:var(--line2);color:var(--text)}
+.simprog{height:6px;background:#0f0d18;border-radius:2px;overflow:hidden}
+.simprog span{display:block;height:100%;background:var(--gold);transition:width .1s}
+.proclist{display:flex;flex-wrap:wrap;gap:4px}
+.proclist span{font-size:10.5px;font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+  border-radius:2px;padding:3px 6px;color:var(--muted)}
+.proclist span b{color:var(--gold);font-weight:700}
+.proclist span i{font-style:normal;color:var(--text)}
+.proclist span em{font-style:normal;color:#7fa8d8;font-size:9.5px}
+.netchip{font-family:var(--mono);font-size:10px;padding:5px 8px;border-radius:3px;background:#221e30;
+  border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.netchip.on{border-color:var(--ally);color:var(--ally)}
+.netchip.wait{border-color:var(--gold);color:var(--gold)}
+.netchip.err{border-color:var(--foe);color:var(--foe)}
+.netform{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center}
+.netform label{font-size:11px;color:var(--muted);white-space:nowrap}
+.netform input{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:2px;
+  padding:7px 9px;font-family:inherit;font-size:12px;width:100%}
+.netform input:focus{outline:none;border-color:var(--gold)}
+.netlog{font-family:var(--mono);font-size:10.5px;line-height:1.6;background:#141220;border:1px solid var(--line);
+  border-radius:2px;padding:8px 10px;max-height:170px;overflow-y:auto;display:flex;flex-direction:column-reverse}
+.netlog div{padding:1px 0;color:var(--muted)}
+.netlog .st{color:var(--gold);background:none;padding:0;font-size:10.5px}
+.netlog .er{color:var(--foe);white-space:pre-wrap}
+.seghint{font-size:10.5px;color:var(--muted);line-height:1.6;grid-column:1/-1;
+  border-left:2px solid var(--line2);padding-left:9px}
+.waitban{background:#332c1a;border:1px solid var(--gold);color:var(--gold);border-radius:2px;
+  padding:6px 10px;font-size:11.5px;text-align:center;letter-spacing:.05em}
+.tchip.off,.schip.off{opacity:.4;font-style:italic}
+.schip{font-size:9px;padding:1px 4px;border-radius:2px;background:#1b2740;border:1px solid #35507a;color:#9dc2ea;line-height:1.5}
+.schip.art{background:#30251b;border-color:#7a5a35;color:#e0b98a}
+.tchip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
+.echip{font-size:8.5px;padding:1px 4px;border-radius:2px;background:#262231;border:1px solid #3d3750;
+  color:#a29ab4;line-height:1.5}
+.eqrow{margin-top:-1px;opacity:.9}
+.sp.art{border-left:2px solid #7a5a35}
+.sp.art em{color:#e0b98a}
+.sprow{margin-top:-1px}
+.tip{position:fixed;z-index:99;max-width:290px;background:#0e0c17;border:1px solid var(--gold);
+  border-radius:3px;padding:7px 10px;font-size:11px;line-height:1.65;color:var(--text);
+  box-shadow:0 8px 24px -8px #000;pointer-events:none}
+.tip b{color:var(--gold);font-weight:700}
+
+.u{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:6px 7px 7px;cursor:pointer;
+  transition:transform .14s, border-color .14s, opacity .2s;display:flex;flex-direction:column;gap:4px}
+.u:hover{border-color:var(--line2)}
+.u.acting{border-color:var(--gold);box-shadow:0 0 14px -4px var(--gold)}
+.u.selectable{border-color:var(--gold);cursor:crosshair;animation:pulse 1s infinite}
+@keyframes pulse{50%{box-shadow:0 0 12px -3px var(--gold)}}
+.u.dead{opacity:.3;filter:grayscale(1)}
+.u.hit{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.u.lunge-l{transform:translateX(-10px)} .u.lunge-r{transform:translateX(10px)}
+.uh{display:flex;align-items:center;gap:5px}
+.pip{width:17px;height:17px;flex:0 0 auto;border-radius:2px;display:grid;place-items:center;font-size:9px;font-weight:700;font-family:var(--mono)}
+.side.ally .pip{background:var(--ally-dim);color:var(--ally)}
+.side.foe .pip{background:var(--foe-dim);color:var(--foe)}
+.un{font-size:11.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uc{font-size:9px;color:var(--gold);margin-left:auto;font-family:var(--mono)}
+.bar{height:5px;background:#0f0d18;border-radius:1px;overflow:hidden}
+.bar span{display:block;height:100%;transition:width .25s}
+.hpb span{background:linear-gradient(90deg,#3f9c7f,var(--ally))}
+.u.low .hpb span{background:linear-gradient(90deg,#a8442f,#e06a3c)}
+.mpb{height:3px} .mpb span{background:var(--mana)}
+.nums{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums}
+.traits{display:flex;flex-wrap:wrap;gap:3px}
+.tchip{font-size:9px;padding:1px 4px;border-radius:2px;background:#2c2740;border:1px solid var(--line2);color:#c8bfda;line-height:1.5}
+.tchip.fire{background:var(--gold);color:#1a1526;border-color:var(--gold);font-weight:700}
+.states{display:flex;flex-wrap:wrap;gap:2px;min-height:12px}
+.st{font-size:8.5px;padding:0 3px;border-radius:2px;font-family:var(--mono);line-height:1.6}
+.st.up{background:#1f4a3d;color:#7fdcbb} .st.dn{background:#4d2231;color:#f09aa8}
+.st.ail{background:#4a3a1a;color:var(--gold)}
+.pop{position:absolute;left:50%;top:2px;transform:translateX(-50%);font-family:var(--mono);font-weight:700;font-size:15px;
+  pointer-events:none;animation:fly 1s forwards;text-shadow:0 2px 5px #000;z-index:5}
+@keyframes fly{0%{opacity:0;transform:translate(-50%,6px)}20%{opacity:1}100%{opacity:0;transform:translate(-50%,-26px)}}
+.pop.dmg{color:#ff9d8f} .pop.crit{color:#ffd166;font-size:19px} .pop.heal{color:#8ce8bf} .pop.mp{color:var(--mana);font-size:12px}
+.pop.miss{color:var(--muted);font-size:12px}
+
+.lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:12px;align-items:start}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:4px}
+.box h2{margin:0;font-size:10px;letter-spacing:.22em;color:var(--muted);padding:8px 12px;border-bottom:1px solid var(--line);font-weight:500}
+.cmdbody{padding:10px 12px;display:flex;flex-direction:column;gap:9px;min-height:200px}
+.who{font-family:var(--serif);font-size:16px}
+.who span{font-family:var(--sans);font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.1em}
+.cmds{display:flex;gap:6px;flex-wrap:wrap}
+.cmd{background:var(--panel2);border:1px solid var(--line2);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12.5px;transition:.12s}
+.cmd:hover:not(:disabled){background:var(--gold);color:#1a1526;border-color:var(--gold)}
+.cmd:disabled{opacity:.32;cursor:not-allowed}
+.spells{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:5px}
+.sp{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);border-radius:2px;padding:5px 8px;cursor:pointer;font-size:11.5px;text-align:left}
+.sp:hover:not(:disabled){border-color:var(--gold)}
+.sp:disabled{opacity:.3;cursor:not-allowed}
+.sp b{font-weight:500;flex:1}
+.sp em{font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--mana)}
+.sp i{font-style:normal;font-size:8.5px;color:var(--muted);border:1px solid var(--line2);border-radius:2px;padding:0 3px}
+.hint{font-size:11px;color:var(--muted);line-height:1.6}
+.hint b{color:var(--gold);font-weight:500}
+/* 対象選択中 — どのスキルを撃とうとしているか */
+.cmd.armed,.sp.armed{border-color:var(--gold);color:var(--gold);background:#332c1a;
+  box-shadow:0 0 0 1px var(--gold) inset,0 0 14px -5px var(--gold)}
+.sp.armed em{color:var(--gold)}
+.armhint{background:#221d31;border:1px solid var(--line2);border-left:2px solid var(--gold);
+  border-radius:0 2px 2px 0;padding:8px 10px;display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.armhint .armname{font-size:13px;color:var(--gold);font-weight:700;flex:0 0 auto}
+.armhint .armdesc{flex:1 1 100%;font-size:11px;color:#c4bdd2;line-height:1.65;order:3}
+.armhint .armpick{flex:1;font-size:11.5px;color:var(--text)}
+.armhint .armpick b{color:var(--gold)}
+.cancelsel{background:var(--panel2);border:1px solid var(--line2);border-radius:2px;
+  padding:6px 12px;font-size:11.5px;color:var(--muted);cursor:pointer;flex:0 0 auto}
+.cancelsel:hover{border-color:var(--foe);color:var(--foe)}
+
+.logbody{padding:8px 12px;font-family:var(--mono);font-size:11px;line-height:1.65;height:242px;overflow-y:auto;display:flex;flex-direction:column-reverse}
+.logbody div{border-bottom:1px dotted #262135;padding:1px 0}
+.l-turn{color:var(--gold);border-bottom:1px solid var(--line)!important;margin-top:3px;letter-spacing:.06em}
+.l-proc{color:#d2a8f0} .l-dmg{color:#e8b0a5} .l-heal{color:#8ce8bf} .l-buff{color:#7fdcbb} .l-debuff{color:#f09aa8}
+.l-die{color:var(--foe);font-weight:700} .l-sys{color:var(--muted)}
+
+.mask{position:fixed;inset:0;background:#0b0912cc;display:grid;place-items:center;z-index:50;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:4px;width:min(660px,100%);max-height:88vh;overflow:auto}
+.modal.wide{width:min(860px,100%)}
+/* --- 編成ロスター --- */
+.rlist{display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow-y:auto;padding-right:2px}
+.rrow{display:flex;align-items:center;gap:9px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:3px;padding:7px 9px}
+.rrow.dep{border-color:var(--ally-dim);background:#1d2a27}
+.rpos{font-family:var(--mono);font-size:9.5px;color:var(--muted);flex:0 0 26px;text-align:center}
+.rrow.dep .rpos{color:var(--ally)}
+.rmain{flex:1;min-width:0;font-size:12px;line-height:1.5}
+.rmain b{font-weight:500} .rmain i{font-style:normal;color:var(--muted);font-size:10px;margin-left:6px}
+.rsub{font-size:10.5px;color:var(--muted)}
+.rsub em{font-style:normal;color:#96d8b0}
+.rbtn{display:flex;gap:3px;flex:0 0 auto}
+.rbtn button{background:#2a2538;border:1px solid var(--line2);border-radius:2px;padding:5px 7px;
+  font-size:10.5px;color:var(--muted);cursor:pointer}
+.rbtn button:hover{border-color:var(--gold);color:var(--gold)}
+.jsonbox{width:100%;height:120px;background:#141220;color:var(--text);border:1px solid var(--line2);
+  border-radius:2px;padding:8px 10px;font-family:var(--mono);font-size:10px;line-height:1.5;resize:vertical}
+.jsonbox:focus{outline:none;border-color:var(--gold)}
+.modal header{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.modal header h3{margin:0;font-family:var(--serif);font-size:18px;font-weight:400}
+.modal header .x{margin-left:auto}
+.mbody{padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.slot{display:flex;gap:8px;align-items:center}
+.slot label{font-family:var(--mono);font-size:10px;color:var(--muted);width:46px}
+select{flex:1;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:2px;padding:6px 8px;font-family:inherit;font-size:12px}
+/* 説明文つきセレクタ */
+.pk{flex:1;background:var(--panel2);border:1px solid var(--line2);border-radius:2px;padding:6px 26px 6px 8px;
+  font-size:12px;text-align:left;cursor:pointer;position:relative;min-width:0}
+.pk:hover{border-color:var(--gold)}
+.pk::after{content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:10px}
+.pk.pk-none{color:var(--muted);font-style:italic}
+.pkbox{position:fixed;z-index:80;background:var(--panel);border:1px solid var(--gold);border-radius:3px;
+  box-shadow:0 16px 40px -12px #000;display:flex;flex-direction:column;overflow:hidden}
+.pksearch{background:var(--panel2);border:0;border-bottom:1px solid var(--line);color:var(--text);
+  padding:8px 10px;font-family:inherit;font-size:12px;outline:none}
+.pklist{overflow-y:auto;max-height:300px;overscroll-behavior:contain}
+.pklist::-webkit-scrollbar{width:10px}
+.pklist::-webkit-scrollbar-track{background:#141220}
+.pklist::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px;border:2px solid #141220}
+.pklist::-webkit-scrollbar-thumb:hover{background:var(--gold)}
+.pkg{font-size:9px;letter-spacing:.2em;color:var(--gold);padding:7px 10px 3px;background:#191627;
+  position:sticky;top:0}
+.pkrow{padding:6px 10px;cursor:pointer;border-bottom:1px solid #221e30;display:flex;flex-direction:column;gap:2px}
+.pkrow:hover{background:#2a2540}
+.pkrow.on{background:#332c1a;box-shadow:inset 2px 0 0 var(--gold)}
+.pkrow b{font-size:12px;font-weight:500}
+.pkrow span{font-size:10.5px;color:var(--muted);line-height:1.55}
+.pkrow em{font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--mana);margin-left:6px}
+.grow{display:flex;align-items:center;gap:5px;padding:3px 0;flex-wrap:wrap}
+.grow select{flex:1 1 110px;min-width:0;padding:4px 6px;font-size:11.5px}
+.grow.last{opacity:.55;padding-top:6px;border-top:1px dotted var(--line)}
+.grow.dead{opacity:.35}
+.grow.dead .gno::after{content:'×';color:var(--foe)}
+.warn{font-size:10.5px;color:#f0b48a;background:#3a2418;border-left:2px solid var(--warn,#e08a3c);
+  padding:5px 9px;border-radius:0 2px 2px 0;line-height:1.6;margin:4px 0}
+.gno{font-family:var(--mono);font-size:10px;color:var(--gold);width:16px;flex:0 0 auto;text-align:right}
+.gsep{font-size:10.5px;color:var(--muted);flex:0 0 auto}
+.gbtns{display:flex;gap:2px;flex:0 0 auto}
+.gbtns button{background:var(--panel2);border:1px solid var(--line2);color:var(--muted);border-radius:2px;
+  width:20px;height:22px;font-size:9px;cursor:pointer;padding:0;line-height:1}
+.gbtns button:hover{border-color:var(--gold);color:var(--gold)}
+.sechead{font-size:10px;letter-spacing:.24em;color:var(--gold);border-bottom:1px solid var(--line);
+  padding-bottom:5px;margin-top:6px}
+.tdesc{font-size:11px;color:var(--muted);line-height:1.6;background:var(--panel2);border-left:2px solid var(--gold);padding:6px 10px;border-radius:0 2px 2px 0;margin-bottom:4px}
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sc{background:var(--panel2);border:1px solid var(--line);border-radius:2px;padding:5px 7px}
+.sc u{text-decoration:none;display:block;font-size:9px;color:var(--muted);letter-spacing:.1em}
+.sc b{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums}
+.legend{font-size:11px;color:var(--muted);line-height:1.75;margin:0}
+.legend b{color:var(--text);font-weight:500}
+@media (max-width:900px){.lower{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* 個性が発動した瞬間、カードの上に名前を出す。
+   携帯ではチップが小さすぎて読めないので、これが実質のホバー代替になる。 */
+.procpop{position:absolute;left:50%;top:-8px;transform:translateX(-50%);white-space:nowrap;z-index:6;
+  background:var(--gold);color:#1a1526;font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:2px;
+  box-shadow:0 3px 10px -3px #000;pointer-events:none;animation:fly .9s forwards}
+
+/* ==========================================================
+   携帯専用レイアウト
+   PC版と同じエンジン・同じカードを使い、器だけ差し替える。
+   盤面／ログ／メニューの3タブ。相手が上、自分が下。
+   ========================================================== */
+.mtabs{display:none;position:fixed;left:0;right:0;bottom:0;z-index:30;
+  background:#191627;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.mtabs button{flex:1;height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;font-size:10px;color:var(--muted);border:0;border-top:2px solid transparent;background:none}
+.mtabs button.on{color:var(--gold);border-top-color:var(--gold);background:#1f1b2e}
+.mtabs button u{text-decoration:none;font-size:16px;line-height:1}
+body.mobile .mtabs{display:flex}
+
+body.mobile{font-size:13px}
+body.mobile .wrap{padding:0 0 66px;gap:0;max-width:none}
+body.mobile .legend{display:none}
+body.mobile .tip{display:none}
+/* カード上のチップはタップを飲み込まない。説明は編集画面で読む */
+body.mobile .u .tchip,body.mobile .u .schip,body.mobile .u .echip{pointer-events:none}
+
+body.mobile .top{padding:8px 10px 6px;gap:8px;position:sticky;top:0;z-index:15;background:var(--ink)}
+body.mobile h1{font-size:15px}
+body.mobile h1 small{display:none}
+
+/* メニュータブ ＝ PC版のコントロール群をそのまま全画面に出す */
+body.mobile .controls{display:none}
+body.mobile.tabmenu .controls{display:flex;position:fixed;top:44px;left:0;right:0;bottom:56px;
+  z-index:20;background:var(--ink);padding:14px;overflow-y:auto;
+  flex-direction:column;align-items:stretch;align-content:flex-start;gap:10px;margin:0}
+body.mobile.tabmenu .controls .btn{min-height:46px;font-size:13.5px}
+body.mobile.tabmenu .controls .seg{height:44px}
+body.mobile.tabmenu .controls .seg button{flex:1;font-size:12px}
+body.mobile.tabmenu .controls .numctl{justify-content:space-between;font-size:12.5px}
+body.mobile.tabmenu .controls .numctl select,body.mobile.tabmenu .tlin{min-height:38px;font-size:13px}
+body.mobile.tabmenu .controls .btn.sm{flex:1}
+
+/* タブごとの出し分け */
+body.mobile.tablog  .order,body.mobile.tablog  .field,body.mobile.tablog  #cmdBox,
+body.mobile.tabmenu .order,body.mobile.tabmenu .field,body.mobile.tabmenu #cmdBox,
+body.mobile.tabmenu #logBox,body.mobile.tabboard #logBox{display:none}
+body.mobile #logBox{border-radius:0;border-left:0;border-right:0}
+body.mobile .logbody{height:calc(100vh - 160px)}
+
+/* 盤面 — 相手が上、自分が下。前列が内側に来るよう並べる */
+body.mobile .field{grid-template-columns:1fr;gap:7px;padding:7px 6px;min-height:0;
+  border-radius:0;border-left:0;border-right:0}
+body.mobile .mid{display:none}
+body.mobile .side{display:block}
+body.mobile .mrow{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
+body.mobile .mrl{font-size:8px;letter-spacing:.18em;color:#5f586f;padding-left:2px}
+body.mobile .mcards{display:flex;gap:4px;align-items:stretch}
+body.mobile .u{flex:1 1 0;min-width:0;padding:4px 4px 5px;gap:2px}
+body.mobile .pip{width:14px;height:14px;font-size:7.5px}
+body.mobile .un{font-size:9.5px}
+body.mobile .uc{font-size:8px}
+body.mobile .nums{font-size:7.5px}
+body.mobile .states{min-height:10px;gap:1px}
+body.mobile .st{font-size:7.5px;padding:0 2px}
+body.mobile .tchip{font-size:7.5px;padding:0 3px}
+body.mobile .sprow,body.mobile .eqrow{display:none}   /* スキルと装備は編集画面で見る */
+body.mobile .empty{min-height:52px;font-size:18px;letter-spacing:0}
+body.mobile .order{padding:5px 8px;gap:4px}
+body.mobile .otk{font-size:10px}
+
+/* コマンド — 盤面の下にそのまま置く。押しやすい高さにする */
+body.mobile #cmdBox{border-radius:0;border-left:0;border-right:0;border-bottom:0}
+body.mobile #cmdBox h2{display:none}
+body.mobile .cmdbody{min-height:0;padding:9px 11px 12px;gap:8px}
+body.mobile .cmd{flex:1;min-height:50px;font-size:14px}
+body.mobile .spells{grid-template-columns:1fr 1fr;gap:6px}
+body.mobile .sp{min-height:48px}
+body.mobile .targetbar,body.mobile .hint{font-size:12px}
+body.mobile .armhint{padding:9px 11px}
+body.mobile .armhint .armname{font-size:14px}
+body.mobile .armhint .armdesc{font-size:11.5px}
+body.mobile .cancelsel{min-height:38px;padding:8px 14px}
+
+/* 画面いっぱいのモーダル。編集・編成・集計・データ・対戦すべて共通 */
+body.mobile .mask{padding:0;align-items:stretch}
+body.mobile .modal,body.mobile .modal.wide{width:100%;max-width:none;height:100%;max-height:100%;
+  border-radius:0;border:0}
+body.mobile .modal header{position:sticky;top:0;background:var(--panel);z-index:3}
+body.mobile .modal header h3{font-size:17px}
+body.mobile .mbody{padding:12px 13px 80px}
+body.mobile .pk{min-height:46px;font-size:13px}
+body.mobile .btn{min-height:40px}
+body.mobile .slot label{width:56px;font-size:11px}
+body.mobile .statgrid{grid-template-columns:repeat(3,1fr)}
+body.mobile .grow{gap:4px}
+body.mobile .grow select{flex:1 1 46%;min-height:38px;font-size:12px}
+body.mobile .gbtns button{width:34px;height:34px}
+body.mobile .rrow{flex-wrap:wrap}
+body.mobile .rbtn{width:100%;justify-content:flex-end}
+body.mobile .rbtn button{min-height:36px;padding:6px 10px}
+body.mobile .rlist{max-height:none}
+body.mobile .jsonbox{height:150px}
+
+/* 説明つきピッカーは下から出すシートにする */
+body.mobile .pkbox{left:0!important;right:0;width:100%!important;top:auto!important;bottom:0;
+  border-radius:12px 12px 0 0;border-bottom:0}
+body.mobile .pklist{max-height:58vh!important}
+body.mobile .pkrow{padding:10px 12px;min-height:52px}
+body.mobile .pksearch{min-height:46px;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <h1><small>PROTOTYPE / SIDE-VIEW TURN BATTLE</small>個性バトル検証盤</h1>
+    <div class="controls">
+      <span class="numctl">人数 自分<select id="nAlly"></select> 相手<select id="nFoe"></select></span>
+      <div class="seg" id="speedSeg"></div>
+      <button class="btn" id="autoBtn">自動戦闘 OFF</button>
+      <button class="btn" id="stepBtn">一時停止</button>
+      <span class="numctl">リセット
+        <button class="btn sm" id="reAlly">味方</button>
+        <button class="btn sm" id="reFoe">敵</button>
+        <button class="btn sm" id="reHeal">全回復</button>
+      </span>
+      <span class="numctl">打切<input id="tlIn" class="tlin" value="300" title="この手数を超えたら打ち切り、与えた総ダメージで判定します"></span>
+      <button class="btn on" id="eqBtn">装備 ON</button>
+      <button class="btn" id="rosterBtn">編成</button>
+      <button class="btn" id="simBtn">集計</button>
+      <button class="btn" id="dataBtn">データ</button>
+      <button class="btn" id="netBtn">対戦</button>
+      <span class="netchip" id="netChip">ソロ</span>
+    </div>
+  </div>
+
+  <div class="order" id="order"></div>
+
+  <div class="field">
+    <div class="side foe" id="foeSide"></div>
+    <div class="mid"></div>
+    <div class="side ally" id="allySide"></div>
+  </div>
+
+  <div class="lower">
+    <div class="box" id="cmdBox"><h2>COMMAND</h2><div class="cmdbody" id="cmdbody"></div></div>
+    <div class="box" id="logBox"><h2>BATTLE LOG</h2><div class="logbody" id="log"></div></div>
+  </div>
+
+  <p class="legend"><b>職業</b>は人間職8種と魔物12種。<b>編成では職業・種族が重複します</b>（同じ職が並ぶこともあります）。
+  <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ヴェノム</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存・必中）と<b>特技</b>（攻撃力依存・命中判定あり）が同じ3枠を奪い合います。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
+  <b>リセット</b>は3つ。<b>味方</b>／<b>敵</b>は片側だけ編成を引き直し、<b>全回復</b>は編成を保ったままHP・MP・状態を戻して再戦します。
+  <b>打切</b>の手数を超えると戦闘を打ち切り、<b>与えた総ダメージ</b>で判定します（残HP判定だと守りを固めた判定勝ちが成立するため）。
+  <b>集計</b>は編成を固定したまま指定回数を一気に回し、勝率と個性の発動回数を出します。<br>
+  <b>装備</b>は人間職だけが持てます（武器1・防具1）。基本はステータス補正ですが、まれに<b>個性が1つ付きます</b>（緑のチップ）。
+  魔物は装備できないので、<b>装備 ON/OFF</b> で切り替えて勝率を比べてください。
+  <b>編成</b>では1陣営50人まで抱えられ、出撃7人を選べます。控えのユニットは盤面の点線枠からも呼び出せます。
+  <b>データ</b>は編成をブラウザに保存します（編集のたびに自動保存）。JSONで書き出して別の環境へ持っていくこともできます。</p>
+</div>
+
+<div id="modalHost"></div>
+
+<!-- 携帯用のタブバー。PCでは非表示 -->
+<div class="mtabs" id="mtabs">
+  <button data-tab="board" class="on"><u>▦</u>盤面</button>
+  <button data-tab="log"><u>▤</u>ログ</button>
+  <button data-tab="menu"><u>≡</u>メニュー</button>
+</div>
+
+<script>
+/* =========================================================
+   1. 個性（トレイト）定義
+   hooks: mod / turnStart / turnEnd / outgoing / incoming /
+          damaged / dealt / healed / missed / lethal / death /
+          kill / buffApplied / allyHit / allySkill / actionEnd /
+          aggro / crit / eva
+   ========================================================= */
+const R=n=>Math.random()*n, RI=n=>Math.floor(Math.random()*n);
+const pick=a=>a[RI(a.length)], clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const SN={atk:'攻撃',def:'防御',mat:'魔力',mdf:'魔防',spd:'素早',eva:'回避'};
+
+/* 個性が「効いた」ことを記録する。チップを光らせ、集計の発動回数を数える。
+   ログを出さない地味な効果（軽減・適応・余熱など）もここを通すので、
+   集計の数字が実態と合う。
+   ただし mod（常時ステータス補正）だけは通さない。stat() は毎フレーム何度も
+   呼ばれるので、数えると桁が変わってしまうため。 */
+function fire(u,id,n){ u.fired[id]=n||6; PROC[id]=(PROC[id]||0)+1; }
+function proc(u,tid,text){
+  fire(u,tid,6);
+  if(SIM)return;
+  procPop(u,TRAITS[tid].name);
+  addLog(`《${TRAITS[tid].name}》${u.name}: ${text}`,'l-proc');
+}
+/* 発動した個性の名前をカードの上に一瞬出す。
+   携帯ではチップが小さすぎて何が光ったか分からないので、これが本命の表示。 */
+function procPop(u,name){
+  if(SIM||speedF>4)return;
+  const el=document.querySelector(`[data-u="${u.id}"]`); if(!el)return;
+  const d=document.createElement('div'); d.className='procpop'; d.textContent='《'+name+'》';
+  el.appendChild(d); setTimeout(()=>d.remove(),900);
+}
+
+const TRAITS = {
+/* ---------- バフ・デバフの受け渡し ---------- */
+share:{name:'共有',cat:'受け渡し',desc:'自分がバフを得た時、味方全体に同じバフを60%の値で配る（連鎖は1段まで）。',
+  buffApplied(s,c){ if(c.unit!==s||c.buff.kind!=='buff'||c.buff.gen>0||c.buff.noSpread)return;
+    const t=allies(s).filter(x=>x!==s&&x.alive); if(!t.length)return;
+    proc(s,'share',`${c.buff.label}を味方全体へ`);
+    t.forEach(a=>addBuff(a,{...c.buff,value:c.buff.value*0.6,gen:1,src:'共有'},s));}},
+resonate:{name:'共鳴',cat:'受け渡し',desc:'誰かがバフを得た時、敵味方を問わず自分にも50%の値で同じバフが乗る。',
+  buffApplied(s,c){ if(c.unit===s||c.buff.kind!=='buff'||c.buff.gen>0)return;
+    proc(s,'resonate',`${c.unit.name}の${c.buff.label}に共鳴`);
+    addBuff(s,{...c.buff,value:c.buff.value*0.5,gen:1,src:'共鳴'},s);}},
+reflect:{name:'反射',cat:'受け渡し',desc:'自分がデバフを受けた時、発生源に同じデバフを返す。',
+  buffApplied(s,c){ if(c.unit!==s||c.buff.kind!=='debuff'||c.buff.gen>0)return;
+    if(!c.source||c.source.side===s.side||!c.source.alive)return;
+    proc(s,'reflect',`${c.buff.label}を${c.source.name}へ反射`);
+    addBuff(c.source,{...c.buff,gen:1,src:'反射'},s);}},
+steal:{name:'奪取',cat:'受け渡し',desc:'自分の通常攻撃が命中した時、その相手が持っているバフをすべて奪い取る。特技・魔法では働かない。',
+  dealt(s,c){ if(c.attacker!==s||!c.normal||!s.alive)return;
+    const t=c.target, got=t.buffs.filter(b=>b.kind==='buff');
+    if(!got.length)return;
+    t.buffs=t.buffs.filter(b=>b.kind!=='buff');
+    proc(s,'steal',`${t.name}から ${got.map(b=>b.label).join('・')} を奪取`);
+    got.forEach(b=>addBuff(s,{...b,gen:1,src:'奪取'},s));}},
+cover:{name:'肩代わり',cat:'受け渡し',desc:'同列で隣接する味方への被弾を、自分が代わりに受ける（自分のHPが30%以上の時）。',
+  incoming(s,c){ if(c.target===s||c.target.side!==s.side||!s.alive||c.redirected)return;
+    if(!adjacent(s,c.target)||hpR(s)<0.3)return;
+    c.redirected=s; proc(s,'cover',`${c.target.name}の被弾を肩代わり`);}},
+surplus:{name:'余剰',cat:'受け渡し',desc:'最大HPを超えた回復量の70%をMPへ変換する。',
+  healed(s,c){ if(c.unit!==s||c.over<=0)return; const g=Math.round(c.over*0.7); if(g<1)return;
+    gainMp(s,g); proc(s,'surplus',`超過回復${c.over}をMP+${g}へ変換`);}},
+
+/* ---------- ダメージ・被弾 ---------- */
+charge:{name:'蓄電',cat:'被弾',desc:'被ダメージの35%をMPとして蓄える。',
+  damaged(s,c){ if(c.target!==s)return; const g=Math.round(c.dmg*0.35); if(g<1)return;
+    gainMp(s,g); proc(s,'charge',`被弾を蓄電 MP+${g}`);}},
+revenge:{name:'復讐',cat:'被弾',desc:'自分を攻撃した相手への与ダメージが累積で+10%（上限5）。',
+  damaged(s,c){ if(c.target!==s||!c.attacker)return; const k='rev'+c.attacker.id;
+    s.cnt[k]=Math.min(5,(s.cnt[k]||0)+1); proc(s,'revenge',`${c.attacker.name}への復讐 ${s.cnt[k]}`);},
+  outgoing(s,c){ if(c.attacker!==s)return; const n=s.cnt['rev'+c.target.id]||0; if(!n)return;
+    c.dmg*=1+0.10*n; c.tags.push('復讐'+n); s.fired.revenge=6;}},
+recoil:{name:'反動',cat:'被弾',desc:'物理攻撃の威力+40%。その代わり与ダメージの15%を自分が受ける。',
+  outgoing(s,c){ if(c.attacker!==s||c.kind!=='phys')return; c.dmg*=1.4; c.recoil=true; c.tags.push('反動'); s.fired.recoil=6;},
+  dealt(s,c){ if(c.attacker!==s||!c.recoil)return; const d=Math.round(c.dmg*0.15); if(d<1)return;
+    proc(s,'recoil',`反動で自傷 ${d}`); rawDamage(s,d,'反動');}},
+mitigate:{name:'軽減',cat:'被弾',desc:'受けるダメージを常に25%軽減する。',
+  incoming(s,c){ if(c.target!==s)return; c.dmg*=0.75; c.tags.push('軽減'); fire(s,'mitigate');}},
+drain:{name:'吸血',cat:'被弾',desc:'与えたダメージの30%だけHPを回復する。',
+  dealt(s,c){ if(c.attacker!==s)return; const h=Math.round(c.dmg*0.3); if(h<1)return;
+    healRaw(s,h); proc(s,'drain',`${h}吸収`);}},
+thorns:{name:'倍化',cat:'被弾',desc:'被弾した時、受けたダメージの60%を攻撃者に固定で返す。',
+  damaged(s,c){ if(c.target!==s||!c.attacker||c.noCounter||!c.attacker.alive)return;
+    const d=Math.round(c.dmg*0.6); if(d<1)return;
+    proc(s,'thorns',`${c.attacker.name}へ${d}返却`); rawDamage(c.attacker,d,'倍化',s);}},
+
+/* ---------- HP・瀕死 ---------- */
+haisui:{name:'背水',cat:'瀕死',desc:'HPが50%以下の時、減った分に比例して攻撃力が最大+60%。',
+  mod(s,k){ if(k!=='atk'&&k!=='mat')return 1; const r=hpR(s); if(r>0.5)return 1;
+    s.fired.haisui=2; return 1+(0.5-r)*1.2;}},
+kajiba:{name:'火事場',cat:'瀕死',desc:'HPが25%以下の時、攻撃力と素早さが1.5倍。',
+  mod(s,k){ if(!['atk','mat','spd'].includes(k))return 1; if(hpR(s)>0.25)return 1;
+    s.fired.kajiba=2; return 1.5;}},
+fukutsu:{name:'不屈',cat:'瀕死',desc:'致死ダメージを1度だけ耐え、HP1で踏み止まる。',
+  lethal(s,c){ if(c.unit!==s||s.cnt.fukutsu)return; s.cnt.fukutsu=1; c.prevented=true; s.hp=1;
+    proc(s,'fukutsu','致死を耐えHP1で踏み止まった');}},
+regen:{name:'微回復',cat:'瀕死',desc:'自分の手番終了時、最大HPの6%を回復する。',
+  turnEnd(s,c){ if(c.unit!==s||hpR(s)>=1||!s.alive)return; const h=Math.round(s.maxHp*0.06);
+    healRaw(s,h); proc(s,'regen',`${h}回復`);}},
+timid:{name:'臆病',cat:'瀕死',desc:'HPが50%以下の時、敵から狙われにくくなる（狙われ率0.35倍）。',
+  aggro(s){ return hpR(s)<=0.5?0.35:1;}},
+
+/* ---------- 死亡後 ---------- */
+shuunen:{name:'執念',cat:'死亡後',desc:'倒れる瞬間、最後にもう一度だけ通常攻撃を放つ。',
+  death(s,c){ if(c.unit!==s||s.cnt.shuunen)return; s.cnt.shuunen=1;
+    const t=randomTarget(s); if(!t)return; proc(s,'shuunen','最後の一撃');
+    doAttack(s,t,{power:1.1,noCounter:true,fromDead:true,isExtra:true});}},
+ishi:{name:'遺志',cat:'死亡後',desc:'倒れる時、味方全体に攻撃力+30%（3ターン）を託す。',
+  death(s,c){ if(c.unit!==s)return; const t=allies(s).filter(x=>x.alive); if(!t.length)return;
+    proc(s,'ishi','味方全体に遺志を託した');
+    t.forEach(a=>addBuff(a,{label:'遺志',stat:'atk',value:0.30,turns:3,kind:'buff',gen:1},s));}},
+juso:{name:'呪詛',cat:'死亡後',desc:'倒れる時、敵全体に防御-25%（3ターン）の呪いをかける。',
+  death(s,c){ if(c.unit!==s)return; const t=foes(s).filter(x=>x.alive); if(!t.length)return;
+    proc(s,'juso','敵全体を呪った');
+    t.forEach(a=>addBuff(a,{label:'呪詛',stat:'def',value:-0.25,turns:3,kind:'debuff',gen:1},s));}},
+tensei:{name:'転生',cat:'死亡後',desc:'1度だけ、HP50%・素早さ+30%の別形態で復活する。',
+  death(s,c){ if(c.unit!==s||s.cnt.tensei)return; s.cnt.tensei=1; c.revive=true;
+    s.alive=true; s.hp=Math.round(s.maxHp*0.5); s.name='真'+s.name; s.ct=time+10000/stat(s,'spd');
+    addBuff(s,{label:'転生',stat:'spd',value:0.30,turns:99,kind:'buff',gen:1,noSpread:true},s);
+    proc(s,'tensei','別形態として転生した');}},
+
+/* ---------- 味方との連携 ---------- */
+tsuigeki:{name:'追撃',cat:'連携',desc:'味方の攻撃が命中した時、同じ相手へ威力50%で追撃（自分の手番までに1回）。',
+  allyHit(s,c){ if(c.attacker===s||c.attacker.side!==s.side||!s.alive||s.cnt.tsuigekiUsed)return;
+    if(!c.target||!c.target.alive)return; s.cnt.tsuigekiUsed=1;
+    proc(s,'tsuigeki',`${c.target.name}へ追撃`); doAttack(s,c.target,{power:0.5,isExtra:true});}},
+tsuishou:{name:'追唱',cat:'連携',desc:'味方が攻撃魔法を唱えた時、MP4を払って同じ魔法を威力50%で重ねる。',
+  allySkill(s,c){ if(c.actor===s||c.actor.side!==s.side||!s.alive||s.mp<4)return;
+    if(c.spell.type!=='atk'||isArt(c.spell))return;     // 追「唱」なので特技には乗らない
+    if(s.cnt.tsuishouUsed)return; s.cnt.tsuishouUsed=1; s.mp-=4;
+    proc(s,'tsuishou',`${c.spell.name}を追唱`);
+    castSpell(s,c.spell,c.target,{mult:0.5,isExtra:true});}},
+atooi:{name:'後追い',cat:'連携',desc:'味方が行動を終える度、自分の次の行動が+8%強化（3回まで累積／行動でリセット）。',
+  actionEnd(s,c){ if(c.actor===s||c.actor.side!==s.side||!s.alive)return;
+    s.cnt.atooi=Math.min(3,(s.cnt.atooi||0)+1); s.fired.atooi=3;},
+  outgoing(s,c){ if(c.attacker!==s||!s.cnt.atooi)return; c.dmg*=1+0.08*s.cnt.atooi;
+    c.tags.push('後追い'+s.cnt.atooi); fire(s,'atooi');},
+  turnEnd(s,c){ if(c.unit===s) s.cnt.atooi=0;}},
+mitodoke:{name:'見届け',cat:'連携',desc:'味方（自分含む）が敵を倒す度、自分の攻撃力が永続で+6%。',
+  kill(s,c){ if(!c.killer||c.killer.side!==s.side||!s.alive)return; s.cnt.mitodoke=(s.cnt.mitodoke||0)+1;
+    proc(s,'mitodoke',`撃破を見届け 攻撃+${s.cnt.mitodoke*6}%`);},
+  mod(s,k){ return (k==='atk'||k==='mat')?1+0.06*(s.cnt.mitodoke||0):1;}},
+rinsetsu:{name:'隣接',cat:'陣形',desc:'同列に隣接する味方がいる間、防御+20%／攻撃+12%。',
+  mod(s,k){ if(!adjacentAllies(s).length)return 1;
+    if(k==='def'||k==='mdf'){s.fired.rinsetsu=2;return 1.2;}
+    if(k==='atk'||k==='mat')return 1.12; return 1;}},
+kokou:{name:'孤高',cat:'陣形',desc:'同列に隣接する味方がいない間、攻撃と素早さが+28%。',
+  mod(s,k){ if(adjacentAllies(s).length)return 1;
+    if(['atk','mat','spd'].includes(k)){s.fired.kokou=2;return 1.28;} return 1;}},
+
+/* ---------- 敵を利用する ---------- */
+chouhatsu:{name:'挑発',cat:'対敵',desc:'敵から3倍狙われやすくなる代わりに、防御・魔防+25%。',
+  aggro(){return 3;}, mod(s,k){ return (k==='def'||k==='mdf')?1.25:1;}},
+tsuitou:{name:'追討',cat:'対敵',desc:'HPが30%以下の相手への与ダメージ+55%。',
+  outgoing(s,c){ if(c.attacker!==s||hpR(c.target)>0.3)return; c.dmg*=1.55; c.tags.push('追討'); fire(s,'tsuitou');}},
+shokei:{name:'処刑',cat:'対敵',desc:'HPが20%以下の相手に命中した時、35%で即死させる。',
+  outgoing(s,c){ if(c.attacker!==s||hpR(c.target)>0.2||R(1)>0.35)return;
+    c.execute=true; c.dmg=c.target.hp; c.tags.push('処刑'); proc(s,'shokei',`${c.target.name}を処刑`);}},
+iatsu:{name:'威圧',cat:'対敵',desc:'自分を攻撃した相手の攻撃力を-15%（2ターン）に落とし、そのダメージも15%減らす。',
+  incoming(s,c){ if(c.target!==s||!c.attacker)return; c.dmg*=0.85; c.iatsu=true; s.fired.iatsu=6;},
+  damaged(s,c){ if(c.target!==s||!c.iatsu||!c.attacker||!c.attacker.alive)return;
+    if(c.attacker.buffs.some(b=>b.label==='威圧'))return;
+    proc(s,'iatsu',`${c.attacker.name}を威圧`);
+    addBuff(c.attacker,{label:'威圧',stat:'atk',value:-0.15,turns:2,kind:'debuff',gen:1},s);}},
+
+/* ---------- 時間・行動順・習熟 ---------- */
+shissou:{name:'疾走',cat:'習熟',desc:'行動する度に素早さ+9%（5回まで累積）。被弾すると途切れて0に戻る。',
+  turnEnd(s,c){ if(c.unit!==s)return; s.cnt.shissou=Math.min(5,(s.cnt.shissou||0)+1); fire(s,'shissou',2);},
+  damaged(s,c){ if(c.target!==s||!s.cnt.shissou)return; s.cnt.shissou=0; proc(s,'shissou','疾走が途切れた');},
+  mod(s,k){ return k==='spd'?1+0.09*(s.cnt.shissou||0):1;}},
+jukkou:{name:'熟考',cat:'習熟',desc:'攻撃しなかった手番ごとに次の攻撃+30%（3回まで）。攻撃すると使い切る。',
+  turnEnd(s,c){ if(c.unit!==s||c.attacked)return; s.cnt.jukkou=Math.min(3,(s.cnt.jukkou||0)+1);
+    proc(s,'jukkou',`熟考 ${s.cnt.jukkou}`);},
+  outgoing(s,c){ if(c.attacker!==s||!s.cnt.jukkou)return; c.dmg*=1+0.30*s.cnt.jukkou;
+    c.tags.push('熟考'+s.cnt.jukkou); c.consumeJukkou=true; s.fired.jukkou=6;},
+  dealt(s,c){ if(c.attacker===s&&c.consumeJukkou) s.cnt.jukkou=0;}},
+kanjuku:{name:'慣熟',cat:'習熟',desc:'同じ行動を連続する度にその威力+15%（3回まで）。別の行動で0に戻る。',
+  outgoing(s,c){ if(c.attacker!==s||!s.cnt.kanjuku)return; c.dmg*=1+0.15*s.cnt.kanjuku;
+    c.tags.push('慣熟'+s.cnt.kanjuku); fire(s,'kanjuku');}},
+tekiou:{name:'適応',cat:'習熟',desc:'同系統（物理／魔法）の攻撃を受ける度に、その系統への耐性が8%ずつ上昇（最大40%）。',
+  incoming(s,c){ if(c.target!==s)return; const n=s.cnt['ad_'+c.kind]||0; if(!n)return;
+    c.dmg*=1-Math.min(0.4,0.08*n); c.tags.push('適応'+n); fire(s,'tekiou');},
+  damaged(s,c){ if(c.target!==s)return; const k='ad_'+c.kind; s.cnt[k]=Math.min(5,(s.cnt[k]||0)+1);}},
+kasoku:{name:'加速',cat:'習熟',desc:'自分の手番終了時、最も出番が近い味方1人の行動順を25%早める。',
+  turnEnd(s,c){ if(c.unit!==s||!s.alive)return;
+    const t=allies(s).filter(x=>x.alive&&x!==s).sort((a,b)=>a.ct-b.ct)[0]; if(!t)return;
+    t.ct-=(t.ct-time)*0.25; proc(s,'kasoku',`${t.name}の行動順を早めた`);}},
+
+/* ---------- 状態・資源・確率・弱い個性 ---------- */
+dokuchi:{name:'毒血',cat:'状態',desc:'自分が毒状態の間、攻撃力+45%。毒ダメージも半減する。',
+  mod(s,k){ if(!s.ail.poison)return 1; if(k==='atk'||k==='mat'){s.fired.dokuchi=2;return 1.45;} return 1;}},
+seijou:{name:'清浄',cat:'状態',desc:'バフ・デバフ・状態異常が1つも無い間、全能力+10%。',
+  mod(s,k){ if(s.buffs.length||s.ail.poison)return 1; s.fired.seijou=2; return 1.10;}},
+seimei:{name:'生命転用',cat:'資源',desc:'MPが足りない時、不足分の2倍のHPを支払って魔法を唱えられる。'},
+kouun:{name:'強運',cat:'確率',desc:'会心率+18%、回避率+8%。', crit(){return 0.18;}, eva(){return 0.08;}},
+karuwaza:{name:'軽業',cat:'確率',desc:'回避率+14%。「ブラー」や素早さの差と足し合わさり、上限50%まで伸びる。',
+  eva(){return 0.14;}},
+mustHit:{name:'必中',cat:'確率',desc:'通常攻撃と特技が外れなくなる。相手の回避が高いほど効く。'
+  +'ただし「攻撃1回回避」（ダンシングリーフ）は貫けない。'},
+yonetsu:{name:'余熱',cat:'弱',desc:'攻撃が命中する度に次の攻撃+4%（5回まで累積）。外すと0に戻る。',
+  dealt(s,c){ if(c.attacker!==s)return; s.cnt.yonetsu=Math.min(5,(s.cnt.yonetsu||0)+1);},
+  outgoing(s,c){ if(c.attacker!==s||!s.cnt.yonetsu)return; c.dmg*=1+0.04*s.cnt.yonetsu;
+    c.tags.push('余熱'+s.cnt.yonetsu); fire(s,'yonetsu',4);},
+  missed(s,c){ if(c.attacker===s) s.cnt.yonetsu=0;}},
+kibunya:{name:'気分屋',cat:'弱',desc:'自分の手番開始時、ランダムな能力に±10〜35%の補正が1ターン付く。',
+  turnStart(s,c){ if(c.unit!==s)return; const st=pick(['atk','def','mat','mdf','spd']);
+    const up=R(1)<0.5, v=+((0.10+R(0.25))*(up?1:-1)).toFixed(2);
+    addBuff(s,{label:'気分屋',stat:st,value:v,turns:1,kind:up?'buff':'debuff',gen:1,noSpread:true},s);
+    proc(s,'kibunya',`${SN[st]}${up?'+':''}${Math.round(v*100)}%`);}},
+/* ---------- 素質（基礎パラメータの底上げ） ----------
+   役割の狭いものほど数値を厚くしてある。素早さは「手番そのものが増える」ので抑えめ。 */
+kyoujin:{name:'強靭',cat:'素質',desc:'最大HP+40%、防御+40%。',
+  vital:{hp:1.4}, mod(s,k){ if(k!=='def')return 1; s.fired.kyoujin=2; return 1.4;}},
+eichi:{name:'叡智',cat:'素質',desc:'最大MP+60%、魔力+40%。MPは魔法を使わない職には無価値なので厚め。',
+  vital:{mp:1.6}, mod(s,k){ if(k!=='mat')return 1; s.fired.eichi=2; return 1.4;}},
+makekkai:{name:'魔結界',cat:'素質',desc:'魔防+60%。物理型の相手には効かないぶん厚くしてある。',
+  mod(s,k){ if(k!=='mdf')return 1; s.fired.makekkai=2; return 1.6;}},
+idaten:{name:'韋駄天',cat:'素質',desc:'素早さ+30%。手番が増えるという意味なので、他の素質より控えめ。',
+  mod(s,k){ if(k!=='spd')return 1; s.fired.idaten=2; return 1.3;}},
+
+/* ---------- 資源（MPまわり） ---------- */
+mashield:{name:'魔盾',cat:'資源',desc:'HPが減る時、MPがあればMPで肩代わりする。毒や反動にも効く。《生命転用》とちょうど逆向き。'},
+amp:{name:'増幅',cat:'資源',desc:'スキルの消費MPが1.5倍になる代わりに威力も1.5倍。効率は変わらず、一撃が重くなる。'},
+shousen:{name:'消費軽減',cat:'資源',desc:'スキルの消費MPが3/4になる。'},
+renki:{name:'練気',cat:'資源',desc:'自分の手番終了時、最大MPの8%を回復する。《微回復》のMP版。',
+  turnEnd(s,c){ if(c.unit!==s||!s.alive||s.mp>=s.maxMp)return;
+    const g=Math.max(1,Math.round(s.maxMp*0.08)); gainMp(s,g); proc(s,'renki',`MP+${g}`);}},
+katsubou:{name:'魔力渇望',cat:'資源',desc:'MPが減るほど全ステータスが上がる。残MP0で全ステ+50%。',
+  mod(s,k){ if(!s.maxMp)return 1; const r=s.mp/s.maxMp; if(r>=1)return 1;
+    s.fired.katsubou=2; return 1+0.5*(1-r);}},
+kyuuma:{name:'吸魔',cat:'資源',desc:'通常攻撃で与えたダメージの18%をMPとして吸収する。特技・魔法では働かない。',
+  dealt(s,c){ if(c.attacker!==s||!c.normal)return; const g=Math.round(c.dmg*0.18); if(g<1)return;
+    gainMp(s,g); proc(s,'kyuuma',`MP+${g}を吸収`);}},
+
+/* ---------- 追加の対敵・習熟 ---------- */
+kuzushi:{name:'崩し',cat:'対敵',desc:'通常攻撃が命中した時、28%で相手の体勢を崩し休み状態にする。特技・魔法では働かない。',
+  dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target.alive)return;
+    if(R(1)>=0.28)return;
+    proc(s,'kuzushi',`${c.target.name}の体勢を崩した`); addAil(c.target,'rest',null,s);}},
+dokugeki:{name:'毒撃',cat:'対敵',desc:'通常攻撃が命中した時、相手を毒状態にする。特技・魔法では働かない。',
+  dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target.alive||c.target.ail.poison)return;
+    proc(s,'dokugeki',`${c.target.name}を毒に`); addAil(c.target,'poison',4,s);}},
+chitai:{name:'遅滞',cat:'対敵',desc:'被弾した時、攻撃者の行動順を少し遅らせる。1手番につき1回まで。範囲攻撃・多段攻撃への備え。',
+  damaged(s,c){ if(c.target!==s||!c.attacker||!c.attacker.alive)return;
+    if(s.cnt.chitaiTurn===turnNo)return;             // 多段攻撃で何度も遅らせない
+    s.cnt.chitaiTurn=turnNo;
+    c.attacker.ct+=(10000/stat(c.attacker,'spd'))*0.15;
+    proc(s,'chitai',`${c.attacker.name}の行動を遅らせた`);}},
+nino:{name:'二の太刀',cat:'習熟',desc:'行動の直後にもう一度行動できる。ただし再行動のあと自分に休みが付くので、手数は増えない。'},
+
+none:{name:'—',cat:'なし',desc:'個性なし（空き枠）。素の性能を確かめたい時に使います。'},
+};
+const TRAIT_IDS=Object.keys(TRAITS).filter(id=>id!=='none');
+const hasT=(u,id)=>u.traits.includes(id)||(typeof eqTraits==='function'&&eqTraits(u).includes(id));
+
+/* =========================================================
+   2. スキル（魔法と特技）
+
+   kind:'magic' … 魔力依存。命中判定なし（必ず当たる）
+   kind:'art'   … 攻撃力依存。命中判定あり（だから必中撃に価値が出る）
+
+   両者は同じ 3 枠を奪い合う。物理型が魔法を切り捨てることで職業の性格が出る。
+
+   needs … この職業タグ、または職業IDを持つ者にだけ抽選候補として出る。
+           配列ならどれか 1 つ満たせばよい。`擬態` タグ持ち（ミミック）は全部無視する。
+           ※ 編集画面のピッカーは検証用なので needs を無視して全部選べる。
+   ========================================================= */
+const SPELLS=[
+ /* ---------- 魔法（魔力依存・必中） ---------- */
+ {id:'fire',   name:'ファイア',    kind:'magic',type:'atk',   scope:'one', mp:8,  power:1.7,
+  desc:'単体に魔力×1.7の魔法ダメージ。魔防で軽減される。'},
+ {id:'inferno',name:'インフェルノ',kind:'magic',type:'atk',   scope:'all', mp:24, power:1.0,
+  desc:'敵全体に魔力×1.0の魔法ダメージ。敵が多いほど総ダメージが伸びる。'},
+ {id:'blast',  name:'ブラスト',    kind:'magic',type:'atk',   scope:'one', mp:16, power:2.8,
+  desc:'単体に魔力×2.8の大魔法ダメージ。単体火力の最上位。'},
+ {id:'heal',   name:'ヒール',      kind:'magic',type:'heal',  scope:'one', mp:8,  power:1.6,
+  desc:'単体のHPを魔力×1.6ぶん回復。最大HP超過分は「余剰」の変換対象。'},
+ {id:'mheal',  name:'エリアヒール',kind:'magic',type:'heal',  scope:'all', mp:56, power:0.9,
+  desc:'味方全体のHPを魔力×0.9ぶん回復。消費が重く、連発はできない。'},
+ {id:'cure',   name:'リフレッシュ',kind:'magic',type:'cure',  scope:'one', mp:12,
+  desc:'味方単体の状態異常をすべて解除する。毒・眠り・休みのどれでも治る。'},
+ {id:'rally',  name:'ラリー',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
+  desc:'味方単体の攻撃力+35%（3ターン）。「共有」「共鳴」「奪取」の起点になる。'},
+ {id:'haste',  name:'ヘイスト',    kind:'magic',type:'buff',  scope:'one', mp:8,  stat:'spd',value:0.35, turns:3,
+  desc:'味方単体の素早さ+35%（3ターン）。行動順が繰り上がる。'},
+ {id:'guardup',name:'プロテクト',  kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'def',value:0.40, turns:3,
+  desc:'味方単体の防御力+40%（3ターン）。「肩代わり」役を延命させる。'},
+ {id:'blur',   name:'ブラー',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
+  desc:'味方単体の回避率+22%（3ターン）。素早さの差や《軽業》と足し合わさる。《必中》には無効。'},
+ {id:'weaken', name:'ウィーク',    kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
+  desc:'敵単体の攻撃力-30%（3ターン）。「反射」持ちに撃つと跳ね返る。'},
+ {id:'breach', name:'ブレイク',    kind:'magic',type:'debuff',scope:'all', mp:18, stat:'def',value:-0.28,turns:3,
+  desc:'敵全体の防御力-28%（3ターン）。物理アタッカーの前準備。'},
+ {id:'slow',   name:'スロウ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
+  desc:'敵単体の素早さ-30%（3ターン）。行動順を後ろへ落とす。'},
+ {id:'venom',  name:'ヴェノム',    kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
+  desc:'敵単体を毒状態に（4ターン）。毎手番終了時に最大HPの5%を失う。「毒血」の起点。'},
+ {id:'sleep',  name:'スリープ',    kind:'magic',type:'ail',   scope:'one', mp:10, ail:'sleep',
+  desc:'敵単体を眠らせる。次の手番を失い、その間は被ダメージ2倍・個性が働かない。殴れば起きる。'},
+ {id:'leafdance',name:'ダンシングリーフ',kind:'magic',type:'evade',scope:'one',mp:10,needs:'mandra',
+  desc:'味方単体に「攻撃を1回だけ回避する」状態を付与する。マンドラゴラ専用。'},
+
+ /* ---------- 特技（攻撃力依存・命中判定あり） ---------- */
+ {id:'zenryoku',name:'全力斬',  kind:'art',type:'atk',scope:'one',mp:10,power:1.5,needs:'剣所持',
+  desc:'対象へ攻撃力×1.5の一撃。剣を持つ者だけが覚える。'},
+ {id:'samidare',name:'五月雨斬',kind:'art',type:'atk',scope:'one',mp:16,power:0.55,hits:4,randomTarget:true,needs:'剣所持',
+  desc:'4回攻撃。毎回ランダムに対象を選び直す。集団戦向けで、単体には火力が散る。'},
+ {id:'hicchuu', name:'必中撃',  kind:'art',type:'atk',scope:'one',mp:8, power:0.8,alwaysHit:true,needs:'剣所持',
+  desc:'攻撃力×0.8。威力は低いが必ず当たる。回避の高い相手に通す手。'},
+ {id:'hayabusa',name:'隼斬',    kind:'art',type:'atk',scope:'one',mp:10,power:0.8,hits:2,needs:'剣所持',
+  desc:'同じ対象へ攻撃力×0.8を2回。命中判定も2回行う。'},
+ {id:'taiatari',name:'体当たり',kind:'art',type:'atk',scope:'one',mp:6, power:1.3,recoil:0.1,
+  desc:'対象へ攻撃力×1.3。反動で与えたダメージの10%を自分も受ける。誰でも覚えられる。'},
+ {id:'kamitsuki',name:'噛みつき',kind:'art',type:'atk',scope:'one',mp:7,power:1.45,needs:'獣',
+  desc:'対象へ攻撃力×1.45。牙を持つ者の一撃。'},
+ {id:'tsumesaki',name:'爪裂き', kind:'art',type:'atk',scope:'one',mp:8, power:0.7,hits:2,needs:['獣','飛行'],
+  desc:'同じ対象へ攻撃力×0.7を2回。爪や鉤爪を持つ者の技。'},
+ {id:'otakebi', name:'雄たけび',kind:'art',type:'atk',scope:'one',mp:10,power:1.2,ail:'rest',needs:'mandra',
+  desc:'対象へ攻撃力×1.2。命中すると相手の体勢を崩して休み状態にする。マンドラゴラ専用。'},
+ {id:'sakebu',  name:'叫ぶ',    kind:'art',type:'ail',scope:'all',mp:14,ail:'rest',chance:0.5,alwaysHit:true,needs:'mandra',
+  desc:'敵全体を50%の確率で休み状態に。ダメージは無い。確率のみで判定し、命中判定は行わない。マンドラゴラ専用。'},
+ {id:'kiri',    name:'眠りの霧',kind:'art',type:'ail',scope:'all',mp:18,ail:'sleep',needs:'harpy',
+  desc:'敵全体を眠らせる。対象ごとに命中判定を行う。ハーピィ専用。'},
+];
+const SP=Object.fromEntries(SPELLS.map(s=>[s.id,s]));
+SP.none={id:'none',name:'—',type:'none',desc:'スキルなし（空き枠）。'};
+const SPELL_IDS=SPELLS.map(s=>s.id);
+const TYPE_LABEL={atk:'攻撃',heal:'回復',cure:'状態回復',buff:'強化',debuff:'弱体',ail:'状態異常',evade:'回避付与'};
+const spellsOf=u=>u.spells.filter(id=>id&&id!=='none');
+const isArt=sp=>sp&&sp.kind==='art';
+const skillKind=sp=>isArt(sp)?'特技':'魔法';
+const skillCat=sp=>isArt(sp)?'特技':TYPE_LABEL[sp.type];
+/* スキルの説明ツールチップ（カード・コマンド欄で共通） */
+const skillTip=sp=>`【${sp.name}】${skillKind(sp)}／MP${sp.mp}／${sp.scope==='all'?'範囲':'単体'}／${TYPE_LABEL[sp.type]}　${sp.desc}`;
+
+/* この職業がそのスキルを抽選で引けるか。編集画面での手動選択には効かない。 */
+function skillAllowed(sp,cls){
+  if(!sp||!sp.needs)return true;
+  if(!cls)return true;
+  if(cls.tags&&cls.tags.includes('擬態'))return true;   // ミミックは何でも出る
+  const need=Array.isArray(sp.needs)?sp.needs:[sp.needs];
+  return need.some(n=>n===cls.id||(cls.tags&&cls.tags.includes(n)));
+}
+
+/* =========================================================
+   2.5 装備
+
+   人間職だけが装備できる。武器1・防具1。
+   効果は基本ステータスの倍率だけだが、**まれに個性が1つ付く**。
+
+   ★ 装備由来の個性は 1 ユニットにつき最大 1 つ ★
+   武器と防具の両方に付けられるようにすると、実質 5 個性になって
+   既存のバランスが崩れる。付く位置（武器か防具か）は見た目だけの情報。
+   ========================================================= */
+let EQUIP_ON=true;              // 装備を使うかどうか（集計で比較するためのスイッチ）
+const EQUIPS=[
+ /* ---------- 武器 ---------- */
+ {id:'w_iron',  n:'鉄の剣',      slot:'w',stats:{atk:0.12},            desc:'素直な一振り。攻撃+12%。'},
+ {id:'w_steel', n:'鋼の剣',      slot:'w',stats:{atk:0.20},            desc:'重く鋭い。攻撃+20%。'},
+ {id:'w_rapier',n:'刺突剣',      slot:'w',stats:{atk:0.14,spd:0.10},   desc:'軽く速い。攻撃+14% 素早+10%。'},
+ {id:'w_hammer',n:'戦槌',        slot:'w',stats:{atk:0.28,spd:-0.12},  desc:'当たれば重いが鈍い。攻撃+28% 素早-12%。'},
+ {id:'w_bow',   n:'長弓',        slot:'w',stats:{atk:0.15,spd:0.06},   desc:'間合いを取って撃つ。攻撃+15% 素早+6%。'},
+ {id:'w_grim',  n:'魔道書',      slot:'w',stats:{mat:0.20},            desc:'詠唱を助ける。魔力+20%。'},
+ {id:'w_sage',  n:'賢者の杖',    slot:'w',stats:{mat:0.14,mp:0.20},    desc:'魔力+14% 最大MP+20%。'},
+ {id:'w_cursed',n:'呪われた刃',  slot:'w',stats:{atk:0.34,hp:-0.18},   desc:'持ち主の生命を削る。攻撃+34% 最大HP-18%。'},
+ /* ---------- 防具 ---------- */
+ {id:'a_leather',n:'革鎧',       slot:'a',stats:{def:0.15},            desc:'軽くて動ける。防御+15%。'},
+ {id:'a_plate',  n:'鋼鎧',       slot:'a',stats:{def:0.26,spd:-0.10},  desc:'硬いが重い。防御+26% 素早-10%。'},
+ {id:'a_robe',   n:'ローブ',     slot:'a',stats:{mdf:0.20},            desc:'魔に強い。魔防+20%。'},
+ {id:'a_mrobe',  n:'魔導のローブ',slot:'a',stats:{mdf:0.15,mp:0.15},   desc:'魔防+15% 最大MP+15%。'},
+ {id:'a_scale',  n:'竜鱗の鎧',   slot:'a',stats:{def:0.20,mdf:0.20,spd:-0.10},desc:'物理にも魔にも強いが鈍い。'},
+ {id:'a_amulet', n:'守りの護符', slot:'a',stats:{hp:0.18},             desc:'最大HP+18%。'},
+ {id:'a_cloak',  n:'疾風のマント',slot:'a',stats:{spd:0.18},           desc:'素早+18%。行動順が繰り上がる。'},
+ {id:'a_light',  n:'軽装',       slot:'a',stats:{def:0.08,spd:0.12},   desc:'防御+8% 素早+12%。'},
+];
+const EQ=Object.fromEntries(EQUIPS.map(e=>[e.id,e]));
+EQ.none={id:'none',n:'— なし —',desc:'装備なし。'};
+const WEAPONS=EQUIPS.filter(e=>e.slot==='w').map(e=>e.id);
+const ARMORS =EQUIPS.filter(e=>e.slot==='a').map(e=>e.id);
+const EQ_TRAIT_CHANCE=0.35;     // 装備に個性が付く確率
+
+const canEquip=u=>u.clsKind==='human';
+function rollEquip(u){
+  if(!canEquip(u)) return null;
+  const e={w:pick(WEAPONS),a:pick(ARMORS),trait:null,on:'w'};
+  if(R(1)<EQ_TRAIT_CHANCE){
+    e.trait=pick(TRAIT_IDS);
+    e.on=R(1)<0.5?'w':'a';
+  }
+  return e;
+}
+/* 装備の一覧（表示用）と、ステータス倍率・付与個性 */
+function eqOn(u){ return EQUIP_ON&&u.equip&&canEquip(u)?u.equip:null; }
+function eqMult(u,k){
+  const e=eqOn(u); if(!e)return 1;
+  let m=1;
+  [e.w,e.a].forEach(id=>{ const d=EQ[id]; if(d&&d.stats&&d.stats[k]) m*=1+d.stats[k]; });
+  return m;
+}
+const eqTraits=u=>{ const e=eqOn(u); return e&&e.trait?[e.trait]:[]; };
+/* 個性を引くときは必ずこれを通す。本人の3枠＋装備の1枠。 */
+function allTraits(u){ const e=eqTraits(u); return e.length?u.traits.concat(e):u.traits; }
+const eqLabel=(u,slot)=>{ const e=u.equip; if(!e)return '— なし —';
+  const d=EQ[e[slot]]; return d?d.n:'— なし —'; };
+
+/* =========================================================
+   3. ユニット生成
+   ========================================================= */
+/* 職業（人間職）と種族（魔物）。どちらも同じ形で、ユニットに 1 つ付く。
+
+   ★ bias / spBias は「その職業が引きやすい個性・魔法」の重み ★
+
+   固定リストではなく重み付き抽選にしてある。数値は「指定の無い候補の
+   何倍出やすいか」。指定の無いものはすべて重み 1 で候補に残る。
+
+   だから ヴァンパイアは吸血を持ちやすいが、持たない個体も出る。
+   スライムはヴェノムを覚えやすいが、覚えない個体も出る。
+   「らしさ」は確率で表現していて、決め打ちはしていない。
+
+   spN は魔法を何枠埋めるか。物理で殴るだけの魔物は 0〜1 にしてある。 */
+const CLASSES=[
+ /* ---------- 人間職 ---------- */
+ {id:'sw',n:'剣士',   c:'SW',kind:'human',hp:520,mp:30,atk:78,def:56,mat:28,mdf:36,spd:52,
+  tags:['人型','剣所持'],
+  desc:'攻守のバランス型。前線で殴り続ける基準となる職。',
+  bias:{tsuigeki:14,kajiba:10,haisui:8,revenge:6,kanjuku:5},
+  spN:2, spBias:{zenryoku:16,hayabusa:12,fire:8,rally:8}},
+ {id:'kn',n:'重騎士', c:'KN',kind:'human',hp:690,mp:24,atk:62,def:82,mat:20,mdf:48,spd:36,
+  tags:['人型','剣所持'],
+  desc:'HPと防御が人間職で最高。素早さは最低。味方をかばって立ち続ける壁。',
+  bias:{cover:18,chouhatsu:14,mitigate:10,thorns:7,fukutsu:6},
+  spN:2, spBias:{guardup:16,zenryoku:10,weaken:6}},
+ {id:'mg',n:'魔導士', c:'MG',kind:'human',hp:380,mp:78,atk:34,def:34,mat:88,mdf:62,spd:48,
+  tags:['人型'],
+  desc:'魔力が人間職で最高。紙装甲だが範囲魔法の総火力が抜けている。',
+  bias:{tsuishou:16,jukkou:12,yonetsu:10,charge:6,seimei:5},
+  spN:3, spBias:{inferno:16,blast:14,fire:12,sleep:6}},
+ {id:'pr',n:'僧侶',   c:'PR',kind:'human',hp:420,mp:74,atk:38,def:44,mat:66,mdf:70,spd:44,
+  tags:['人型'],
+  desc:'回復と魔防の要。魔防は全職中で最高。',
+  bias:{surplus:16,seijou:14,regen:10,share:8,mitodoke:5},
+  spN:3, spBias:{heal:20,mheal:14,cure:14,guardup:6}},
+ {id:'rg',n:'斥候',   c:'RG',kind:'human',hp:400,mp:36,atk:70,def:42,mat:34,mdf:40,spd:78,
+  tags:['人型','剣所持'],
+  desc:'素早さが人間職で最高。先手を取って弱体を撒く。',
+  bias:{shissou:16,karuwaza:14,kouun:10,timid:9,kasoku:8,tsuitou:6},
+  spN:2, spBias:{hayabusa:14,blur:12,samidare:10,weaken:8,slow:8,venom:6}},
+ {id:'ar',n:'弓兵',   c:'AR',kind:'human',hp:430,mp:40,atk:74,def:44,mat:40,mdf:42,spd:62,
+  tags:['人型','射手'],
+  desc:'後列から高い攻撃を通す。速さと火力の両立型。',
+  bias:{atooi:16,mustHit:14,kanjuku:12,tsuitou:10,shokei:7,jukkou:5},
+  spN:2, spBias:{taiatari:10,fire:10,slow:12}},
+ {id:'hx',n:'呪術師', c:'HX',kind:'human',hp:390,mp:70,atk:36,def:36,mat:80,mdf:60,spd:50,
+  tags:['人型'],
+  desc:'毒と呪いで削る魔法職。継続ダメージが本体。',
+  bias:{juso:16,dokuchi:14,ishi:9,recoil:6,tsuishou:5},
+  spN:3, spBias:{venom:18,sleep:12,breach:10,inferno:8}},
+ {id:'cm',n:'指揮官', c:'CM',kind:'human',hp:480,mp:50,atk:52,def:52,mat:52,mdf:52,spd:50,
+  tags:['人型','剣所持'], fixed:['share'],
+  desc:'本人の数値はすべて平凡。ただし必ず《共有》を持ち、素質系の個性を引きやすい。'
+      +'自分に掛かったバフを味方全体へ配るのが仕事。',
+  bias:{kyoujin:14,eichi:14,makekkai:10,idaten:10,resonate:10,mitodoke:6},
+  spN:2, spBias:{rally:18,guardup:14,haste:12}},
+
+ /* ---------- 魔物（敵の既定） ---------- */
+ {id:'vampire',n:'ヴァンパイア',c:'VP',kind:'monster',hp:500,mp:60,atk:74,def:48,mat:70,mdf:54,spd:64,
+  tags:['人型','不死','飛行'],
+  desc:'与えたダメージを糧に立ち直る。吸血を持ちやすい。',
+  bias:{drain:24,juso:9,tensei:8,shokei:6,kouun:5},
+  spN:2, spBias:{tsumesaki:12,weaken:10,fire:8,heal:6}},
+ {id:'slime',n:'スライム',      c:'SL',kind:'monster',hp:620,mp:52,atk:52,def:60,mat:58,mdf:44,spd:30,
+  tags:['粘体'],
+  desc:'鈍いが硬く、毒を撒く。ヴェノムと毒血を持ちやすい。',
+  bias:{dokuchi:24,mitigate:12,fukutsu:8,thorns:6},
+  spN:2, spBias:{venom:30,taiatari:10,slow:6}},
+ {id:'skeleton',n:'スケルトン', c:'SK',kind:'monster',hp:430,mp:26,atk:66,def:52,mat:24,mdf:30,spd:56,
+  tags:['人型','不死','剣所持'],
+  desc:'倒れても立ち上がる。不屈と転生を持ちやすい。',
+  bias:{fukutsu:22,tensei:14,shuunen:10,haisui:6},
+  spN:1, spBias:{zenryoku:14,hicchuu:8,weaken:4}},
+ {id:'goblin',n:'ゴブリン',     c:'GB',kind:'monster',hp:380,mp:20,atk:60,def:40,mat:20,mdf:26,spd:66,
+  tags:['人型','剣所持'],
+  desc:'単体では弱いが群れる。隣接と追撃を持ちやすい。',
+  bias:{rinsetsu:22,tsuigeki:12,timid:9,share:6},
+  spN:1, spBias:{hayabusa:12,taiatari:10}},
+ {id:'wyvern',n:'ワイバーン',   c:'WY',kind:'monster',hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
+  tags:['獣','飛行'],
+  desc:'最速級の飛竜。疾走と加速で手数を稼ぐ。',
+  bias:{shissou:22,kasoku:14,tsuigeki:10,iatsu:6},
+  spN:2, spBias:{kamitsuki:16,tsumesaki:12,fire:8}},
+ {id:'lich',n:'リッチ',         c:'LC',kind:'monster',hp:400,mp:92,atk:30,def:36,mat:92,mdf:70,spd:46,
+  tags:['人型','不死'],
+  desc:'魔力が全体で最高。呪詛と遺志で死後も削る。',
+  bias:{juso:22,ishi:14,tsuishou:10,seimei:7},
+  spN:3, spBias:{inferno:18,blast:14,venom:10,sleep:8}},
+ {id:'gargoyle',n:'ガーゴイル', c:'GG',kind:'monster',hp:660,mp:24,atk:58,def:86,mat:22,mdf:52,spd:32,
+  tags:['無機','飛行'],
+  desc:'防御が全体で最高の石像。軽減と倍化で攻撃を跳ね返す。',
+  bias:{mitigate:22,thorns:16,chouhatsu:10,cover:7},
+  spN:1, spBias:{guardup:14,tsumesaki:10,taiatari:8}},
+ {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
+  tags:['獣','四足'],
+  desc:'追い詰めるほど強くなる猟犬。追撃と処刑を持ちやすい。',
+  bias:{tsuigeki:20,kajiba:14,shokei:12,haisui:8},
+  spN:2, spBias:{kamitsuki:18,tsumesaki:14,taiatari:8}},
+ {id:'harpy',n:'ハーピィ',      c:'HP',kind:'monster',hp:360,mp:36,atk:62,def:34,mat:44,mdf:40,spd:86,
+  tags:['人型','飛行'],
+  desc:'最速。脆いが先手を取って掻き乱す。眠りの霧を使う唯一の種族。',
+  bias:{shissou:22,karuwaza:18,kasoku:12,timid:12,kouun:6},
+  spN:2, spBias:{kiri:16,blur:12,tsumesaki:10,slow:8}},
+ {id:'mandra',n:'マンドラゴラ', c:'MD',kind:'monster',hp:470,mp:66,atk:34,def:46,mat:74,mdf:64,spd:24,
+  tags:['植物'],
+  desc:'最も遅い。動かないが毒と呪いを撒き続ける。専用スキルを3つ持つ。',
+  bias:{dokuchi:20,juso:14,regen:10,recoil:6},
+  spN:3, spBias:{sakebu:16,otakebi:12,leafdance:12,venom:14}},
+ {id:'dullahan',n:'デュラハン', c:'DH',kind:'monster',hp:600,mp:40,atk:80,def:66,mat:34,mdf:48,spd:54,
+  tags:['人型','不死','四足','剣所持'],
+  desc:'首無しの騎士。威圧と処刑で確実に落としにくる。',
+  bias:{iatsu:22,shokei:14,mustHit:12,cover:9,shuunen:8},
+  spN:2, spBias:{zenryoku:16,hicchuu:12,weaken:8}},
+ {id:'mimic',n:'ミミック',      c:'MM',kind:'monster',hp:520,mp:48,atk:68,def:58,mat:52,mdf:44,spd:40,
+  tags:['無機','擬態'],
+  desc:'何が出るか分からない。奪取と気分屋を持ちやすく、スキルは完全にランダム。剣も持たないのに剣技を使い、他種族の専用スキルまで出る。',
+  bias:{steal:20,kibunya:16,kouun:12,tekiou:8},
+  spN:2},
+];
+const CLS=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
+const HUMANS   = CLASSES.filter(c=>c.kind==='human');
+const MONSTERS = CLASSES.filter(c=>c.kind==='monster');
+const KIND_LABEL={human:'人間職',monster:'魔物'};
+/* 控えを50人まで抱えるので、名前も多めに用意しておく */
+const ANAMES=['ライカ','ゼノ','ミルフィ','オーウェン','シャロ','ベルグ','ノエル',
+  'アイラ','クレイ','ディーン','エルザ','フィン','グレン','ハンナ','イヴ','ジャン',
+  'カイ','リオ','マーヤ','ニカ','オルガ','パウル','レン','ソフィ','ティナ','ウルズ',
+  'ヴェラ','ワイス','ヤナ','ザック','ルカ','メイ','トール','セシル','ハルト','ノア',
+  'エイダ','ブルーノ','コハク','ダリア','エリク','フローラ','ギード','ヒナ','イリス',
+  'ジーク','クロエ','ラウル','ミナ','ネロ','オリヴィア','ピア'];
+/* 同じ名前が並ばないように未使用の名前から引く */
+function freshAllyName(){
+  const used=new Set([...U,...BENCH].filter(x=>x.side==='ally').map(x=>x.name0||x.name));
+  const free=ANAMES.filter(n=>!used.has(n));
+  return free.length?pick(free):ANAMES[RI(ANAMES.length)]+'・'+(used.size+1);
+}
+const ROMAN=['','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ','Ⅶ'];
+
+/* 重み付き抽選（重複なし）。
+   bias に無い候補も重み 1 で残るので、「らしくない」個体もちゃんと出る。 */
+function pickWeighted(ids,bias,count){
+  const pool=ids.slice(), out=[];
+  while(out.length<count && pool.length){
+    let total=0;
+    for(const id of pool) total+=(bias&&bias[id])||1;
+    let r=R(total), hit=pool.length-1;
+    for(let i=0;i<pool.length;i++){
+      r-=(bias&&bias[pool[i]])||1;
+      if(r<0){ hit=i; break; }
+    }
+    out.push(pool[hit]); pool.splice(hit,1);
+  }
+  while(out.length<count) out.push('none');
+  return out;
+}
+/* 職業に応じた個性 3 枠。cls を省くと完全ランダム。
+   cls.fixed があれば、その個性は必ず持つ（指揮官の《共有》など）。残り枠だけ抽選する。 */
+function rollTraits(cls){
+  const fixed=(cls&&cls.fixed||[]).filter(id=>TRAITS[id]);
+  if(!fixed.length) return pickWeighted(TRAIT_IDS,cls&&cls.bias,3);
+  const pool=TRAIT_IDS.filter(id=>!fixed.includes(id));
+  return [...fixed,...pickWeighted(pool,cls.bias,Math.max(0,3-fixed.length))].slice(0,3);
+}
+/* 職業に応じたスキル。spN 枠だけ引き、残りは「なし」。
+   needs を満たさないスキルは候補から外す（剣を持たない者に剣技は出ない）。 */
+function rollSpells(cls){
+  if(!cls) return pickWeighted(SPELL_IDS,null,3);
+  const n=cls.spN==null?3:cls.spN;
+  const pool=SPELL_IDS.filter(id=>skillAllowed(SP[id],cls));
+  return [...pickWeighted(pool,cls.spBias,n),'none','none','none'].slice(0,3);
+}
+
+let U=[],BENCH=[],time=0,turnNo=0,running=false,auto=false,paused=false,speedF=1,uidc=0,logs=[],current=null;
+
+/* 集計・判定まわり
+   SIM 中は描画・ログ・演出をすべて止め、同じエンジンを同期的に回す。 */
+let SIM=false;
+let MOBILE=false, MTAB='board';      // 携帯レイアウトと、そのタブ
+let turnLimit=300;              // 打ち切りターン数（画面から変更可）
+let DMG={ally:0,foe:0};         // 陣営ごとの「相手へ直接与えたダメージ」
+let battleResult=null;          // 'ally' | 'foe' | 'draw' | null
+let PROC={};                    // 個性の発動回数（集計モード用）
+let OWN={};                     // 個性の延べ所持数（集計モード用）
+/* 発動を記録できるイベントを持たない個性 ＝「常時型」。
+   背水や強靭のように常に効いているものは、発動回数では測れない。
+   これを分けないと「所持されているのに未発動」の一覧が常時型で埋まってしまう。 */
+const PROC_EVENTS=['turnStart','turnEnd','outgoing','incoming','damaged','dealt','healed',
+  'missed','lethal','death','kill','buffApplied','allySkill','allyHit','actionEnd','ailApplied'];
+const isPassiveTrait=id=>!PROC_EVENTS.some(ev=>TRAITS[id]&&TRAITS[id][ev]);
+function newBattleState(){ time=0; turnNo=0; DMG={ally:0,foe:0}; battleResult=null; current=null; }
+const judgeByDamage=()=>DMG.ally===DMG.foe?'draw':(DMG.ally>DMG.foe?'ally':'foe');
+
+/* ネット対戦の状態。ソロ時は role=null で、すべて従来どおりに動く。
+   対戦時は「ホスト陣営 = ally / ゲスト陣営 = foe」で共有し、
+   画面はそれぞれ自分の陣営が右に来るように描く。 */
+const NET={
+  bridge:false,      // ブリッジ（Go）が動いているか
+  connected:false,   // P2P が繋がっているか
+  role:null,         // 'host' | 'guest' | null
+  roll:0, peerRoll:null, peer:'', selfName:'',
+  matched:false,     // 対戦が始まっているか
+  cmdResolve:null,   // ホストがゲストの返答を待っている
+  cmdTurn:0,
+  logSent:0,         // ゲストへ送信済みのログ数
+  rtt:null, loss:0, pending:0,
+  netlog:[]
+};
+function MY(){ return NET.role==='guest'?'foe':'ally'; }
+function OP(){ return MY()==='ally'?'foe':'ally'; }
+// 画面のラベルは見る人が基準（自分／相手）
+const sideName=s=>NET.matched?(s===MY()?'自分':'相手'):(s==='ally'?'味方':'敵');
+// ログは両者で同じ文面になる必要があるので、絶対的な陣営名を使う
+function partyName(side){
+  if(!NET.matched) return side==='ally'?'味方':'敵';
+  const host=NET.role==='host'?(NET.selfName||'ホスト'):(NET.peer||'ホスト');
+  const guest=NET.role==='host'?(NET.peer||'ゲスト'):(NET.selfName||'ゲスト');
+  return side==='ally'?host:guest;
+}
+
+/* 職業のステータスを適用する。個体差 ±10% は職業を変えても引き継ぐので、
+   同じ職業に戻せば元の数値に戻る（付け替えを試しても値が流れない）。 */
+function applyClass(u,cls,opt={}){
+  const v=u.varia||(u.varia=0.9+R(0.2));
+  const ratioHp=opt.keepRatio&&u.maxHp?u.hp/u.maxHp:1;
+  const ratioMp=opt.keepRatio&&u.maxMp?u.mp/u.maxMp:1;
+  u.clsId=cls.id; u.cls=cls.c; u.clsName=cls.n; u.clsKind=cls.kind;
+  u.maxHp=Math.round(cls.hp*v); u.maxMp=Math.round(cls.mp*v);
+  u.base={atk:Math.round(cls.atk*v),def:Math.round(cls.def*v),mat:Math.round(cls.mat*v),
+          mdf:Math.round(cls.mdf*v),spd:Math.round(cls.spd*v)};
+  if(u.foeBoost) u.maxHp=Math.round(u.maxHp*1.05);
+  /* 個性による最大HP/MPの底上げ（強靭・叡智）。
+     攻撃力などと違って maxHp/maxMp は stat() を通らないので、ここで掛ける。 */
+  let hm=1,mm=1;
+  allTraits(u).forEach(id=>{ const t=TRAITS[id];
+    if(t&&t.vital){ hm*=t.vital.hp||1; mm*=t.vital.mp||1; } });
+  hm*=eqMult(u,'hp'); mm*=eqMult(u,'mp');       // 装備の最大HP/MP補正
+  u.maxHp=Math.max(1,Math.round(u.maxHp*hm)); u.maxMp=Math.max(0,Math.round(u.maxMp*mm));
+  u.hp=Math.max(1,Math.round(u.maxHp*ratioHp));
+  u.mp=Math.round(u.maxMp*ratioMp);
+  return u;
+}
+/* 個性が変わった後に最大HP/MPを取り直す。割合は維持する。 */
+function refreshVitals(u){ const c=CLS[u.clsId]; if(c) applyClass(u,c,{keepRatio:true}); }
+function makeUnit(side,slot,cls,name){
+  const u={id:++uidc,side,slot,name,name0:name,hp:0,mp:0,
+    traits:[],spells:['none','none','none'],gambits:[],buffs:[],ail:{},cnt:{},fired:{},
+    alive:true,ct:0,guard:false,lastAct:null,foeBoost:side==='foe'};
+  applyClass(u,cls);
+  u.spells=rollSpells(cls);
+  u.gambits=defaultGambits(u);
+  return u;
+}
+/* 職業の傾向に沿って引く。cls を省くと完全ランダム（従来どおり）。 */
+function randTraits(cls){ return rollTraits(cls); }
+function randSpells(cls){ return cls?rollSpells(cls):pickWeighted(SPELL_IDS,null,3); }
+const clsOf=u=>CLS[u.clsId]||null;
+
+/* 魔物の名前。同じ種族が並んだら Ⅱ Ⅲ… を付けて区別する。 */
+function monsterName(cls,side){
+  const same=[...U,...BENCH].filter(x=>x.side===side&&x.clsId===cls.id).length;
+  return cls.n+(ROMAN[same]?' '+ROMAN[same]:'');
+}
+function newUnit(side,slot){
+  const cls=side==='ally'?pick(HUMANS):pick(MONSTERS);
+  const name=side==='ally'?freshAllyName():monsterName(cls,'foe');
+  const u=makeUnit(side,slot,cls,name);
+  u.traits=rollTraits(cls);
+  u.equip=rollEquip(u);              // 人間職だけ装備を引く
+  // 個性が決まってからオート行動を組み直す。
+  // makeUnit の時点では traits が空なので、《奪取》などの個性由来の行が入らない。
+  u.gambits=defaultGambits(u);
+  resetUnit(u);
+  return u;
+}
+function resetUnit(u){
+  refreshVitals(u);                       // 強靭・叡智を反映してから満タンにする
+  u.hp=u.maxHp; u.mp=u.maxMp; u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0;
+  u.alive=true; u.guard=false; u.lastAct=null; u.ct=time+10000/stat(u,'spd');
+}
+/* --- 配置（出撃／なし） --- */
+function deploy(u){
+  if(U.includes(u))return; BENCH=BENCH.filter(x=>x!==u); resetUnit(u); U.push(u);
+  addLog(`${u.name} を配置した`,'l-sys');
+  if(!running && !(NET.matched&&NET.role==='guest')){ running=true; loop(); }
+}
+function bench(u){
+  if(!U.includes(u))return;
+  if(current===u&&resolveCmd) send({cmd:'guard'});
+  U=U.filter(x=>x!==u); u.alive=false; if(!BENCH.includes(u)) BENCH.push(u);
+  addLog(`${u.name} を配置から外した`,'l-sys');
+}
+function unitAt(side,slot){ return U.find(u=>u.side===side&&u.slot===slot); }
+function benchedAt(side,slot){ return BENCH.find(u=>u.side===side&&u.slot===slot); }
+/* 控えのユニットを指定スロットへ出す */
+function deployTo(u,slot){
+  if(!u||unitAt(u.side,slot))return false;
+  u.slot=slot; deploy(u); return true;
+}
+function toggleSlot(side,slot){
+  if(NET.matched){ addLog('対戦中は配置を変更できません','l-sys'); return; }
+  const u=unitAt(side,slot);
+  if(u) return bench(u);
+  // 空きスロットを押したら控えから選ばせる。控えが空なら新規に作る。
+  const pool=BENCH.filter(x=>x.side===side);
+  if(!pool.length){ deployTo(newUnit(side,slot),slot); return; }
+  openRoster(side,slot);
+}
+function setCount(side,n){
+  if(NET.matched){ addLog('対戦中は人数を変更できません','l-sys'); syncCountUI(); return; }
+  const all=[...U,...BENCH].filter(u=>u.side===side).sort((a,b)=>a.slot-b.slot);
+  for(let s=0;s<7;s++){
+    const u=all.find(x=>x.slot===s)||null;
+    if(s<n){ deploy(u||newUnit(side,s)); }
+    else if(u) bench(u);
+  }
+  render(); syncCountUI();
+}
+function setup(){
+  U=[];BENCH=[];uidc=0;logs=[];newBattleState();
+  // 職業・種族の重複を許可する。同じ職業が並ぶ編成も普通に出る。
+  for(let i=0;i<7;i++) U.push(newUnit('ally',i));
+  for(let i=0;i<7;i++) U.push(newUnit('foe',i));
+  addLog('戦闘開始 — 味方は人間職 / 敵は魔物。職業は重複あり、個性とスキルは職業ごとの傾向で抽選','l-turn');
+  syncCountUI();
+}
+
+/* =========================================================
+   4. 参照ヘルパ
+   ========================================================= */
+const allies=u=>U.filter(x=>x.side===u.side);
+const foes  =u=>U.filter(x=>x.side!==u.side);
+const aliveOf=s=>U.filter(x=>x.side===s&&x.alive);
+const hpR=u=>u.hp/u.maxHp;
+const isFront=u=>u.slot<3;
+const adjacent=(a,b)=>a.side===b.side&&isFront(a)===isFront(b)&&Math.abs(a.slot-b.slot)===1;
+const adjacentAllies=u=>allies(u).filter(x=>x!==u&&x.alive&&adjacent(u,x));
+const traitFns=(u,ev)=>allTraits(u).map(t=>TRAITS[t]&&TRAITS[t][ev]).filter(Boolean);
+
+/* 眠っている個体は個性が働かない。
+   死亡関連（不屈・執念・転生・遺志・呪詛）は runOn で直接呼ぶので、ここは通らない＝眠っていても発動する。 */
+function emit(ev,ctx){
+  for(const u of U){ if(!u.alive&&!ctx.dead)continue;
+    if(asleep(u))continue;
+    for(const f of traitFns(u,ev)){ try{f(u,ctx);}catch(e){console.error(ev,e);} } }
+  return ctx;
+}
+function runOn(u,ev,ctx){ for(const f of traitFns(u,ev)){ try{f(u,ctx);}catch(e){console.error(ev,e);} } }
+function stat(u,k){
+  let base=u.base[k]||0,pct=0;
+  u.buffs.forEach(b=>{ if(b.stat===k) pct+=b.value; });
+  let m=1; for(const f of traitFns(u,'mod')) m*=(f(u,k)||1);
+  m*=eqMult(u,k);                               // 装備の補正
+  if(u.guard&&(k==='def'||k==='mdf')) m*=1.8;
+  return Math.max(1,base*(1+pct)*m);
+}
+function sumHook(u,ev){ let v=0; for(const f of traitFns(u,ev)) v+=f(u)||0; return v; }
+
+/* =========================================================
+   5. バフ・状態
+   ========================================================= */
+let buffDepth=0;                       // 共有↔共鳴↔奪取の連鎖暴走を止める安全弁
+function addBuff(u,b,src){
+  if(!u.alive)return; b={gen:0,...b};
+  const ex=u.buffs.find(x=>x.label===b.label&&x.stat===b.stat);
+  if(ex){ ex.turns=Math.max(ex.turns,b.turns);
+          if(Math.abs(b.value)>Math.abs(ex.value)) ex.value=b.value;
+          ex.gen=Math.max(ex.gen||0,b.gen||0);   // 上書き時も世代を引き継ぐ
+          b=ex; }
+  else u.buffs.push(b);
+  addLog(`${u.name} に ${b.label}(${SN[b.stat]||''}${b.value>0?'+':''}${Math.round(b.value*100)}%)${b.src?' ['+b.src+']':''}`,
+    b.kind==='buff'?'l-buff':'l-debuff');
+  if(buffDepth>=6) return;
+  buffDepth++;
+  try{ emit('buffApplied',{unit:u,buff:b,source:src}); }
+  finally{ buffDepth--; }
+}
+/* 状態異常
+   poison … ターン制。手番終了ごとに削れる
+   sleep  … 次の手番を 1 回失う。時間では減らない
+              ・受けるダメージが2倍
+              ・ダメージを受けると即座に解除（起きる）
+              ・眠っている間は個性が働かない（死亡関連だけは働く）
+   rest   … 次の手番を 1 回失うだけ。ほかに不利は無い                        */
+const AIL_LABEL={poison:'毒',sleep:'眠',rest:'休'};
+const AIL_TIMED={poison:true};                 // 時間で減るのはこれだけ
+const asleep=u=>!!u.ail.sleep;
+
+function addAil(u,name,turns,src){
+  if(!u.alive)return;
+  // 眠りと休みは同時に付かない。後から付いた方で上書きする。
+  if(name==='sleep') delete u.ail.rest;
+  if(name==='rest')  delete u.ail.sleep;
+  u.ail[name]=AIL_TIMED[name]?(turns||3):1;
+  addLog(`${u.name} は ${AIL_LABEL[name]||name} 状態になった`,'l-debuff');
+  emit('ailApplied',{unit:u,ail:name,source:src});
+}
+function clearAils(u){
+  const had=Object.keys(u.ail);
+  if(!had.length)return false;
+  u.ail={};
+  addLog(`${u.name} の状態異常が解けた（${had.map(k=>AIL_LABEL[k]||k).join('・')}）`,'l-heal');
+  return true;
+}
+/* 手番の頭で眠り／休みを消化する。戻り値がある＝この手番は行動できない。 */
+function consumeRest(u){
+  if(u.ail.sleep){ delete u.ail.sleep; addLog(`${u.name} は目を覚ました`,'l-sys'); return 'sleep'; }
+  if(u.ail.rest){  delete u.ail.rest;  addLog(`${u.name} は体勢を立て直した`,'l-sys'); return 'rest'; }
+  return null;
+}
+function tickBuffs(u){
+  u.buffs.forEach(b=>b.turns--); u.buffs=u.buffs.filter(b=>b.turns>0);
+  for(const k in u.ail){ if(!AIL_TIMED[k])continue; u.ail[k]--; if(u.ail[k]<=0) delete u.ail[k]; }
+}
+
+/* =========================================================
+   6. ダメージ / 回復
+   ========================================================= */
+function gainMp(u,v){ u.mp=clamp(u.mp+v,0,u.maxMp); pop(u,'+'+v,'mp'); }
+
+/* HPを減らす唯一の入口。《魔盾》はここでMPに肩代わりさせる。
+   《生命転用》のMP不足支払いはここを通さない（互いに肩代わりし合って循環するため）。 */
+function loseHp(u,d){
+  if(d<=0)return 0;
+  if(hasT(u,'mashield')&&u.mp>0){
+    const paid=Math.min(u.mp,d);
+    u.mp-=paid; d-=paid;
+    proc(u,'mashield',`HP${paid}ぶんをMPで肩代わり`);
+    pop(u,'-'+paid,'mp');
+  }
+  u.hp-=d;
+  return d;
+}
+/* スキルの実消費MP。増幅で1.5倍、消費軽減で3/4。両方持てば相殺されて等倍。 */
+function mpCost(u,sp){
+  let c=sp.mp||0;
+  if(hasT(u,'amp')) c*=1.5;
+  if(hasT(u,'shousen')) c*=0.75;
+  return Math.max(1,Math.floor(c));
+}
+/* 増幅による威力倍率（攻撃と回復に掛かる）。 */
+const ampMult=u=>hasT(u,'amp')?1.5:1;
+function healRaw(u,v){
+  const before=u.hp; u.hp=Math.min(u.maxHp,u.hp+v);
+  const over=Math.max(0,before+v-u.maxHp);
+  pop(u,'+'+(u.hp-before),'heal');
+  emit('healed',{unit:u,amount:v,over});
+}
+function rawDamage(u,d,label,src){
+  if(!u.alive)return; loseHp(u,d); pop(u,d,'dmg'); shake(u);
+  addLog(`${u.name} は ${label} で ${d} ダメージ`,'l-dmg');
+  if(u.hp<=0) checkDeath(u,src);
+}
+function checkDeath(u,killer){
+  if(u.hp>0||!u.alive)return;
+  const lc={unit:u,prevented:false};
+  runOn(u,'lethal',lc);
+  if(lc.prevented&&u.hp>0){ render(); return; }
+  u.hp=0; u.alive=false; u.guard=false;
+  addLog(`✖ ${u.name} 撃破`,'l-die');
+  const dc={unit:u,dead:true};
+  runOn(u,'death',dc);
+  if(dc.revive){ render(); return; }
+  emit('kill',{killer:killer||null,victim:u});
+  render();
+}
+function calcDamage(a,t,opt){
+  const kind=opt.kind||'phys';
+  const A=stat(a,kind==='mag'?'mat':'atk'), D=stat(t,kind==='mag'?'mdf':'def');
+  let dmg=(A*(opt.power||1))*(120/(120+D*0.9))*(0.92+R(0.16));
+  const ctx={attacker:a,target:t,dmg,kind,tags:[],crit:false,redirected:null};
+  const cr=0.05+sumHook(a,'crit')+stat(a,'spd')/2400;
+  if(R(1)<cr){ ctx.crit=true; ctx.dmg*=1.65; ctx.tags.push('会心'); }
+  runOn(a,'outgoing',ctx);
+  // 対象の軽減系＋第三者の肩代わり。眠っている個体はどちらも働かない。
+  for(const u of U){ if(u.alive&&!asleep(u)) runOn(u,'incoming',ctx); }
+  if(t.guard&&!ctx.execute){ ctx.dmg*=0.45; ctx.tags.push('防御'); }
+  if(asleep(t)&&!ctx.execute){ ctx.dmg*=2; ctx.tags.push('睡眠中'); }
+  ctx.dmg=Math.max(1,Math.round(ctx.dmg));
+  return ctx;
+}
+function applyDamage(ctx){
+  if(ctx.redirected&&ctx.redirected.alive&&ctx.redirected!==ctx.target) ctx.target=ctx.redirected;
+  const t=ctx.target;
+  /* 総与ダメージの集計。
+     通常攻撃とスキルで相手へ直接与えたぶんだけを数える。
+     毒・反動・倍化は rawDamage を通るのでここには来ない（＝計上されない）。
+     オーバーキル分も数えない。瀕死に大技を撃つだけで数字が伸びるのを防ぐため。 */
+  if(t.side!==ctx.attacker.side) DMG[ctx.attacker.side]+=Math.max(0,Math.min(ctx.dmg,t.hp));
+  loseHp(t,ctx.dmg);
+  pop(t,ctx.dmg,ctx.crit?'crit':'dmg'); shake(t);
+  addLog(`${ctx.attacker.name} → ${t.name} ${ctx.dmg} ダメージ${ctx.tags.length?' ['+ctx.tags.join('/')+']':''}`,'l-dmg');
+  // 殴られたら目を覚ます。解除してから damaged を回すので、蓄電や倍化は普通に働く。
+  if(t.ail.sleep){ delete t.ail.sleep; addLog(`${t.name} は衝撃で目を覚ました`,'l-sys'); }
+  runOn(t,'damaged',ctx);
+  runOn(ctx.attacker,'dealt',ctx);
+  if(t.hp<=0) checkDeath(t,ctx.attacker);
+}
+/* バフによる回避（ブラー）。stat() は atk〜spd しか見ないので、ここで別に拾う。 */
+const evaBuff=u=>u.buffs.reduce((s,b)=>s+(b.stat==='eva'?b.value:0),0);
+function hitCheck(a,t){
+  if(asleep(t)) return true;                 // 眠っている相手には必ず当たる
+  let ev=0.03+sumHook(t,'eva')+evaBuff(t)+Math.max(0,stat(t,'spd')-stat(a,'spd'))/900;
+  if(t.guard) ev+=0.06;
+  ev=Math.min(0.50,ev);                      // 回避に投資した分が報われるよう上限を50%に
+  const roll=R(1);
+  // 《必中》は「本来外れていた攻撃」を通した時だけ記録する。数字として意味が出るように。
+  if(roll<ev&&hasT(a,'mustHit')){ proc(a,'mustHit','外れる攻撃を通した'); return true; }
+  return roll>=ev;
+}
+/* ダンシングリーフの「攻撃1回回避」。物理でも魔法でも1回ぶん受け流す。 */
+function dodged(a,t){
+  if(!t.evade)return false;
+  t.evade--; pop(t,'かわした','miss');
+  addLog(`${t.name} は ${a.name} の攻撃をかわした`,'l-sys');
+  emit('missed',{attacker:a,target:t});
+  return true;
+}
+function doAttack(a,t,opt={}){
+  if((!a.alive&&!opt.fromDead)||!t||!t.alive)return;
+  if(dodged(a,t))return;
+  if(!hitCheck(a,t)){ pop(t,'MISS','miss'); addLog(`${a.name} の攻撃は外れた`,'l-sys');
+    emit('missed',{attacker:a,target:t}); return; }
+  const ctx=calcDamage(a,t,{power:opt.power||1,kind:'phys'});
+  ctx.noCounter=!!(opt.noCounter||opt.isExtra);
+  ctx.isExtra=!!opt.isExtra;
+  ctx.normal=true;          // 「通常攻撃命中時」系の個性（奪取・崩し・毒撃・吸魔）はこれを見る
+  applyDamage(ctx);
+  if(!opt.isExtra) emit('allyHit',{attacker:a,target:ctx.target});
+}
+function castSpell(a,sp,target,o={}){
+  const mult=(o.mult||1)*ampMult(a), otherSide=a.side==='ally'?'foe':'ally';
+  const art=isArt(sp);
+  const dmgKind=art?'phys':'mag';
+  // 特技は命中判定あり。魔法は必中。必中撃は特技だが判定を飛ばす。
+  const needHit=art&&!sp.alwaysHit;
+  const foesOf=()=>aliveOf(otherSide);
+  const oneTarget=()=>{ const t=(target&&target.alive)?target:pickTarget(a); return t?[t]:[]; };
+
+  if(sp.type==='atk'){
+    let dealt=0, firstHit=null;
+    const hits=sp.hits||1;
+    for(let h=0;h<hits;h++){
+      let tg;
+      if(sp.scope==='all') tg=foesOf();
+      else if(sp.randomTarget){ const c=foesOf(); if(!c.length)break; tg=[pick(c)]; }
+      else tg=oneTarget();
+      if(!tg.length)break;
+      for(const t of tg){
+        if(!t.alive)continue;
+        if(dodged(a,t))continue;
+        if(needHit&&!hitCheck(a,t)){
+          pop(t,'MISS','miss'); addLog(`${a.name} の ${sp.name} は外れた`,'l-sys');
+          emit('missed',{attacker:a,target:t}); continue;
+        }
+        const ctx=calcDamage(a,t,{power:sp.power*mult,kind:dmgKind});
+        ctx.noCounter=!!o.isExtra;
+        applyDamage(ctx);
+        dealt+=ctx.dmg; firstHit=firstHit||ctx.target;
+        if(sp.ail&&ctx.target.alive) addAil(ctx.target,sp.ail,sp.turns,a);   // 雄たけびなど
+      }
+    }
+    if(sp.recoil&&dealt>0){                                   // 体当たりの反動
+      rawDamage(a,Math.max(1,Math.round(dealt*sp.recoil)),'反動');
+    }
+    if(!o.isExtra&&firstHit) emit('allyHit',{attacker:a,target:firstHit});
+
+  } else if(sp.type==='heal'){
+    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    tg.forEach(t=>{ if(!t.alive)return; const h=Math.round(stat(a,'mat')*sp.power*mult*(0.95+R(0.1)));
+      healRaw(t,h); addLog(`${a.name} が ${t.name} を ${h} 回復`,'l-heal'); });
+
+  } else if(sp.type==='cure'){
+    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    let any=false;
+    tg.forEach(t=>{ if(t.alive&&clearAils(t)) any=true; });
+    if(!any) addLog(`${sp.name} — 治す状態異常が無かった`,'l-sys');
+
+  } else if(sp.type==='evade'){
+    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    tg.forEach(t=>{ if(!t.alive)return; t.evade=(t.evade||0)+1;
+      addLog(`${t.name} は次の攻撃を1回かわす構え`,'l-buff'); });
+
+  } else if(sp.type==='buff'){
+    // バフ・デバフの効果量は「威力」ではないので増幅を掛けない（追唱の減衰だけ効く）
+    const bm=o.mult||1;
+    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    tg.forEach(t=>addBuff(t,{label:sp.name,stat:sp.stat,value:sp.value*bm,turns:sp.turns,kind:'buff'},a));
+
+  } else if(sp.type==='debuff'){
+    const bm=o.mult||1;
+    const tg=sp.scope==='all'?foesOf():oneTarget();
+    tg.forEach(t=>addBuff(t,{label:sp.name,stat:sp.stat,value:sp.value*bm,turns:sp.turns,kind:'debuff'},a));
+
+  } else if(sp.type==='ail'){
+    const tg=sp.scope==='all'?foesOf():oneTarget();
+    tg.forEach(t=>{
+      if(!t.alive)return;
+      if(sp.chance&&R(1)>=sp.chance){ addLog(`${t.name} には効かなかった`,'l-sys'); return; }
+      if(needHit&&!hitCheck(a,t)){ addLog(`${a.name} の ${sp.name} は ${t.name} に外れた`,'l-sys'); return; }
+      addAil(t,sp.ail,sp.turns,a);
+    });
+  }
+  if(!o.isExtra) emit('allySkill',{actor:a,spell:sp,target});
+}
+const canPay=(u,c)=>u.mp>=c||(u.traits.includes('seimei')&&u.hp>(c-u.mp)*2);
+function pay(u,c){
+  if(u.mp>=c){ u.mp-=c; return; }
+  const lack=c-u.mp; u.mp=0; const hp=lack*2; u.hp-=hp;
+  proc(u,'seimei',`HP${hp}をMPへ転用`); pop(u,hp,'dmg');
+  if(u.hp<=0) checkDeath(u);
+}
+
+/* =========================================================
+   6.5 オート行動（ガンビット）
+   1行 = [対象] の [条件] のとき → [行動]
+   上から順に判定し、最初に成立した行を実行する。
+   ========================================================= */
+const SUBJ={self:'自分',ally:'味方',foe:'敵'};
+const CONDS=[
+ {id:'always',   label:'常時',                 test:()=>true},
+ {id:'hp_full',  label:'HPが全快',             test:t=>hpR(t)>=1},
+ {id:'hp_le75',  label:'HPが75%以下',          test:t=>hpR(t)<=0.75},
+ {id:'hp_le50',  label:'HPが半分以下',         test:t=>hpR(t)<=0.5},
+ {id:'hp_le25',  label:'HPが瀕死（25%以下）',  test:t=>hpR(t)<=0.25},
+ {id:'mp_ok',    label:'MPが半分以上',         test:t=>t.mp/t.maxMp>=0.5},
+ {id:'mp_low',   label:'MPが25%以下',          test:t=>t.mp/t.maxMp<=0.25},
+ {id:'poison',   label:'毒状態',               test:t=>!!t.ail.poison},
+ {id:'asleep',   label:'眠っている',           test:t=>!!t.ail.sleep},
+ {id:'resting',  label:'休み中',               test:t=>!!t.ail.rest},
+ {id:'has_ail',  label:'状態異常にかかっている',test:t=>Object.keys(t.ail).length>0},
+ {id:'no_ail',   label:'状態異常がない',        test:t=>Object.keys(t.ail).length===0},
+ {id:'has_buff', label:'強化されている',       test:t=>t.buffs.some(b=>b.value>0)},
+ {id:'no_buff',  label:'強化がない',           test:t=>!t.buffs.some(b=>b.value>0)},
+ {id:'has_deb',  label:'弱体化している',       test:t=>t.buffs.some(b=>b.value<0)},
+ {id:'no_deb',   label:'弱体化がない',         test:t=>!t.buffs.some(b=>b.value<0)},
+ {id:'front',    label:'前列にいる',           test:t=>isFront(t)},
+ {id:'back',     label:'後列にいる',           test:t=>!isFront(t)},
+ {id:'alone',    label:'隣に味方がいない',     test:t=>!adjacentAllies(t).length},
+];
+const CONDMAP=Object.fromEntries(CONDS.map(c=>[c.id,c]));
+const CNTS=[{v:1,l:'1体以上'},{v:2,l:'2体以上'},{v:3,l:'3体以上'},{v:'all',l:'全員'}];
+const cntLabel=v=>(CNTS.find(c=>c.v===v)||CNTS[0]).l;
+const ACTS=[{id:'attack',label:'たたかう'},{id:'guard',label:'ぼうぎょ'},
+            {id:'sp0',label:'魔法1'},{id:'sp1',label:'魔法2'},{id:'sp2',label:'魔法3'},
+            {id:'none',label:'（この行を無効）'}];
+const actLabel=(u,id)=>id.startsWith('sp')
+  ? `魔法${+id[2]+1}：${u.spells[+id[2]]&&u.spells[+id[2]]!=='none'?SP[u.spells[+id[2]]].name:'未設定'}`
+  : (ACTS.find(a=>a.id===id)||{}).label||id;
+
+/* 個性から生えるオート行動。
+   スキルだけ見て組み立てると「通常攻撃で初めて意味が出る個性」が永久に使われない。
+   《奪取》がまさにそれで、AIは相手のバフを見ずに殴る相手を選ぶため完全に死んでいた。
+
+   回復より後、スキルより前に置く。条件を満たす相手がいなければ素通りするので、
+   上位に置いても他の行動を潰さない。 */
+function traitGambits(u){
+  const g=[];
+  if(hasT(u,'steal')) g.push({subj:'foe',cond:'has_buff',cnt:1,act:'attack'});
+  return g;
+}
+function defaultGambits(u){
+  const g=[];
+  const slot=(t,sc)=>{ const i=u.spells.findIndex(id=>id!=='none'&&SP[id].type===t&&(!sc||SP[id].scope===sc));
+    return i<0?null:'sp'+i; };
+  const mheal=slot('heal','all'), heal=slot('heal','one');
+  const aoe=slot('atk','all'), atk=slot('atk','one');
+  const buff=slot('buff'), cure=slot('cure'), evade=slot('evade');
+  const ail=slot('ail'), deb=slot('debuff');
+  if(mheal) g.push({subj:'ally',cond:'hp_le50',cnt:2,act:mheal});
+  if(heal)  g.push({subj:'ally',cond:'hp_le50',cnt:1,act:heal});
+  if(cure)  g.push({subj:'ally',cond:'has_ail',cnt:1,act:cure});
+  g.push(...traitGambits(u));      // 個性が要求する行動を、スキルより先に置く
+  if(aoe)   g.push({subj:'foe', cond:'always', cnt:3,act:aoe});
+  if(ail)   g.push({subj:'foe', cond:'no_ail', cnt:1,act:ail});
+  if(evade) g.push({subj:'self',cond:'hp_le75',cnt:1,act:evade});
+  if(buff)  g.push({subj:'self',cond:'no_buff',cnt:1,act:buff});
+  if(deb)   g.push({subj:'foe', cond:'no_deb', cnt:1,act:deb});
+  if(atk)   g.push({subj:'foe', cond:'hp_le50',cnt:1,act:atk});
+  return g;   // 末尾の「たたかう」は暗黙の既定行動なので入れない
+}
+function poolFor(u,subj){
+  if(subj==='self') return u.alive?[u]:[];
+  return subj==='ally'?aliveOf(u.side):aliveOf(u.side==='ally'?'foe':'ally');
+}
+function weightedPick(list){
+  const w=list.map(targetWeight), s=w.reduce((a,b)=>a+b,0); let r=R(s);
+  for(let i=0;i<list.length;i++){ r-=w[i]; if(r<=0)return list[i]; }
+  return list[list.length-1];
+}
+const lowestHp=l=>l.reduce((a,b)=>hpR(b)<hpR(a)?b:a);
+const strongest=l=>l.reduce((a,b)=>stat(b,'atk')>stat(a,'atk')?b:a);
+
+function evalGambit(u,row){
+  if(!row||row.act==='none')return null;
+  const pool=poolFor(u,row.subj); if(!pool.length)return null;
+  const c=CONDMAP[row.cond]; if(!c)return null;
+  const hit=pool.filter(t=>c.test(t,u,pool));
+  const need=row.cnt==='all'?pool.length:(+row.cnt||1);
+  if(hit.length<need)return null;
+
+  if(row.act==='guard') return {cmd:'guard'};
+  if(row.act==='attack'){
+    const en=hit.filter(t=>t.side!==u.side);
+    const cand=en.length?en:aliveOf(u.side==='ally'?'foe':'ally');
+    if(!cand.length)return null;
+    return {cmd:'attack',target:weightedPick(cand)};
+  }
+  const id=u.spells[+row.act[2]]; if(!id||id==='none')return null;
+  const sp=SP[id]; if(!canPay(u,mpCost(u,sp)))return null;
+  const wantAlly=['heal','buff','cure','evade'].includes(sp.type);
+  if(sp.scope==='all') return {cmd:'spell',sp};
+  const cand=hit.filter(t=>wantAlly?t.side===u.side:t.side!==u.side);
+  if(!cand.length)return null;
+  const t = (sp.type==='heal'||sp.type==='cure') ? lowestHp(cand)
+          : (sp.type==='buff'||sp.type==='evade') ? strongest(cand)
+          : weightedPick(cand);
+  return {cmd:'spell',sp,target:t};
+}
+
+/* =========================================================
+   7. ターゲティング・AI
+   ========================================================= */
+function targetWeight(t){
+  let w=1; for(const f of traitFns(t,'aggro')) w*=f(t)||1;
+  if(isFront(t)) w*=2.2;
+  return w*(1+(1-hpR(t))*0.6);
+}
+function pickTarget(a){
+  const c=aliveOf(a.side==='ally'?'foe':'ally'); if(!c.length)return null;
+  const w=c.map(targetWeight), s=w.reduce((x,y)=>x+y,0); let r=R(s);
+  for(let i=0;i<c.length;i++){ r-=w[i]; if(r<=0)return c[i]; }
+  return c[c.length-1];
+}
+function randomTarget(a){ const c=aliveOf(a.side==='ally'?'foe':'ally'); return c.length?pick(c):null; }
+function aiAction(u){
+  const rows=u.gambits||[];
+  for(let i=0;i<rows.length;i++){
+    const act=evalGambit(u,rows[i]);
+    if(act){ act.gambit=i+1; return act; }
+  }
+  const t=pickTarget(u);
+  return t?{cmd:'attack',target:t,gambit:0}:{cmd:'guard',gambit:0};
+}
+
+/* =========================================================
+   8. ターン制御（速度順ウェイトターン）
+   ========================================================= */
+const nextActor=()=>{ const a=U.filter(x=>x.alive); return a.length?a.reduce((m,x)=>x.ct<m.ct?x:m):null; };
+function upcoming(n=10){
+  const snap=U.filter(u=>u.alive).map(u=>({u,ct:u.ct,spd:stat(u,'spd')})), out=[];
+  for(let i=0;i<n&&snap.length;i++){ const m=snap.reduce((a,b)=>b.ct<a.ct?b:a); out.push(m.u); m.ct+=10000/m.spd; }
+  return out;
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,Math.max(0,ms/speedF)));
+let resolveCmd=null, selecting=null;
+
+function markAct(u,key){
+  if(u.lastAct===key) u.cnt.kanjuku=Math.min(3,(u.cnt.kanjuku||0)+1);
+  else u.cnt.kanjuku=0;
+  u.lastAct=key;
+}
+/* 決まった行動を実行する。通常ループと集計モードで同じものを通す。
+   ここを分けて書くと、片方だけ直して挙動がズレるので必ず共通にしておく。 */
+function resolveAction(u,act){
+  let attacked=false;
+  if(act.cmd==='attack'&&act.target){
+    attacked=true; markAct(u,'attack');
+    addLog(`${u.name} のこうげき`,'l-sys');
+    doAttack(u,act.target);
+  } else if(act.cmd==='guard'){
+    u.guard=true; markAct(u,'guard');
+    // 被ダメ軽減だけでは 1 手番を捨てる価値に見合わないので、MPも戻す
+    const g=Math.max(1,Math.round(u.maxMp*0.10));
+    gainMp(u,g);
+    addLog(`${u.name} はぼうぎょの構え（MP+${g}）`,'l-sys');
+  } else if(act.cmd==='spell'){
+    const sp=act.sp;
+    const cost=mpCost(u,sp);
+    if(!canPay(u,cost)) addLog(`${u.name} はMPが足りない`,'l-sys');
+    else{
+      attacked=sp.type==='atk'; markAct(u,'sp'+sp.id); pay(u,cost);
+      addLog(`${u.name} は ${sp.name} を唱えた`,'l-sys');
+      castSpell(u,sp,act.target||pickTarget(u));
+    }
+  }
+  return attacked;
+}
+/* 行動の決め方。手動・自動・対戦相手への問い合わせをここに集約する。
+   《二の太刀》の2回目もここを通すので、分岐が二重にならない。 */
+async function chooseAction(u){
+  if(NET.matched){
+    return (u.side===MY())
+      ? (auto ? (await sleep(200), aiAction(u)) : await waitCommand(u))
+      : await waitRemoteCommand(u);
+  }
+  return (u.side==='ally'&&!auto) ? await waitCommand(u) : (await sleep(220), aiAction(u));
+}
+function logGambit(u,act){
+  if(!act||!act.gambit)return;
+  const g=u.gambits[act.gambit-1];
+  addLog(g?`↳ オート #${act.gambit}「${SUBJ[g.subj]}の${CONDMAP[g.cond].label}が${cntLabel(g.cnt===undefined?1:g.cnt)} → ${actLabel(u,g.act)}」`
+          :'↳ オート 既定（たたかう）','l-sys');
+}
+let loopGen=0;
+/* 進行中のループを確実に止める。手動コマンド待ちで固まらないよう解決もする。 */
+function abortLoop(){
+  loopGen++; running=false; selecting=null;
+  if(resolveCmd){ const r=resolveCmd; resolveCmd=null; r({cmd:'guard'}); }
+  if(NET.cmdResolve){ NET.cmdResolve=null; }
+}
+async function loop(){
+  const gen=++loopGen;
+  running=true;
+  while(running&&gen===loopGen){
+    if(endCheck())break;
+    while(paused){ await sleep(120); if(!running||gen!==loopGen)return; }
+    const u=nextActor(); if(!u)break;
+    time=u.ct; turnNo++;
+    U.forEach(x=>{ for(const k in x.fired) if(--x.fired[k]<=0) delete x.fired[k]; });
+    u.cnt.tsuigekiUsed=0; u.cnt.tsuishouUsed=0; u.cnt.ninoUsed=0;
+    addLog(`— ターン${turnNo} : ${u.name}（${partyName(u.side)}） —`,'l-turn');
+    current=u; u.guard=false; render();
+    if(!u.alive){ endTurn(u,{attacked:false}); netSync(false); continue; }
+    // 眠り／休みの消化。眠っていた手番は個性を一切動かさない。
+    const skip=consumeRest(u);
+    if(skip!=='sleep') emit('turnStart',{unit:u});
+    render(); netSync(false); await sleep(240);
+    if(skip||!u.alive){ endTurn(u,{attacked:false,silent:skip==='sleep'}); render(); netSync(false); continue; }
+
+    const act=await chooseAction(u);
+    if(!running||gen!==loopGen)return;
+    logGambit(u,act);
+    lunge(u);
+    let attacked=resolveAction(u,act);
+    render(); netSync(false); await sleep(340);
+
+    // 《二の太刀》— もう一度だけ行動し、そのあと自分に休みが付く
+    if(u.alive&&hasT(u,'nino')&&!u.cnt.ninoUsed){
+      u.cnt.ninoUsed=1;
+      proc(u,'nino','続けてもう一度動く');
+      const act2=await chooseAction(u);
+      if(!running||gen!==loopGen)return;
+      logGambit(u,act2);
+      lunge(u);
+      attacked=resolveAction(u,act2)||attacked;
+      if(u.alive) addAil(u,'rest',null,u);
+      render(); netSync(false); await sleep(340);
+    }
+
+    endTurn(u,{attacked});
+    render(); netSync(false); await sleep(160);
+  }
+  if(gen===loopGen){ running=false; current=null; render(); netSync(true); }
+}
+/* info.silent … 眠っていた手番。個性を一切動かさず、毒とバフの時間だけ進める。 */
+function endTurn(u,info){
+  if(!info.silent) emit('actionEnd',{actor:u});
+  if(u.ail.poison&&u.alive){
+    let d=Math.round(u.maxHp*0.05); if(u.traits.includes('dokuchi')) d=Math.round(d*0.5);
+    rawDamage(u,d,'毒');
+  }
+  if(!info.silent) emit('turnEnd',{unit:u,attacked:info.attacked});
+  tickBuffs(u);
+  u.ct=time+10000/stat(u,'spd');
+}
+function endCheck(){
+  const a=aliveOf('ally').length, f=aliveOf('foe').length;
+  if(a===0||f===0){
+    const win=a===0?'foe':'ally';
+    battleResult=win;
+    addLog(NET.matched?`■ 決着 — ${partyName(win)} の勝ち`
+                      :(a===0?'▼ 敗北 — 味方全滅':'▲ 勝利 — 敵を殲滅'),'l-turn');
+    current=null; return true;
+  }
+  if(turnNo>=turnLimit){
+    // 打ち切り。残HPではなく「与えた総ダメージ」で判定する。
+    // 残HP判定だと守りを固めて判定勝ちを狙う戦術が成立してしまうため。
+    battleResult=judgeByDamage();
+    addLog(`■ ${turnLimit}ターン経過で打ち切り — 与ダメージ ${partyName('ally')} ${DMG.ally} / ${partyName('foe')} ${DMG.foe}`,'l-turn');
+    addLog(battleResult==='draw'?'■ 引き分け':`■ 判定勝ち — ${partyName(battleResult)}`,'l-turn');
+    current=null; return true;
+  }
+  return false;
+}
+const waitCommand=u=>new Promise(res=>{
+  resolveCmd=res;
+  // 携帯でログやメニューを見ている最中に手番が来たら、盤面へ引き戻す
+  if(MOBILE&&MTAB!=='board') setTab('board');
+  renderCmd(u);
+});
+
+/* =========================================================
+   9. 演出
+   ========================================================= */
+const $=s=>document.querySelector(s);
+function pop(u,txt,cls){ if(SIM)return; const el=$(`[data-u="${u.id}"]`); if(!el)return;
+  const d=document.createElement('div'); d.className='pop '+cls; d.textContent=txt; el.appendChild(d);
+  setTimeout(()=>d.remove(),1000);}
+function shake(u){ if(SIM)return; const el=$(`[data-u="${u.id}"]`); if(!el)return;
+  el.classList.add('hit'); setTimeout(()=>el.classList.remove('hit'),300);}
+function lunge(u){ if(SIM)return; const el=$(`[data-u="${u.id}"]`); if(!el)return;
+  el.classList.add(u.side===MY()?'lunge-l':'lunge-r');
+  setTimeout(()=>el.classList.remove('lunge-l','lunge-r'),Math.max(60,260/speedF));}
+function addLog(t,cls){ if(SIM)return; logs.push({t,cls}); if(logs.length>400)logs.shift(); renderLog(); }
+
+/* --- ホバー説明チップ --- */
+const TIP=document.createElement('div'); TIP.className='tip'; TIP.hidden=true; document.body.appendChild(TIP);
+function showTip(el){
+  const raw=el.dataset.tip; if(!raw)return;
+  TIP.innerHTML=raw.replace(/^([《【].+?[》】])/,'<b>$1</b>');
+  TIP.hidden=false;
+  const r=el.getBoundingClientRect(), t=TIP.getBoundingClientRect();
+  let x=r.left+r.width/2-t.width/2, y=r.top-t.height-8;
+  if(y<6) y=r.bottom+8;
+  TIP.style.left=Math.round(clamp(x,6,innerWidth-t.width-6))+'px';
+  TIP.style.top=Math.round(y)+'px';
+}
+document.addEventListener('mouseover',e=>{
+  const el=e.target.closest&&e.target.closest('[data-tip]');
+  if(el) showTip(el); else TIP.hidden=true;
+});
+document.addEventListener('mouseleave',()=>{TIP.hidden=true},true);
+addEventListener('scroll',e=>{
+  TIP.hidden=true;
+  const t=e.target;
+  if(t&&t.closest&&t.closest('.pkbox'))return;   // ピッカー内のスクロールでは閉じない
+  if(typeof closePicker==='function') closePicker();
+},true);
+
+/* =========================================================
+   10. 描画
+   ========================================================= */
+function render(){ if(SIM)return; renderField(); renderOrder(); if(!resolveCmd) renderCmd(current); }
+function unitHTML(u){
+  const cls=[ 'u', hpR(u)<0.3?'low':'', u.alive?'':'dead', current===u?'acting':'',
+    (selecting&&selecting.valid(u))?'selectable':'' ].filter(Boolean).join(' ');
+  const act=u.traits.filter(t=>t!=='none');
+  const et=eqTraits(u);
+  const traits=(act.length||et.length)
+    ? act.map(t=>`<span class="tchip${u.fired[t]?' fire':''}" data-tip="《${TRAITS[t].name}》${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')
+      +et.map(t=>`<span class="tchip eq${u.fired[t]?' fire':''}" data-tip="《${TRAITS[t].name}》[装備由来] ${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')
+    : '<span class="tchip off">個性なし</span>';
+  const eq=eqOn(u)
+    ? `<div class="traits eqrow">${[['w','⚔'],['a','🛡']].map(([s,ic])=>{ const d=EQ[u.equip[s]];
+        return d&&d.id!=='none'?`<span class="echip" data-tip="【${d.n}】${d.desc}">${ic}${d.n}</span>`:'';}).join('')}</div>`
+    : '';
+  const sp=spellsOf(u);
+  const spells=sp.length
+    ? sp.map(id=>`<span class="schip${isArt(SP[id])?' art':''}" data-tip="${skillTip(SP[id])}">${SP[id].name}</span>`).join('')
+    : '<span class="schip off">スキルなし</span>';
+  const states=[...u.buffs.map(b=>`<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}·${b.turns}</span>`),
+    ...Object.keys(u.ail).map(k=>`<span class="st ail">${AIL_LABEL[k]||k}${AIL_TIMED[k]?'·'+u.ail[k]:''}</span>`),
+    ...(u.evade?[`<span class="st up">回避·${u.evade}</span>`]:[])].join('');
+  return `<div class="${cls}" data-u="${u.id}">
+    <div class="uh"><span class="pip">${u.cls}</span><span class="un">${u.name}</span><span class="uc">${u.guard?'防御':''}</span></div>
+    <div class="bar hpb"><span style="width:${Math.max(0,hpR(u))*100}%"></span></div>
+    <div class="nums"><span>HP ${Math.max(0,u.hp)}/${u.maxHp}</span><span>攻${Math.round(stat(u,'atk'))} 速${Math.round(stat(u,'spd'))}</span></div>
+    <div class="bar mpb"><span style="width:${u.mp/u.maxMp*100}%"></span></div>
+    <div class="states">${states}</div>
+    <div class="traits">${traits}</div>
+    <div class="traits sprow">${spells}</div>${eq}</div>`;
+}
+function renderField(){
+  const me=MY(), op=OP(), mn=NET.matched?'自分':'味方', on=NET.matched?'相手':'敵';
+  const cell=(side,s)=>{ const u=unitAt(side,s);
+    return u?unitHTML(u):`<div class="empty" data-side="${side}" data-slot="${s}">${MOBILE?'＋':'＋ 配置なし'}</div>`; };
+  if(MOBILE){
+    // 縦画面なので横並びのサイドビューは入らない。相手を上・自分を下に置き、
+    // 前列が内側（中央寄り）に来るよう並べ替えることで向かい合わせに見せる。
+    const mrow=(side,slots,label)=>`<div class="mrow"><div class="mrl">${label}</div>
+      <div class="mcards">${slots.map(s=>cell(side,s)).join('')}</div></div>`;
+    $('#foeSide').innerHTML = mrow(op,[3,4,5,6],on+' 後列')+mrow(op,[0,1,2],on+' 前列');
+    $('#allySide').innerHTML= mrow(me,[0,1,2],mn+' 前列')+mrow(me,[3,4,5,6],mn+' 後列');
+  } else {
+    const col=(side,slots,label)=>`<div class="col"><div class="rowlabel">${label}</div>`+
+      slots.map(s=>cell(side,s)).join('')+'</div>';
+    $('#foeSide').innerHTML = col(op,[3,4,5,6],on+' 後列')+col(op,[0,1,2],on+' 前列');
+    $('#allySide').innerHTML= col(me,[0,1,2],mn+' 前列')+col(me,[3,4,5,6],mn+' 後列');
+  }
+  document.querySelectorAll('[data-u]').forEach(el=>{
+    el.onclick=()=>{ const u=U.find(x=>x.id==el.dataset.u); if(!u)return;
+      if(selecting&&selecting.valid(u)){ const s=selecting; selecting=null; s.done(u); return; }
+      openEditor(u); };
+  });
+  document.querySelectorAll('.empty').forEach(el=>{
+    el.onclick=()=>{ toggleSlot(el.dataset.side,+el.dataset.slot); render(); syncCountUI(); };
+  });
+}
+function renderOrder(){
+  $('#order').innerHTML='<span class="lbl">TURN ORDER</span>'+upcoming(10).map((u,i)=>
+    `<span class="otk ${u.side===MY()?'ally':'foe'} ${i===0?'now':''}"><i></i>${u.name}</span>`).join('');
+}
+function renderLog(){ if(SIM)return;
+  $('#log').innerHTML=logs.slice(-160).reverse().map(l=>`<div class="${l.cls}">${l.t}</div>`).join(''); }
+function renderCmd(u){
+  const box=$('#cmdbody');
+  if(!u||!u.alive){ box.innerHTML=`<div class="hint">${running||NET.matched?'進行中…'
+    :'決着しました。<b>リセット: 全回復</b>で同じ編成のまま再戦、<b>味方</b>／<b>敵</b>で片側だけ引き直せます。'}</div>`; return; }
+  if(u.side!==MY()||auto||!resolveCmd){
+    box.innerHTML=`<div class="who">${u.name}<span>${u.clsName} / ${sideName(u.side)}</span></div>
+      <div class="hint">${u.side!==MY()&&NET.matched?'相手が行動を選んでいます…':(auto?'自動戦闘で行動中':'行動を決定中…')}</div>
+      <div class="traits">${u.traits.filter(t=>t!=='none').map(t=>`<span class="tchip">${TRAITS[t].name}</span>`).join('')||'<span class="tchip off">個性なし</span>'}</div>`;
+    return;
+  }
+  box.innerHTML=`<div class="who">${u.name}<span>${u.clsName}</span></div>
+    <div class="cmds"><button class="cmd" data-c="attack">たたかう</button><button class="cmd" data-c="guard">ぼうぎょ</button></div>
+    <div class="spells">${spellsOf(u).map(id=>{const s=SP[id];
+      const cost=mpCost(u,s);
+      return `<button class="sp${isArt(s)?' art':''}" data-sp="${id}" data-tip="${skillTip(s)}" ${canPay(u,cost)?'':'disabled'}><b>${s.name}</b><i>${s.scope==='all'?'範囲':'単体'}</i><em>${cost}</em></button>`;}).join('')||'<span class="hint">スキルを持っていません</span>'}</div>
+    <div class="hint" id="hint">個性: ${u.traits.filter(t=>t!=='none').map(t=>'<b>'+TRAITS[t].name+'</b>').join(' / ')||'なし'}</div>`;
+  const atkBtn=box.querySelector('[data-c="attack"]');
+  atkBtn.onclick=()=>chooseTarget(u,OP(),t=>send({cmd:'attack',target:t}),
+    {el:atkBtn,title:'たたかう',
+     desc:'通常攻撃。命中判定あり。《奪取》《崩し》《毒撃》《吸魔》はこれでのみ発動します。'});
+  box.querySelector('[data-c="guard"]').onclick=()=>send({cmd:'guard'});
+  box.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{
+    const sp=SP[b.dataset.sp];
+    if(sp.scope==='all') return send({cmd:'spell',sp});
+    chooseTarget(u,['heal','buff','cure','evade'].includes(sp.type)?MY():OP(),
+      t=>send({cmd:'spell',sp,target:t}),
+      {el:b,title:sp.name,
+       desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／単体／${TYPE_LABEL[sp.type]}　${sp.desc}`});
+  });
+}
+function send(act){ const r=resolveCmd; resolveCmd=null; selecting=null; render(); r&&r(act); }
+
+/* 対象選択に入る。
+   どのスキルを撃とうとしているのかが分からないと押し間違えるので、
+   選んだボタンを光らせ、その説明をコマンド欄の下に出す。 */
+function chooseTarget(u,side,cb,armed){
+  selecting={valid:x=>x.alive&&x.side===side,done:cb};
+  renderField();
+  const box=$('#cmdbody');
+  if(box){
+    box.querySelectorAll('.cmd,.sp').forEach(b=>b.classList.remove('armed'));
+    if(armed&&armed.el) armed.el.classList.add('armed');
+  }
+  const h=$('#hint');
+  if(h){
+    h.className='hint armhint';
+    h.innerHTML=(armed?`<b class="armname">${armed.title}</b><span class="armdesc">${armed.desc||''}</span>`:'')
+      +`<span class="armpick">${side===MY()?'味方':'敵'}から<b>対象を選んでください</b>（枠が光っているユニット）</span>`
+      +`<button class="cancelsel" id="cancelSel">やめる</button>`;
+    const c=$('#cancelSel');
+    if(c) c.onclick=()=>{ selecting=null; renderCmd(u); renderField(); };
+  }
+}
+
+/* =========================================================
+   10.5 説明文つきセレクタ（個性・魔法用）
+   ========================================================= */
+let PK=null;
+function closePicker(){ if(PK){ PK.remove(); PK=null; } }
+function openPicker(anchor,groups,current,onPick){
+  const reopen = PK && PK.dataset.anchor===anchor.dataset.pkid;
+  closePicker(); if(reopen) return;
+  const box=document.createElement('div');
+  box.className='pkbox'; box.dataset.anchor=anchor.dataset.pkid||'';
+  box.innerHTML=`<input class="pksearch" placeholder="名前・説明で絞り込み…">`
+    +`<div class="pklist">`+groups.map(g=>
+      `<div class="pkg" data-g="1">${g.label}</div>`+g.items.map(it=>
+        `<div class="pkrow${it.v===current?' on':''}" data-v="${it.v}" data-s="${(it.name+it.desc+g.label).toLowerCase()}">
+          <b>${it.name}${it.meta?`<em>${it.meta}</em>`:''}</b><span>${it.desc}</span></div>`).join('')).join('')
+    +`</div>`;
+  document.body.appendChild(box);
+  const r=anchor.getBoundingClientRect();
+  const w=Math.min(Math.max(r.width,340),innerWidth-16);
+  box.style.width=w+'px';
+  box.style.left=Math.round(clamp(r.left,8,innerWidth-w-8))+'px';
+  // 上下の空きスペースの広い方に開き、リストの高さをそこに合わせる
+  const below=innerHeight-r.bottom-16, above=r.top-16, useBelow=below>=Math.min(above,260)||below>=260;
+  const room=Math.max(160,Math.min(360,(useBelow?below:above)-44));
+  box.querySelector('.pklist').style.maxHeight=Math.round(room)+'px';
+  const h=box.offsetHeight;
+  box.style.top=Math.round(useBelow?r.bottom+4:Math.max(8,r.top-h-4))+'px';
+  PK=box;
+  const s=box.querySelector('.pksearch');
+  s.oninput=()=>{ const q=s.value.trim().toLowerCase();
+    box.querySelectorAll('.pkrow').forEach(el=>{ el.hidden=q&&!el.dataset.s.includes(q); });
+    box.querySelectorAll('.pkg').forEach(g=>{ let n=g.nextElementSibling,any=false;
+      while(n&&n.classList.contains('pkrow')){ if(!n.hidden)any=true; n=n.nextElementSibling; }
+      g.hidden=!any; });
+  };
+  box.querySelectorAll('.pkrow').forEach(el=>el.onclick=()=>{ const v=el.dataset.v; closePicker(); onPick(v); });
+  setTimeout(()=>s.focus(),0);
+}
+document.addEventListener('mousedown',e=>{
+  if(PK&&!e.target.closest('.pkbox')&&!e.target.closest('.pk')) closePicker();
+});
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePicker(); });
+
+const traitGroups=()=>{
+  const cats={}; TRAIT_IDS.forEach(id=>{ (cats[TRAITS[id].cat]=cats[TRAITS[id].cat]||[]).push(id); });
+  return [{label:'なし',items:[{v:'none',name:'— なし —',desc:TRAITS.none.desc}]}]
+    .concat(Object.entries(cats).map(([label,ids])=>({label,
+      items:ids.map(id=>({v:id,name:TRAITS[id].name,desc:TRAITS[id].desc}))})));
+};
+/* スキルピッカー。特技をひとまとめにし、魔法は効果の種類で分ける。
+   検証用なので needs は無視して全部選べる（抽選のときだけ needs が効く）。 */
+const spellGroups=()=>{
+  const t={}; SPELLS.forEach(s=>{ const k=skillCat(s); (t[k]=t[k]||[]).push(s); });
+  const order=['特技','攻撃','回復','状態回復','強化','弱体','状態異常','回避付与'];
+  const keys=Object.keys(t).sort((a,b)=>order.indexOf(a)-order.indexOf(b));
+  return [{label:'なし',items:[{v:'none',name:'— なし —',desc:SP.none.desc}]}]
+    .concat(keys.map(label=>({label,
+      items:t[label].map(s=>({v:s.id,name:s.name,
+        meta:`${skillKind(s)}・MP${s.mp}・${s.scope==='all'?'範囲':'単体'}`,
+        desc:(s.needs?`【${Array.isArray(s.needs)?s.needs.join('か'):s.needs} を持つ職業だけが抽選で覚える】\n`:'')+s.desc}))})));
+};
+/* 職業ピッカー。説明に「引きやすい個性」を並べておくと選ぶ判断がしやすい。 */
+const biasNames=(cls,n=3)=>Object.entries(cls.bias||{}).sort((a,b)=>b[1]-a[1])
+  .slice(0,n).map(([id])=>TRAITS[id]?TRAITS[id].name:id).join('・');
+const spBiasNames=(cls,n=2)=>Object.entries(cls.spBias||{}).sort((a,b)=>b[1]-a[1])
+  .slice(0,n).map(([id])=>SP[id]?SP[id].name:id).join('・');
+function clsSummary(cls){
+  const s=[`HP${cls.hp} MP${cls.mp}`,
+    ['atk','def','mat','mdf','spd'].map(k=>`${SN[k]}${cls[k]}`).join(' ')];
+  if(cls.tags&&cls.tags.length) s.push(`タグ: ${cls.tags.join('・')}`);
+  const t=biasNames(cls); if(t) s.push(`個性: ${t} が出やすい`);
+  const p=spBiasNames(cls); if(p) s.push(`スキル: ${p} を覚えやすい`);
+  else if(!cls.spN) s.push('スキル: 使わない');
+  return s.join('　/　');
+}
+const classGroups=()=>['human','monster'].map(kind=>({label:KIND_LABEL[kind],
+  items:CLASSES.filter(c=>c.kind===kind).map(c=>({v:c.id,name:c.n,meta:c.c,
+    desc:`${c.desc}\n${clsSummary(c)}`}))}));
+/* 装備ピッカー。効果を meta に出して、一覧のまま比較できるようにする。 */
+const eqStatText=e=>Object.entries(e.stats||{})
+  .map(([k,v])=>`${k==='hp'?'最大HP':k==='mp'?'最大MP':SN[k]}${v>0?'+':''}${Math.round(v*100)}%`).join(' ');
+const equipGroups=slot=>[
+  {label:'なし',items:[{v:'none',name:'— なし —',desc:'装備しない。'}]},
+  {label:slot==='w'?'武器':'防具',
+   items:EQUIPS.filter(e=>e.slot===slot).map(e=>({v:e.id,name:e.n,meta:eqStatText(e),desc:e.desc}))}
+];
+
+/* =========================================================
+   11. 個性エディタ
+   ========================================================= */
+function openEditor(u){
+  closePicker();
+  // 対戦中は自分の陣営しか編集できない（相手のユニットは閲覧のみ）
+  if(NET.matched && u.side!==MY()){ openViewer(u); return; }
+  const spDesc=id=>id&&id!=='none'
+    ? `${skillKind(SP[id])}／MP${SP[id].mp}／${SP[id].scope==='all'?'範囲':'単体'}／${TYPE_LABEL[SP[id].type]}　${SP[id].desc}`
+    : SP.none.desc;
+  const st=['atk','def','mat','mdf','spd'].map(k=>`<div class="sc"><u>${SN[k]}</u><b>${Math.round(stat(u,k))}</b></div>`).join('');
+  $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
+    <header><h3>${u.name}</h3><span class="hint">${u.clsName} / ${u.side==='ally'?'味方':'敵'} / ${isFront(u)?'前列':'後列'} slot${u.slot}</span>
+      <button class="btn x" id="closeM">閉じる</button></header>
+    <div class="mbody">
+      <div class="sechead">職業</div>
+      <div class="slot"><label>職業</label>
+        <button class="pk" data-cls="1" data-pkid="cls">${u.clsName}</button></div>
+      <div class="tdesc" data-cd="1">${clsOf(u)?clsOf(u).desc+'<br>'+clsSummary(clsOf(u)):'—'}</div>
+      <div class="cmds">
+        <button class="btn" id="rollC">この職業らしく個性・魔法を引き直す</button>
+      </div>
+
+      <div class="statgrid">
+        <div class="sc"><u>HP</u><b>${Math.max(0,u.hp)}/${u.maxHp}</b></div>
+        <div class="sc"><u>MP</u><b>${u.mp}/${u.maxMp}</b></div>${st}
+      </div>
+      <div class="sechead">個性</div>
+      ${[0,1,2].map(i=>{ const id=u.traits[i]||'none';
+        return `<div class="slot"><label>個性${i+1}</label>
+          <button class="pk${id==='none'?' pk-none':''}" data-tslot="${i}" data-pkid="t${i}">${id==='none'?'— なし —':TRAITS[id].name}</button></div>
+        <div class="tdesc" data-d="${i}">${TRAITS[id].desc}</div>`;}).join('')}
+      <div class="cmds">
+        <button class="btn" id="randT">職業の傾向で引き直す</button>
+        <button class="btn" id="randTF">完全ランダム</button>
+        <button class="btn" id="clrT">個性3枠をなしに</button>
+      </div>
+
+      <div class="sechead">装備${canEquip(u)?'':'（人間職のみ・この職業は装備できません）'}</div>
+      ${canEquip(u)?`
+        ${[['w','武器'],['a','防具']].map(([s,lb])=>{ const id=(u.equip&&u.equip[s])||'none';
+          return `<div class="slot"><label>${lb}</label>
+            <button class="pk${id==='none'?' pk-none':''}" data-eq="${s}" data-pkid="e${s}">${EQ[id]?EQ[id].n:'— なし —'}</button></div>
+          <div class="tdesc" data-ed="${s}">${EQ[id]&&EQ[id].stats?eqStatText(EQ[id])+'　'+EQ[id].desc:EQ.none.desc}</div>`;}).join('')}
+        <div class="slot"><label>付与個性</label>
+          <button class="pk${(u.equip&&u.equip.trait)?'':' pk-none'}" data-eqt="1" data-pkid="eqt">${(u.equip&&u.equip.trait)?TRAITS[u.equip.trait].name:'— なし —'}</button></div>
+        <div class="tdesc" data-eqd="1">${(u.equip&&u.equip.trait)?TRAITS[u.equip.trait].desc:'装備に個性は付いていません。'}</div>
+        <div class="seghint">装備由来の個性は<b>1ユニットにつき1つまで</b>です。武器と防具の両方に付けると実質5個性になり、既存のバランスが崩れるためです。</div>
+        <div class="cmds"><button class="btn" id="rollEq">装備を引き直す</button>
+          <button class="btn" id="clrEq">装備を外す</button></div>`
+        :'<div class="tdesc">魔物は装備できません。</div>'}
+
+      <div class="sechead">スキル（魔法＝魔力依存・必中／特技＝攻撃力依存・命中判定あり）</div>
+      ${[0,1,2].map(i=>{ const id=u.spells[i]||'none';
+        return `<div class="slot"><label>スキル${i+1}</label>
+          <button class="pk${id==='none'?' pk-none':''}" data-sslot="${i}" data-pkid="s${i}">${id==='none'?'— なし —':SP[id].name}</button></div>
+        <div class="tdesc" data-sd="${i}">${spDesc(id)}</div>`;}).join('')}
+      <div class="cmds">
+        <button class="btn" id="randS">職業の傾向で引き直す</button>
+        <button class="btn" id="randSF">完全ランダム</button>
+        <button class="btn" id="clrS">スキル3枠をなしに</button>
+      </div>
+
+      <div class="sechead">オート行動（上の行から順に判定し、最初に成立した行を実行）</div>
+      <div id="gambits"></div>
+      <div class="cmds">
+        <button class="btn" id="addG">＋ 行を追加（先頭へ）</button>
+        <button class="btn" id="defG">初期構成に戻す</button>
+        <button class="btn" id="copyG">この設定を味方全員へ</button>
+      </div>
+
+      <div class="sechead">一括操作</div>
+      <div class="cmds">
+        <button class="btn" id="benchU">配置から外す</button>
+        <button class="btn" id="randAll">全員の個性を職業の傾向で引き直す</button>
+        <button class="btn" id="clrAll">全員の個性をなしに</button>
+        <button class="btn" id="clrAllS">全員のスキルをなしに</button>
+      </div>
+    </div></div></div>`;
+  $('#closeM').onclick=closeEditor;
+  document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask')) closeEditor(); };
+  const M=document.querySelector('.modal');
+  M.querySelectorAll('[data-tslot]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.tslot;
+    openPicker(b,traitGroups(),u.traits[i]||'none',v=>{
+      u.traits[i]=v; u.cnt={}; refreshVitals(u);
+      b.textContent=v==='none'?'— なし —':TRAITS[v].name;
+      b.classList.toggle('pk-none',v==='none');
+      M.querySelector(`[data-d="${i}"]`).textContent=TRAITS[v].desc;
+      render(); netBuild(u); openEditor(u);
+    });
+  });
+  M.querySelectorAll('[data-sslot]').forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.sslot;
+    openPicker(b,spellGroups(),u.spells[i]||'none',v=>{
+      u.spells[i]=v;
+      b.textContent=v==='none'?'— なし —':SP[v].name;
+      b.classList.toggle('pk-none',v==='none');
+      M.querySelector(`[data-sd="${i}"]`).textContent=spDesc(v);
+      renderGambits(u); render(); netBuild(u);
+    });
+  });
+  /* 装備の付け替え。ステータスに直接効くので、変えたら最大HP/MPを取り直す。 */
+  M.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{
+    const s=b.dataset.eq;
+    openPicker(b,equipGroups(s),(u.equip&&u.equip[s])||'none',v=>{
+      u.equip=u.equip||{w:'none',a:'none',trait:null,on:'w'};
+      u.equip[s]=v; refreshVitals(u); render(); netBuild(u); openEditor(u);
+    });
+  });
+  const eqtBtn=M.querySelector('[data-eqt]');
+  if(eqtBtn) eqtBtn.onclick=()=>{
+    openPicker(eqtBtn,traitGroups(),(u.equip&&u.equip.trait)||'none',v=>{
+      u.equip=u.equip||{w:'none',a:'none',trait:null,on:'w'};
+      u.equip.trait=v==='none'?null:v;
+      u.cnt={}; refreshVitals(u); render(); netBuild(u); openEditor(u);
+    });
+  };
+  if($('#rollEq')) $('#rollEq').onclick=()=>{ u.equip=rollEquip(u); u.cnt={}; refreshVitals(u);
+    render(); netBuild(u); openEditor(u); };
+  if($('#clrEq')) $('#clrEq').onclick=()=>{ u.equip={w:'none',a:'none',trait:null,on:'w'};
+    u.cnt={}; refreshVitals(u); render(); netBuild(u); openEditor(u); };
+
+  // 職業の付け替え。HP/MP は割合を保つので、戦闘中に変えても即死しない。
+  M.querySelector('[data-cls]').onclick=e=>{
+    openPicker(e.currentTarget,classGroups(),u.clsId,v=>{
+      const cls=CLS[v]; if(!cls)return;
+      applyClass(u,cls,{keepRatio:true});
+      u.ct=time+10000/stat(u,'spd');     // 素早さが変わるので行動順を引き直す
+      addLog(`${u.name} は ${cls.n} になった`,'l-sys');
+      render(); netBuild(u); openEditor(u);
+    });
+  };
+  const mineOnly=x=>!NET.matched||x.side===MY();
+  /* 個性をまるごと引き直したときは、オート行動も組み直す。
+     《奪取》のような「個性が要求する行」が付いたり外れたりするため。
+     1枠だけ差し替えた場合は、手で組んだ行を消さないようそのままにする
+     （必要なら「初期構成に戻す」で作り直せる）。 */
+  const rerollT=arr=>{ u.traits=arr; u.cnt={}; refreshVitals(u); u.gambits=defaultGambits(u);
+    renderGambits(u); render(); netBuild(u); openEditor(u); };
+  $('#rollC').onclick=()=>{ const c=clsOf(u);
+    u.traits=rollTraits(c); u.spells=rollSpells(c); u.cnt={}; refreshVitals(u);
+    u.gambits=defaultGambits(u);
+    renderGambits(u); render(); netBuild(u); openEditor(u); };
+  $('#randT').onclick=()=>rerollT(rollTraits(clsOf(u)));
+  $('#randTF').onclick=()=>rerollT(pickWeighted(TRAIT_IDS,null,3));
+  $('#clrT').onclick=()=>rerollT(['none','none','none']);
+  $('#randS').onclick=()=>{ u.spells=rollSpells(clsOf(u)); render(); netBuild(u); openEditor(u); };
+  $('#randSF').onclick=()=>{ u.spells=pickWeighted(SPELL_IDS,null,3); render(); netBuild(u); openEditor(u); };
+  $('#clrS').onclick=()=>{ u.spells=['none','none','none']; render(); netBuild(u); openEditor(u); };
+  $('#benchU').onclick=()=>{ if(NET.matched){alert('対戦中は配置を変更できません');return;}
+    closeEditor(); bench(u); render(); syncCountUI(); };
+  $('#randAll').onclick=()=>{ U.filter(mineOnly).forEach(x=>{x.traits=rollTraits(clsOf(x));x.cnt={};
+    refreshVitals(x); x.gambits=defaultGambits(x); netBuild(x);}); render(); openEditor(u); };
+  $('#clrAll').onclick=()=>{ U.filter(mineOnly).forEach(x=>{x.traits=['none','none','none'];x.cnt={};
+    refreshVitals(x); x.gambits=defaultGambits(x); netBuild(x);}); render(); openEditor(u); };
+  $('#clrAllS').onclick=()=>{ U.filter(mineOnly).forEach(x=>{x.spells=['none','none','none'];netBuild(x);}); render(); openEditor(u); };
+  renderGambits(u);
+  $('#addG').onclick=()=>{ u.gambits.unshift({subj:'ally',cond:'hp_le50',cnt:1,act:'attack'}); renderGambits(u); netBuild(u); };
+  $('#defG').onclick=()=>{ u.gambits=defaultGambits(u); renderGambits(u); netBuild(u); };
+  $('#copyG').onclick=()=>{ const src=JSON.stringify(u.gambits);
+    [...U,...BENCH].filter(x=>x.side===u.side&&x!==u).forEach(x=>{x.gambits=JSON.parse(src);netBuild(x);});
+    addLog(`${u.name} のオート行動を${sideName(u.side)}全員へコピー`,'l-sys'); };
+}
+
+function renderGambits(u){
+  const host=$('#gambits'); if(!host)return;
+  const sel=(k,v,opts)=>`<select data-g="${k}">`+opts.map(o=>
+    `<option value="${o.v}"${o.v===v?' selected':''}>${o.l}</option>`).join('')+'</select>';
+  const subjOpts=Object.entries(SUBJ).map(([v,l])=>({v,l}));
+  const condOpts=CONDS.map(c=>({v:c.id,l:c.label}));
+  const cntOpts=CNTS.map(c=>({v:c.v,l:c.l}));
+  const actOpts=ACTS.map(a=>({v:a.id,l:actLabel(u,a.id)}));
+  let blocked=-1;   // ここより下は絶対に判定されない
+  u.gambits.forEach((g,i)=>{ if(blocked<0&&g.cond==='always'&&(+g.cnt||1)===1
+    &&(g.act==='attack'||g.act==='guard')) blocked=i; });
+  host.innerHTML=u.gambits.map((g,i)=>`<div class="grow${blocked>=0&&i>blocked?' dead':''}" data-i="${i}">
+      <span class="gno">${i+1}</span>
+      ${sel('subj',g.subj,subjOpts)}<span class="gsep">の</span>
+      ${sel('cond',g.cond,condOpts)}<span class="gsep">が</span>
+      ${sel('cnt',g.cnt===undefined?1:g.cnt,cntOpts)}<span class="gsep">→</span>
+      ${sel('act',g.act,actOpts)}
+      <span class="gbtns"><button data-g="up" title="上へ">▲</button><button data-g="dn" title="下へ">▼</button><button data-g="del" title="削除">×</button></span>
+    </div>`).join('')
+    +(blocked>=0?`<div class="warn">${blocked+1}行目が常に成立するため、それより下の行は判定されません。▲で上に移動してください。</div>`:'')
+    +`<div class="grow last"><span class="gno">—</span><span class="hint">上の行が全て不成立なら「たたかう」</span></div>`;
+  host.querySelectorAll('.grow[data-i]').forEach(row=>{
+    const i=+row.dataset.i;
+    row.querySelectorAll('select').forEach(s=>s.onchange=()=>{
+      const k=s.dataset.g;
+      u.gambits[i][k]= k==='cnt' ? (s.value==='all'?'all':+s.value) : s.value;
+      renderGambits(u); netBuild(u); });
+    row.querySelector('[data-g="up"]').onclick=()=>{ if(i>0){ const a=u.gambits;
+      [a[i-1],a[i]]=[a[i],a[i-1]]; renderGambits(u); netBuild(u);} };
+    row.querySelector('[data-g="dn"]').onclick=()=>{ const a=u.gambits;
+      if(i<a.length-1){ [a[i+1],a[i]]=[a[i],a[i+1]]; renderGambits(u); netBuild(u);} };
+    row.querySelector('[data-g="del"]').onclick=()=>{ u.gambits.splice(i,1); renderGambits(u); netBuild(u); };
+  });
+}
+let LOADING=false;            // 読み込み中は自動保存を止める（古い状態で上書きしないため）
+function closeEditor(){
+  closePicker(); $('#modalHost').innerHTML='';
+  if(!LOADING&&typeof saveLocal==='function') saveLocal();
+}
+
+/* 相手ユニットの閲覧専用ビュー（対戦中） */
+function openViewer(u){
+  const st=['atk','def','mat','mdf','spd'].map(k=>`<div class="sc"><u>${SN[k]}</u><b>${Math.round(stat(u,k))}</b></div>`).join('');
+  const list=(arr,fmt)=>arr.length?arr.map(fmt).join(''):'<div class="tdesc">なし</div>';
+  $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
+    <header><h3>${u.name}</h3><span class="hint">${u.clsName} / 相手 / ${isFront(u)?'前列':'後列'} slot${u.slot}</span>
+      <button class="btn x" id="closeM">閉じる</button></header>
+    <div class="mbody">
+      <div class="statgrid">
+        <div class="sc"><u>HP</u><b>${Math.max(0,u.hp)}/${u.maxHp}</b></div>
+        <div class="sc"><u>MP</u><b>${u.mp}/${u.maxMp}</b></div>${st}
+      </div>
+      <div class="sechead">個性</div>
+      ${list(u.traits.filter(t=>t!=='none'),t=>`<div class="tdesc"><b>${TRAITS[t].name}</b> — ${TRAITS[t].desc}</div>`)}
+      <div class="sechead">スキル</div>
+      ${list(spellsOf(u),id=>`<div class="tdesc"><b>${SP[id].name}</b>（${skillKind(SP[id])}・MP${SP[id].mp}・${SP[id].scope==='all'?'範囲':'単体'}） — ${SP[id].desc}</div>`)}
+      ${eqOn(u)?`<div class="sechead">装備</div>
+        ${[['w','武器'],['a','防具']].map(([s,lb])=>{const d=EQ[u.equip[s]];
+          return d&&d.id!=='none'?`<div class="tdesc"><b>${d.n}</b>（${lb}） — ${eqStatText(d)}　${d.desc}</div>`:'';}).join('')}
+        ${u.equip.trait?`<div class="tdesc"><b>付与個性: ${TRAITS[u.equip.trait].name}</b> — ${TRAITS[u.equip.trait].desc}</div>`:''}`:''}
+      <div class="seghint">対戦中は相手のユニットを編集できません。</div>
+    </div></div></div>`;
+  $('#closeM').onclick=closeEditor;
+  document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask'))closeEditor(); };
+}
+
+/* =========================================================
+   12. 操作系
+   ========================================================= */
+['#nAlly','#nFoe'].forEach(sel=>{ $(sel).innerHTML=[0,1,2,3,4,5,6,7].map(n=>`<option value="${n}">${n}</option>`).join(''); });
+function syncCountUI(){
+  $('#nAlly').value=U.filter(u=>u.side==='ally').length;
+  $('#nFoe').value =U.filter(u=>u.side==='foe').length;
+}
+$('#nAlly').onchange=e=>setCount('ally',+e.target.value);
+$('#nFoe').onchange =e=>setCount('foe', +e.target.value);
+
+const SPEEDS=[['x0.5',0.5],['x1',1],['x2',2],['x4',4],['瞬間',12]];
+$('#speedSeg').innerHTML=SPEEDS.map(([l,v])=>`<button data-v="${v}"${v===1?' class="on"':''}>${l}</button>`).join('');
+$('#speedSeg').onclick=e=>{ const b=e.target.closest('button'); if(!b)return;
+  speedF=+b.dataset.v; [...$('#speedSeg').children].forEach(c=>c.classList.toggle('on',c===b)); };
+$('#autoBtn').onclick=()=>{ auto=!auto;
+  $('#autoBtn').classList.toggle('on',auto); $('#autoBtn').textContent='自動戦闘 '+(auto?'ON':'OFF');
+  if(auto&&resolveCmd&&current) send(aiAction(current)); };
+$('#stepBtn').onclick=()=>{ paused=!paused;
+  $('#stepBtn').textContent=paused?'再開':'一時停止'; $('#stepBtn').classList.toggle('on',paused); };
+$('#tlIn').onchange=e=>{
+  const v=parseInt(e.target.value,10);
+  turnLimit=(v>0&&v<=100000)?v:300;
+  e.target.value=turnLimit;
+  addLog(`打ち切りを ${turnLimit} ターンに設定`,'l-sys');
+};
+
+/* --- 編成リセット（味方だけ／敵だけ／全回復） --- */
+function matchBlocked(){
+  if(NET.matched){ addLog('対戦中は使えません（仕切り直しは「対戦」パネルから）','l-sys'); return true; }
+  return false;
+}
+function resetSide(side){
+  if(matchBlocked())return;
+  abortLoop(); closeEditor();
+  const n=Math.max(1,U.filter(u=>u.side===side).length);
+  U=U.filter(u=>u.side!==side);
+  BENCH=BENCH.filter(u=>u.side!==side);
+  newBattleState();
+  U.forEach(u=>{ u.name=u.name0||u.name; resetUnit(u); });   // 残る側も仕切り直す
+  for(let i=0;i<n;i++) U.push(newUnit(side,i));
+  logs=[]; addLog(`${side==='ally'?'味方':'敵'}の編成を引き直した`,'l-turn');
+  syncCountUI(); render(); renderLog(); loop();
+  if(typeof saveLocal==='function') saveLocal();
+}
+function healAll(){
+  if(matchBlocked())return;
+  abortLoop(); closeEditor();
+  newBattleState();
+  U.forEach(u=>{ u.name=u.name0||u.name; resetUnit(u); });
+  logs=[]; addLog('敵味方を全回復（編成はそのまま）','l-turn');
+  render(); renderLog(); loop();
+  if(typeof saveLocal==='function') saveLocal();
+}
+$('#reAlly').onclick=()=>resetSide('ally');
+$('#reFoe').onclick =()=>resetSide('foe');
+$('#reHeal').onclick=()=>healAll();
+
+/* =========================================================
+   12.5 高速集計モード
+
+   描画・ログ・演出を止めて、同じエンジンを同期的に回す。
+   両陣営の編成は固定なので、変わるのは戦闘中の乱数だけ。
+   ========================================================= */
+function simOneBattle(limit){
+  newBattleState();
+  U.forEach(u=>{ u.name=u.name0||u.name; resetUnit(u);
+    allTraits(u).forEach(id=>{ if(id!=='none') OWN[id]=(OWN[id]||0)+1; }); });
+  while(turnNo<limit){
+    const u=nextActor(); if(!u)break;
+    time=u.ct; turnNo++;
+    U.forEach(x=>{ for(const k in x.fired) if(--x.fired[k]<=0) delete x.fired[k]; });
+    u.cnt.tsuigekiUsed=0; u.cnt.tsuishouUsed=0; u.cnt.ninoUsed=0;
+    current=u; u.guard=false;
+    if(!u.alive){ endTurn(u,{attacked:false}); continue; }
+    const skip=consumeRest(u);
+    if(skip!=='sleep') emit('turnStart',{unit:u});
+    if(skip||!u.alive){ endTurn(u,{attacked:false,silent:skip==='sleep'}); continue; }
+    let attacked=resolveAction(u,aiAction(u));
+    if(u.alive&&hasT(u,'nino')&&!u.cnt.ninoUsed){          // 二の太刀
+      u.cnt.ninoUsed=1;
+      proc(u,'nino','続けてもう一度動く');
+      attacked=resolveAction(u,aiAction(u))||attacked;
+      if(u.alive) addAil(u,'rest',null,u);
+    }
+    endTurn(u,{attacked});
+    const a=aliveOf('ally').length, f=aliveOf('foe').length;
+    if(a===0||f===0){ battleResult=a===0?'foe':'ally'; break; }
+  }
+  if(!battleResult) battleResult=judgeByDamage();   // 打ち切り。総与ダメージで判定
+  return {result:battleResult,turns:turnNo,
+    aliveA:aliveOf('ally').length,aliveF:aliveOf('foe').length,
+    dmgA:DMG.ally,dmgF:DMG.foe};
+}
+
+let SIMRUN=null;
+function runSim(times,limit){
+  if(SIMRUN||matchBlocked())return;
+  abortLoop(); closePicker();
+  const names=U.map(u=>u.name0||u.name);
+  const st={n:0,times,limit,win:0,lose:0,draw:0,turns:0,aliveA:0,aliveF:0,dmgA:0,dmgF:0,
+            t0:(performance&&performance.now?performance.now():Date.now())};
+  PROC={}; OWN={}; SIM=true; SIMRUN=st;
+  const step=()=>{
+    try{
+      const batch=Math.min(5,st.times-st.n);
+      for(let i=0;i<batch;i++){
+        const r=simOneBattle(st.limit);
+        if(r.result==='ally')st.win++; else if(r.result==='foe')st.lose++; else st.draw++;
+        st.turns+=r.turns; st.aliveA+=r.aliveA; st.aliveF+=r.aliveF;
+        st.dmgA+=r.dmgA; st.dmgF+=r.dmgF; st.n++;
+      }
+    }catch(e){
+      SIM=false; SIMRUN=null;
+      const o=$('#simOut'); if(o) o.innerHTML=`<div class="warn">集計中にエラー: ${e.message}</div>`;
+      console.error(e); return;
+    }
+    renderSimProgress(st);
+    if(st.n<st.times){ setTimeout(step,0); return; }
+    SIM=false; SIMRUN=null;
+    st.ms=(performance&&performance.now?performance.now():Date.now())-st.t0;
+    // 盤面を初期状態に戻す（対戦は再開せず、パネルを閉じたときに動き出す）
+    newBattleState();
+    U.forEach((u,i)=>{ u.name=names[i]; resetUnit(u); });
+    logs=[]; render(); renderLog(); renderSimResult(st);
+  };
+  setTimeout(step,0);
+}
+
+function renderSimProgress(st){
+  const o=$('#simOut'); if(!o)return;
+  const pct=st.n/st.times*100;
+  o.innerHTML=`<div class="simprog"><span style="width:${pct}%"></span></div>
+    <div class="hint">${st.n} / ${st.times} 戦　—　味方 ${st.win} 勝 ／ 敵 ${st.lose} 勝 ／ 引き分け ${st.draw}</div>`;
+}
+function renderSimResult(st){
+  const o=$('#simOut'); if(!o)return;
+  const pc=v=>(v/st.times*100);
+  const rate=(st.win/Math.max(1,st.win+st.lose)*100).toFixed(1);
+  const nm=id=>TRAITS[id]?TRAITS[id].name:id;
+  const owned=TRAIT_IDS.filter(id=>OWN[id]);          // この試行で誰かが持っていた個性
+  const procs=Object.entries(PROC).sort((a,b)=>b[1]-a[1]);
+  const top=procs.slice(0,16).map(([id,n])=>
+    `<span><b>${nm(id)}</b> <i>${(n/st.times).toFixed(1)}</i>/戦 <em>持${(OWN[id]/st.times).toFixed(1)}</em></span>`).join('');
+  // 「持っていたのに一度も効かなかった」個性だけが調整の手がかりになる。
+  const dead=owned.filter(id=>!PROC[id]&&!isPassiveTrait(id));
+  const passive=owned.filter(id=>isPassiveTrait(id));
+  const unowned=TRAIT_IDS.filter(id=>!OWN[id]);
+  o.innerHTML=`
+    <div class="simbar">
+      ${st.win?`<span class="w" style="flex:${st.win}">味方 ${st.win}</span>`:''}
+      ${st.draw?`<span class="d" style="flex:${st.draw}">分 ${st.draw}</span>`:''}
+      ${st.lose?`<span class="l" style="flex:${st.lose}">敵 ${st.lose}</span>`:''}
+    </div>
+    <div class="statgrid">
+      <div class="sc"><u>味方勝率</u><b>${rate}%</b></div>
+      <div class="sc"><u>平均ターン</u><b>${(st.turns/st.times).toFixed(0)}</b></div>
+      <div class="sc"><u>平均残存 味方</u><b>${(st.aliveA/st.times).toFixed(1)}</b></div>
+      <div class="sc"><u>平均残存 敵</u><b>${(st.aliveF/st.times).toFixed(1)}</b></div>
+      <div class="sc"><u>平均与ダメ 味方</u><b>${Math.round(st.dmgA/st.times)}</b></div>
+      <div class="sc"><u>平均与ダメ 敵</u><b>${Math.round(st.dmgF/st.times)}</b></div>
+    </div>
+    <div class="hint">${st.times} 戦 / ${(st.ms/1000).toFixed(1)} 秒　—　引き分け ${st.draw} 件（${pc(st.draw).toFixed(0)}%）は打ち切り後の同点です</div>
+    <div class="sechead">個性の発動回数（1戦あたり／持＝延べ所持人数）</div>
+    <div class="proclist">${top||'<span>発動なし</span>'}</div>
+    <div class="warn" style="margin-top:6px">
+      <b>持っていたのに一度も効かなかった個性 ${dead.length} 種</b>${dead.length?'：'+dead.map(nm).join('・'):'（なし）'}<br>
+      調整の手がかりになるのはここだけです。条件が厳しすぎるか、AIが使わない個性です。
+    </div>
+    <div class="seghint">
+      <b>常時型 ${passive.length} 種</b>（ステータスを常に補正するだけなので発動回数では測れない）：
+      ${passive.map(id=>`${nm(id)}${(OWN[id]/st.times).toFixed(1)}`).join('・')||'なし'}<br>
+      これらは「持っている編成」と「持っていない編成」の勝率を比べて評価してください。<br><br>
+      <b>今回誰も持たなかった個性 ${unowned.length} 種</b>（判断材料にはなりません）：
+      ${unowned.length>24?unowned.slice(0,24).map(nm).join('・')+' ほか':unowned.map(nm).join('・')||'なし'}
+    </div>`;
+}
+
+function openSimPanel(){
+  closePicker();
+  $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
+    <header><h3>集計</h3><span class="hint">編成を固定したまま繰り返し戦わせ、勝率を出します</span>
+      <button class="btn x" id="closeM">閉じる</button></header>
+    <div class="mbody">
+      <div class="netform">
+        <label>試行回数</label><input id="simN" value="100">
+        <label>打ち切りターン</label><input id="simL" value="${turnLimit}">
+        <div class="seghint">
+          描画とログを止めて一気に回します。<b>変わるのは戦闘中の乱数だけ</b>で、編成・職業・個性・スキル・オート行動はそのままです。<br>
+          決着しなかった場合は<b>与えた総ダメージ</b>で判定します（毒・反動・倍化とオーバーキル分は数えません）。<br>
+          結果の「持っていたのに効かなかった個性」だけが調整の手がかりです。<b>この編成に出ていない個性は判断できません</b>ので、
+          気になる個性は編集画面で持たせてから回してください。
+        </div>
+      </div>
+      <div class="cmds"><button class="btn" id="simGo">実行</button></div>
+      <div id="simOut"></div>
+    </div></div></div>`;
+  const close=()=>{ closeEditor(); if(!running&&!SIMRUN){ render(); renderLog(); loop(); } };
+  $('#closeM').onclick=close;
+  document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask')) close(); };
+  $('#simGo').onclick=()=>{
+    const n=clamp(parseInt($('#simN').value,10)||100,1,5000);
+    const l=clamp(parseInt($('#simL').value,10)||turnLimit,10,100000);
+    $('#simN').value=n; $('#simL').value=l;
+    turnLimit=l; $('#tlIn').value=l;
+    runSim(n,l);
+  };
+}
+$('#simBtn').onclick=openSimPanel;
+
+/* =========================================================
+   12.7 編成ロスターとデータの保存・読み込み
+
+   BENCH（配置から外したユニット）をそのまま「控え」として使う。
+   1 陣営あたり出撃7＋控えで最大 ROSTER_MAX 人まで抱えられる。
+   ========================================================= */
+const ROSTER_MAX=50;
+const SAVE_KEY='kosei-battle-save-v1';
+
+const rosterOf=side=>[...U,...BENCH].filter(u=>u.side===side);
+const freeSlots=side=>[0,1,2,3,4,5,6].filter(s=>!unitAt(side,s));
+
+function rosterAdd(side){
+  if(matchBlocked())return;
+  if(rosterOf(side).length>=ROSTER_MAX){ alert(`${side==='ally'?'味方':'敵'}は既に${ROSTER_MAX}人です`); return; }
+  const u=newUnit(side,freeSlots(side)[0]!=null?freeSlots(side)[0]:0);
+  BENCH.push(u); u.alive=false;             // 作った直後は控えに置く
+  saveLocal(); render();
+}
+function rosterClone(u){
+  if(matchBlocked())return;
+  if(rosterOf(u.side).length>=ROSTER_MAX){ alert('これ以上増やせません'); return; }
+  const c=JSON.parse(JSON.stringify(serSave(u)));
+  const n=buildUnit(c);
+  n.name=n.name0=(u.side==='ally'?freshAllyName():monsterName(CLS[u.clsId],'foe'));
+  BENCH.push(n); n.alive=false;
+  saveLocal(); render();
+}
+function rosterDelete(u){
+  if(matchBlocked())return;
+  U=U.filter(x=>x!==u); BENCH=BENCH.filter(x=>x!==u);
+  saveLocal(); syncCountUI(); render();
+}
+
+/* --- 直列化（保存・複製で共通） --- */
+function serSave(u){
+  return {side:u.side,slot:u.slot,dep:U.includes(u),
+    name:u.name0||u.name,clsId:u.clsId,varia:u.varia,foeBoost:!!u.foeBoost,
+    traits:u.traits,spells:u.spells,gambits:u.gambits,equip:u.equip};
+}
+function buildUnit(o){
+  const cls=CLS[o.clsId]||HUMANS[0];
+  const u={id:++uidc,side:o.side||'ally',slot:o.slot||0,name:o.name,name0:o.name,hp:0,mp:0,
+    traits:(o.traits&&o.traits.length===3)?o.traits.slice():['none','none','none'],
+    spells:(o.spells&&o.spells.length===3)?o.spells.slice():['none','none','none'],
+    gambits:Array.isArray(o.gambits)?JSON.parse(JSON.stringify(o.gambits)):[],
+    buffs:[],ail:{},cnt:{},fired:{},evade:0,
+    alive:true,ct:0,guard:false,lastAct:null,
+    foeBoost:!!o.foeBoost,varia:o.varia||0.9+R(0.2),
+    equip:o.equip?JSON.parse(JSON.stringify(o.equip)):null};
+  applyClass(u,cls);
+  if(!u.gambits.length) u.gambits=defaultGambits(u);
+  resetUnit(u);
+  return u;
+}
+function saveData(){
+  return {v:1,turnLimit,equipOn:EQUIP_ON,units:[...U,...BENCH].map(serSave)};
+}
+function applySave(d){
+  if(!d||!Array.isArray(d.units)||!d.units.length) throw new Error('ユニットが入っていません');
+  LOADING=true;
+  try{
+    abortLoop(); closeEditor();
+    U=[];BENCH=[];uidc=0;logs=[];newBattleState();
+    turnLimit=d.turnLimit||300; if($('#tlIn')) $('#tlIn').value=turnLimit;
+    EQUIP_ON=d.equipOn!==false; syncEquipBtn();
+    d.units.forEach(o=>{ const u=buildUnit(o);
+      if(o.dep&&!unitAt(u.side,u.slot)) U.push(u); else { u.alive=false; BENCH.push(u); } });
+    if(!U.length) throw new Error('出撃しているユニットがありません');
+  } finally { LOADING=false; }
+  syncCountUI(); render(); renderLog(); loop();
+}
+function saveLocal(){
+  try{ localStorage.setItem(SAVE_KEY,JSON.stringify(saveData())); return true; }
+  catch(e){ console.warn('保存できません',e); return false; }
+}
+function loadLocal(){
+  try{ const s=localStorage.getItem(SAVE_KEY); return s?JSON.parse(s):null; }
+  catch(e){ return null; }
+}
+
+/* --- 編成パネル --- */
+let rosterSide='ally', rosterTarget=null;
+function unitLine(u){
+  const dep=U.includes(u);
+  const tr=u.traits.filter(t=>t!=='none').map(t=>TRAITS[t].name).join('・')||'個性なし';
+  const et=eqTraits(u).map(t=>TRAITS[t].name);
+  const sp=spellsOf(u).map(id=>SP[id].name).join('・')||'スキルなし';
+  const eq=eqOn(u)?[EQ[u.equip.w],EQ[u.equip.a]].filter(d=>d&&d.id!=='none').map(d=>d.n).join('・'):'';
+  return `<div class="rrow${dep?' dep':''}" data-uid="${u.id}">
+    <span class="rpos">${dep?'出'+(u.slot+1):'控'}</span>
+    <span class="rmain">
+      <b>${u.name}</b><i>${u.clsName}</i><br>
+      <span class="rsub">${tr}${et.length?'＋<em>'+et.join('・')+'</em>':''}　／　${sp}${eq?'　／　'+eq:''}</span>
+    </span>
+    <span class="rbtn">
+      <button data-act="toggle">${dep?'控えへ':'出撃'}</button>
+      <button data-act="edit">編集</button>
+      <button data-act="clone">複製</button>
+      <button data-act="del">削除</button>
+    </span></div>`;
+}
+function openRoster(side,targetSlot){
+  if(matchBlocked())return;
+  closePicker();
+  rosterSide=side||rosterSide; rosterTarget=targetSlot==null?null:targetSlot;
+  $('#modalHost').innerHTML=`<div class="mask"><div class="modal wide">
+    <header><h3>編成</h3><span class="hint">出撃は最大7人。控えと合わせて1陣営 ${ROSTER_MAX} 人まで</span>
+      <button class="btn x" id="closeM">閉じる</button></header>
+    <div class="mbody">
+      <div class="esteps" id="rSide">
+        <button data-s="ally" class="${rosterSide==='ally'?'on':''}">味方</button>
+        <button data-s="foe" class="${rosterSide==='foe'?'on':''}">敵</button>
+      </div>
+      <div id="rInfo" class="seghint"></div>
+      <div class="cmds">
+        <button class="btn" id="rAdd">＋ 新しく作る</button>
+        <button class="btn" id="rFill">空きスロットを控えから埋める</button>
+        <button class="btn" id="rClearOut">全員を控えに戻す</button>
+      </div>
+      <div id="rList" class="rlist"></div>
+    </div></div></div>`;
+  $('#closeM').onclick=()=>{ saveLocal(); closeEditor(); };
+  document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask')){ saveLocal(); closeEditor(); } };
+  document.querySelectorAll('#rSide button').forEach(b=>b.onclick=()=>{
+    rosterSide=b.dataset.s; rosterTarget=null; openRoster(rosterSide,null); });
+  $('#rAdd').onclick=()=>{ rosterAdd(rosterSide); openRoster(rosterSide,rosterTarget); };
+  $('#rFill').onclick=()=>{
+    freeSlots(rosterSide).forEach(s=>{ const c=BENCH.find(x=>x.side===rosterSide); if(c) deployTo(c,s); });
+    saveLocal(); syncCountUI(); render(); openRoster(rosterSide,null); };
+  $('#rClearOut').onclick=()=>{
+    U.filter(x=>x.side===rosterSide).slice().forEach(bench);
+    saveLocal(); syncCountUI(); render(); openRoster(rosterSide,null); };
+  renderRoster();
+}
+function renderRoster(){
+  const list=$('#rList'); if(!list)return;
+  const all=rosterOf(rosterSide).sort((a,b)=>
+    (U.includes(b)?1:0)-(U.includes(a)?1:0) || a.slot-b.slot);
+  const dep=U.filter(x=>x.side===rosterSide).length;
+  $('#rInfo').innerHTML=rosterTarget!=null
+    ? `<b>スロット${rosterTarget+1} に出す控えを選んでください。</b>「出撃」を押すとそこへ入ります。`
+    : `出撃 ${dep} / 7　控え ${all.length-dep}　合計 ${all.length} / ${ROSTER_MAX}`;
+  list.innerHTML=all.map(unitLine).join('')||'<div class="tdesc">この陣営のユニットがいません。</div>';
+  list.querySelectorAll('.rrow').forEach(row=>{
+    const u=[...U,...BENCH].find(x=>x.id==row.dataset.uid); if(!u)return;
+    row.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      const a=b.dataset.act;
+      const closeAfter=(rosterTarget!=null);
+      if(a==='toggle'){
+        if(U.includes(u)) bench(u);
+        else{
+          const s=rosterTarget!=null?rosterTarget:freeSlots(u.side)[0];
+          if(s==null){ alert('出撃枠が満杯です。誰かを控えに戻してください'); return; }
+          deployTo(u,s); rosterTarget=null;
+        }
+      }
+      else if(a==='edit'){ saveLocal(); openEditor(u); return; }
+      else if(a==='clone') rosterClone(u);
+      else if(a==='del'){
+        if(rosterOf(u.side).length<=1){ alert('最後の1人は消せません'); return; }
+        rosterDelete(u);
+      }
+      saveLocal(); syncCountUI(); render();
+      // 盤面の空きスロットから開いた場合は、入れ終わったら盤面へ戻る
+      if(a==='toggle'&&closeAfter&&U.includes(u)){ closeEditor(); return; }
+      renderRoster();
+    });
+  });
+}
+
+/* --- データパネル --- */
+function openDataPanel(){
+  closePicker();
+  $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
+    <header><h3>データ</h3><span class="hint">ブラウザに保存／JSONで書き出し・読み込み</span>
+      <button class="btn x" id="closeM">閉じる</button></header>
+    <div class="mbody">
+      <div class="seghint">編成・職業・個性・スキル・装備・オート行動を保存します。
+        戦闘中のHPやバフは保存しません（読み込むと全回復した状態から始まります）。<br>
+        <b>編集や編成を変えるたびに自動保存されます。</b></div>
+      <div class="cmds">
+        <button class="btn" id="dSave">今すぐ保存</button>
+        <button class="btn" id="dLoad">保存を読み込む</button>
+        <button class="btn" id="dClear">保存を消す</button>
+        <button class="btn" id="dNew">全部作り直す</button>
+      </div>
+      <div class="sechead">JSON で書き出し・読み込み</div>
+      <div class="seghint">下の枠の中身をコピーすれば別の環境へ持っていけます。貼り付けて「読み込む」で復元します。</div>
+      <textarea id="dJson" class="jsonbox" spellcheck="false"></textarea>
+      <div class="cmds">
+        <button class="btn" id="dExport">現在の内容を書き出す</button>
+        <button class="btn" id="dImport">枠の内容を読み込む</button>
+      </div>
+      <div id="dMsg" class="seghint"></div>
+    </div></div></div>`;
+  const msg=(t,bad)=>{ const e=$('#dMsg'); if(e) e.innerHTML=bad?`<span style="color:var(--foe)">${t}</span>`:t; };
+  $('#closeM').onclick=closeEditor;
+  document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask'))closeEditor(); };
+  $('#dSave').onclick=()=>{ const ok=saveLocal();
+    msg(ok?'保存しました':'保存できませんでした（ブラウザの設定を確認してください）',!ok); };
+  $('#dLoad').onclick=()=>{ const d=loadLocal();
+    if(!d){ msg('保存がありません',true); return; }
+    try{ applySave(d); msg('読み込みました'); }catch(e){ msg('読み込めません: '+e.message,true); } };
+  $('#dClear').onclick=()=>{ try{ localStorage.removeItem(SAVE_KEY); msg('保存を消しました'); }catch(e){ msg('消せません',true);} };
+  $('#dNew').onclick=()=>{ if(!confirm('今の編成を捨てて作り直します。よろしいですか'))return;
+    abortLoop(); closeEditor(); setup(); saveLocal(); render(); renderLog(); loop(); };
+  $('#dExport').onclick=()=>{ $('#dJson').value=JSON.stringify(saveData()); msg('書き出しました。枠の中身をコピーしてください'); };
+  $('#dImport').onclick=()=>{
+    try{ applySave(JSON.parse($('#dJson').value)); saveLocal(); msg('読み込みました'); }
+    catch(e){ msg('読み込めません: '+e.message,true); } };
+  $('#dJson').value=JSON.stringify(saveData());
+}
+
+/* =========================================================
+   12.8 携帯レイアウトの切り替え
+
+   描画関数とデータは PC 版と完全に共有し、
+   盤面の並べ方（renderField）と CSS だけを分岐させている。
+   ?m=1 を付けるとPCでも携帯レイアウトで確認できる。
+   ========================================================= */
+function setTab(t){
+  MTAB=t;
+  document.body.classList.remove('tabboard','tablog','tabmenu');
+  document.body.classList.add('tab'+t);
+  document.querySelectorAll('#mtabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  if(t==='log') renderLog();
+  if(t==='board') render();
+}
+function applyMobile(){
+  const was=MOBILE;
+  MOBILE=/[?&]m=1/.test(location.search)||innerWidth<=768;
+  document.body.classList.toggle('mobile',MOBILE);
+  if(!MOBILE) document.body.classList.remove('tabboard','tablog','tabmenu');
+  else setTab(MTAB);
+  if(was!==MOBILE){ render(); renderLog(); }
+}
+document.querySelectorAll('#mtabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
+addEventListener('resize',applyMobile);
+addEventListener('orientationchange',()=>setTimeout(applyMobile,150));
+
+function syncEquipBtn(){
+  const b=$('#eqBtn'); if(!b)return;
+  b.classList.toggle('on',EQUIP_ON);
+  b.textContent='装備 '+(EQUIP_ON?'ON':'OFF');
+}
+$('#rosterBtn').onclick=()=>openRoster(rosterSide,null);
+$('#dataBtn').onclick=openDataPanel;
+$('#eqBtn').onclick=()=>{
+  EQUIP_ON=!EQUIP_ON; syncEquipBtn();
+  [...U,...BENCH].forEach(refreshVitals);
+  addLog('装備を'+(EQUIP_ON?'有効':'無効')+'にしました','l-sys');
+  saveLocal(); render();
+};
+
+/* =========================================================
+   13. ネット対戦（Go ブリッジ経由の P2P）
+
+   同期方式はホスト権威。ホストだけがバトルを計算し、
+   ゲストは「盤面を受け取って描く」「自分のユニットの行動を答える」
+   の 2 つだけを行う。個性の連鎖と乱数が絡むこの設計では、
+   両者で同じ計算を回すロックステップは些細な差でも簡単にズレる。
+
+   メッセージ
+     hello    {roll,name}      役割決め（大きい方がホスト）
+     roster   {units}          ゲスト→ホスト。自陣 7 人の編成
+     sync     {full,units,...} ホスト→ゲスト。盤面
+     need_cmd {unitId,turn}    ホスト→ゲスト。行動を決めてほしい
+     cmd      {turn,...}       ゲスト→ホスト。決めた行動
+     build    {units}          ゲスト→ホスト。個性・魔法・オート行動の変更
+     restart  {}               ゲスト→ホスト。仕切り直し要求
+   ========================================================= */
+
+/* --- ブリッジとの入出力 --- */
+NET.send=function(obj){
+  if(!NET.connected)return;
+  fetch('/api/send',{method:'POST',body:JSON.stringify(obj)})
+    .catch(e=>netLog('送信に失敗: '+e,'er'));
+};
+function netLog(t,cls){ NET.netlog.push({t,cls:cls||''}); if(NET.netlog.length>200)NET.netlog.shift();
+  const el=$('#netlog'); if(el) el.innerHTML=NET.netlog.slice(-80).reverse()
+    .map(l=>`<div class="${l.cls}">${l.t}</div>`).join(''); }
+
+function netChip(){
+  const c=$('#netChip'); if(!c)return;
+  if(!NET.bridge){ c.className='netchip'; c.textContent='ソロ'; return; }
+  if(NET.matched){ c.className='netchip on';
+    c.textContent=`対戦中 ${NET.role==='host'?'HOST':'GUEST'} / ${NET.peer||'?'}`
+      +(NET.rtt!=null?` / ${NET.rtt.toFixed(0)}ms`:'')
+      +(NET.pending?` / 再送${NET.pending}`:''); return; }
+  if(NET.connected){ c.className='netchip wait'; c.textContent='接続済み — 編成を交換中'; return; }
+  c.className='netchip'; c.textContent='未接続';
+}
+
+function netStart(){
+  if(NET.es) return;
+  NET.es=new EventSource('/api/events');
+  NET.es.onmessage=ev=>{
+    let e; try{ e=JSON.parse(ev.data); }catch(_){ return; }
+    switch(e.type){
+      case 'log':    netLog(`[${e.stage||'--'}] ${e.text}`); break;
+      case 'error':  netLog(e.text,'er'); netChip(); break;
+      case 'status':
+        NET.peer=e.peer||NET.peer;
+        if(e.connected&&!NET.connected){ NET.connected=true; netLog('P2P 接続が確立しました','st'); netHandshake(); }
+        if(!e.connected&&NET.connected){ NET.connected=false; NET.matched=false; NET.role=null;
+          netLog('接続が切れました','st'); addLog('相手との接続が切れました','l-sys'); render(); }
+        if(e.text) netLog(e.text,'st');
+        netChip(); netStatusPanel(); break;
+      case 'stats':  NET.rtt=e.rtt||null; NET.loss=e.loss||0; NET.pending=e.pending||0; netChip(); break;
+      case 'msg':
+        let m; try{ m=JSON.parse(e.body); }catch(_){ return; }
+        netOnMsg(m); break;
+    }
+  };
+  NET.es.onerror=()=>{ /* EventSource は自動再接続する */ };
+}
+
+/* --- 役割決め：乱数の大きい方がホスト --- */
+function netHandshake(){
+  NET.role=null; NET.peerRoll=null; NET.matched=false;
+  NET.roll=Math.floor(Math.random()*1e15);
+  NET.send({t:'hello',roll:NET.roll,name:NET.selfName});
+}
+function netResolveRole(){
+  if(NET.peerRoll==null||NET.role)return;
+  if(NET.peerRoll===NET.roll){ netHandshake(); return; }   // 引き分けは振り直し
+  NET.role = NET.roll>NET.peerRoll ? 'host' : 'guest';
+  netLog(`役割が決まりました: ${NET.role==='host'?'ホスト（盤面を計算する側）':'ゲスト'}`,'st');
+  if(NET.role==='guest'){
+    abortLoop();
+    NET.send({t:'roster',units:U.filter(u=>u.side==='ally').map(u=>serUnit(u,true))});
+    addLog('ホストの準備を待っています…','l-sys');
+  }
+  netChip(); netStatusPanel(); render();
+}
+
+/* --- ユニットの直列化 --- */
+/* 差分判定に使う「本質的な状態」。fired は発動演出用で毎ターン全員が変わるため、
+   ここに入れると差分が常に 14 人ぶんになる。送る対象からは外し、
+   実際に送るユニットにだけ付けて運ぶ。 */
+function serUnit(u,full){
+  const o={id:u.id,hp:u.hp,mp:u.mp,alive:u.alive,guard:u.guard,ct:Math.round(u.ct),name:u.name,
+    buffs:u.buffs,ail:u.ail,cnt:u.cnt,traits:u.traits,spells:u.spells};
+  if(full) Object.assign(o,{side:u.side,slot:u.slot,cls:u.cls,clsName:u.clsName,clsId:u.clsId,
+    clsKind:u.clsKind,varia:u.varia,foeBoost:u.foeBoost,equip:u.equip,
+    maxHp:u.maxHp,maxMp:u.maxMp,base:u.base,gambits:u.gambits,lastAct:u.lastAct});
+  return o;
+}
+/* 編成の差分。職業を変えるとステータスが変わるので clsId も一緒に送る。 */
+const serBuild=u=>({id:u.id,clsId:u.clsId,traits:u.traits,spells:u.spells,gambits:u.gambits});
+
+/* --- ホスト：対戦開始 --- */
+function hostStartMatch(guestUnits){
+  closeEditor();
+  const mine=U.filter(u=>u.side==='ally');
+  const theirs=guestUnits.slice(0,7).map((g,i)=>{
+    const u=JSON.parse(JSON.stringify(g));
+    u.side='foe'; u.id=1000+i;                 // ID 衝突を避ける
+    u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.alive=true; u.guard=false; u.lastAct=null;
+    u.hp=u.maxHp; u.mp=u.maxMp;
+    return u;
+  });
+  U=mine.concat(theirs); BENCH=[];
+  time=0; turnNo=0; logs=[]; NET.logSent=0;
+  U.forEach(u=>{ u.hp=u.maxHp; u.mp=u.maxMp; u.buffs=[]; u.ail={}; u.cnt={}; u.fired={};
+    u.alive=true; u.guard=false; u.lastAct=null; u.ct=time+10000/stat(u,'spd'); });
+  NET.matched=true; NET.lastCur=null; netChip(); netStatusPanel();
+  addLog(`対戦開始 — ${partyName('ally')} vs ${partyName('foe')}`,'l-turn');
+  syncCountUI(); render();
+  netSync(true);
+  abortLoop();
+  loop();
+}
+
+/* --- ホスト：盤面を送る --- */
+function netSync(full){
+  if(SIM||!NET.matched||NET.role!=='host')return;
+  const newLogs=logs.slice(NET.logSent);
+  // 変化したユニットだけ送る。全部送ると 1 ターンに十数 KB になり、
+  // 再送層と NAT の穴に無駄な負荷がかかる。
+  const withFired=(o,u)=>{ const f=Object.keys(u.fired); if(f.length)o.fired=u.fired; return o; };
+  let units;
+  if(full){
+    units=U.map(u=>{ const o=serUnit(u,true); u._sent=JSON.stringify(serUnit(u,false)); return withFired(o,u); });
+  }else{
+    units=[];
+    for(const u of U){ const o=serUnit(u,false), j=JSON.stringify(o);
+      if(u._sent!==j){ u._sent=j; units.push(withFired(o,u)); } }
+    if(!units.length&&!newLogs.length&&NET.lastCur===(current?current.id:null)) return;
+  }
+  NET.lastCur=current?current.id:null;
+  NET.logSent=logs.length;
+  NET.send({t:'sync',full:!!full,time,turn:turnNo,running,
+    cur:NET.lastCur,units,logs:full?logs.slice(-160):newLogs});
+}
+/* --- ゲスト：盤面を受け取る --- */
+function applySync(m){
+  if(m.full){
+    U=m.units.map(o=>Object.assign({buffs:[],ail:{},cnt:{},fired:{},gambits:[]},o));
+    BENCH=[]; logs=[]; NET.matched=true; netChip(); netStatusPanel(); syncCountUI();
+  }else{
+    m.units.forEach(o=>{ const u=U.find(x=>x.id===o.id); if(!u)return;
+      if(!o.fired) u.fired={};                 // 送られてこなければ演出は消える
+      Object.assign(u,o); });
+  }
+  if(m.logs&&m.logs.length){ m.logs.forEach(l=>logs.push(l)); if(logs.length>400)logs=logs.slice(-400); }
+  time=m.time; turnNo=m.turn; running=m.running;
+  current=m.cur!=null?U.find(u=>u.id===m.cur)||null:null;
+  renderLog(); render();
+}
+
+/* --- ホスト：相手陣営の行動を問い合わせる --- */
+function waitRemoteCommand(u){
+  return new Promise(res=>{
+    NET.cmdTurn=turnNo;
+    const done=m=>{ NET.cmdResolve=null; clearTimeout(timer); res(decodeCmd(u,m)); };
+    NET.cmdResolve=done;
+    const timer=setTimeout(()=>{
+      if(!NET.cmdResolve)return;
+      NET.cmdResolve=null;
+      addLog(`${u.name} の応答がないためオート行動で代行`,'l-sys');
+      res(aiAction(u));
+    },30000);
+    NET.send({t:'need_cmd',unitId:u.id,turn:turnNo});
+  });
+}
+function decodeCmd(actor,m){
+  const t=m.targetId!=null?U.find(x=>x.id===m.targetId):null;
+  if(m.cmd==='guard') return {cmd:'guard'};
+  if(m.cmd==='spell'&&m.spellId&&SP[m.spellId]&&actor.spells.includes(m.spellId)){
+    const sp=SP[m.spellId];
+    return {cmd:'spell',sp,target:(t&&t.alive)?t:null};
+  }
+  return {cmd:'attack',target:(t&&t.alive&&t.side!==actor.side)?t:pickTarget(actor)};
+}
+
+/* --- ゲスト：行動を求められた --- */
+async function guestNeedCmd(m){
+  const u=U.find(x=>x.id===m.unitId);
+  if(!u||!u.alive){ NET.send({t:'cmd',turn:m.turn,cmd:'guard'}); return; }
+  current=u; render();
+  const act = auto ? aiAction(u) : await waitCommand(u);
+  NET.send({t:'cmd',turn:m.turn,cmd:act.cmd,
+    spellId:act.sp?act.sp.id:null, targetId:act.target?act.target.id:null});
+}
+
+/* --- 編成の変更を送る（ゲスト側のみ。ホストは権威なので送信不要） --- */
+function netBuild(u){
+  if(!NET.matched||NET.role!=='guest'||!u||u.side!==MY())return;
+  NET.send({t:'build',units:[serBuild(u)]});
+}
+function applyBuild(m){
+  m.units.forEach(o=>{ const u=U.find(x=>x.id===o.id); if(!u)return;
+    if(NET.role==='host'&&u.side!==OP())return;   // 相手が触れるのは相手陣営だけ
+    // 職業が変わっていたらステータスを再計算する（HP/MP は割合を維持）
+    if(o.clsId&&o.clsId!==u.clsId&&CLS[o.clsId]){
+      applyClass(u,CLS[o.clsId],{keepRatio:true});
+      u.ct=time+10000/stat(u,'spd');
+      addLog(`${u.name} は ${u.clsName} になった`,'l-sys');
+    }
+    u.traits=o.traits; u.spells=o.spells; u.gambits=o.gambits; u.cnt={}; refreshVitals(u); });
+  render();
+  if(NET.role==='host') netSync(true);
+}
+
+/* --- 受信 --- */
+function netOnMsg(m){
+  switch(m.t){
+    case 'hello':
+      NET.peerRoll=m.roll; if(m.name)NET.peer=m.name;
+      if(NET.role===null&&NET.roll===0) netHandshake();   // 相手が先に来た場合
+      netResolveRole();
+      break;
+    case 'roster':
+      if(NET.role==='host') hostStartMatch(m.units);
+      break;
+    case 'sync':
+      if(NET.role==='guest') applySync(m);
+      break;
+    case 'need_cmd':
+      if(NET.role==='guest') guestNeedCmd(m);
+      break;
+    case 'cmd':
+      if(NET.role==='host'&&NET.cmdResolve&&m.turn===NET.cmdTurn) NET.cmdResolve(m);
+      break;
+    case 'build':
+      applyBuild(m);
+      break;
+    case 'restart':
+      if(NET.role==='host'){ abortLoop(); NET.send({t:'need_roster'}); }
+      break;
+    case 'need_roster':
+      if(NET.role==='guest')
+        NET.send({t:'roster',units:U.filter(u=>u.side===MY()).map(u=>serUnit(u,true))});
+      break;
+  }
+}
+
+/* --- 接続パネル --- */
+function openNetPanel(){
+  const s=NET;
+  $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
+    <header><h3>対戦</h3><span class="hint">nathole による UDP ホールパンチ P2P</span>
+      <button class="btn x" id="closeM">閉じる</button></header>
+    <div class="mbody">
+      <div id="netStatus"></div>
+      <div class="sechead">接続</div>
+      <div class="netform">
+        <label>表示名</label><input id="nfName" value="${s.selfName||'player'}">
+        <label>部屋コード</label><input id="nfRoom" value="BATTLE" placeholder="両者で一致させる">
+        <label>相手のIP</label><input id="nfHost" placeholder="同一LANで、相手が先に起動した場合だけ">
+        <label>GAS URL</label><input id="nfGas" placeholder="インターネット越しに繋ぐ場合">
+        <label>Spray</label><input id="nfSpray" value="0" placeholder="片側が Symmetric NAT なら 32">
+        <div class="seghint">
+          <b>同じPCで2つ試す</b>：どちらも空欄のまま、同じ部屋コードで接続<br>
+          <b>同一LAN</b>：先に起動した側は空欄。もう一方は「相手のIP」にその PC の IP<br>
+          <b>インターネット越し</b>：両者とも同じ GAS URL と部屋コード
+        </div>
+      </div>
+      <div class="cmds">
+        <button class="btn" id="nfConnect">接続</button>
+        <button class="btn" id="nfDisconnect">切断</button>
+        <button class="btn" id="nfRestart">仕切り直し</button>
+      </div>
+      <div class="sechead">ブリッジのログ</div>
+      <div class="netlog" id="netlog"></div>
+    </div></div></div>`;
+  $('#closeM').onclick=closeEditor;
+  document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask'))closeEditor(); };
+  $('#nfConnect').onclick=()=>{
+    NET.selfName=$('#nfName').value.trim()||'player';
+    fetch('/api/connect',{method:'POST',body:JSON.stringify({
+      room:$('#nfRoom').value.trim()||'BATTLE', name:NET.selfName,
+      host:$('#nfHost').value.trim(), gas:$('#nfGas').value.trim(),
+      spray:parseInt($('#nfSpray').value,10)||0
+    })}).then(()=>netLog('接続要求を送りました','st'))
+        .catch(e=>netLog('ブリッジに届きません: '+e,'er'));
+  };
+  $('#nfDisconnect').onclick=()=>fetch('/api/disconnect',{method:'POST'});
+  $('#nfRestart').onclick=()=>{
+    if(!NET.matched){ alert('対戦中ではありません'); return; }
+    if(NET.role==='host'){ abortLoop(); NET.send({t:'need_roster'}); }
+    else NET.send({t:'restart'});
+    netLog('仕切り直しを要求しました','st');
+  };
+  netLog('');  // 再描画
+  netStatusPanel();
+}
+function netStatusPanel(){
+  const el=$('#netStatus'); if(!el)return;
+  let t,c='waitban';
+  if(!NET.bridge) t='ブリッジが動いていません。go run ./examples/battle で起動し、表示された http://127.0.0.1:… を開いてください。';
+  else if(NET.matched) t=`対戦中 — あなたは ${NET.role==='host'?'ホスト（盤面を計算する側）':'ゲスト'} / 相手 ${NET.peer}`;
+  else if(NET.connected) t='接続済み。編成を交換しています…';
+  else t='未接続。下の項目を埋めて「接続」を押してください。';
+  el.innerHTML=`<div class="${c}">${t}</div>`;
+}
+
+$('#netBtn').onclick=openNetPanel;
+
+/* ブリッジが居るか確認 */
+fetch('/api/state').then(r=>r.json()).then(s=>{
+  if(!s||!s.bridge)throw 0;
+  NET.bridge=true; NET.selfName=s.self_name||'player';
+  netLog(`ブリッジに接続しました（この PC の IP: ${s.local_ip}）`,'st');
+  netStart(); netChip();
+}).catch(()=>{ NET.bridge=false; netChip(); });
+
+/* --- 起動 ---
+   保存があればそれを使う。壊れていたら黙って新規生成に落とす。 */
+(function boot(){
+  applyMobile();
+  const d=loadLocal();
+  if(d){
+    try{ applySave(d); addLog('前回の編成を読み込みました','l-sys'); syncEquipBtn(); return; }
+    catch(e){ console.warn('保存が読めないので作り直します',e); }
+  }
+  setup(); syncEquipBtn(); render(); renderLog(); loop(); saveLocal();
+})();
+</script>
+</body>
+</html>
