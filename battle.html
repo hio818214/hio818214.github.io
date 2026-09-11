@@ -570,11 +570,16 @@ tsuigeki:{name:'追撃',cat:'連携',desc:'味方の攻撃が命中した時、�
   allyHit(s,c){ if(c.attacker===s||c.attacker.side!==s.side||!s.alive||s.cnt.tsuigekiUsed)return;
     if(!c.target||!c.target.alive)return; s.cnt.tsuigekiUsed=1;
     proc(s,'tsuigeki',`${c.target.name}へ追撃`); doAttack(s,c.target,{power:0.5,isExtra:true});}},
-tsuishou:{name:'追唱',cat:'連携',desc:'味方が攻撃魔法を唱えた時、MP4を払って同じ魔法を威力50%で重ねる。',
-  allySkill(s,c){ if(c.actor===s||c.actor.side!==s.side||!s.alive||s.mp<4)return;
+tsuishou:{name:'追唱',cat:'連携',desc:'味方が攻撃魔法を唱えた時、その魔法の消費の半分（最低4）を払って威力50%で重ねる（自分の手番までに1回）。',
+  allySkill(s,c){ if(c.actor===s||c.actor.side!==s.side||!s.alive)return;
     if(c.spell.type!=='atk'||isArt(c.spell))return;     // 追「唱」なので特技には乗らない
-    if(s.cnt.tsuishouUsed)return; s.cnt.tsuishouUsed=1; s.mp-=4;
-    proc(s,'tsuishou',`${c.spell.name}を追唱`);
+    if(s.cnt.tsuishouUsed)return;
+    // 消費はコピー元に比例させる。mpCost を通すので《増幅》の1.5倍も《消費軽減》の3/4もここに乗る。
+    // 固定4MPだとインフェルノ(24)を1/6の値段で写せてしまい、強い魔法ほど得という歪みが出る。
+    const cost=tsuishouCost(s,c.spell);
+    if(s.mp<cost)return;
+    s.cnt.tsuishouUsed=1; s.mp-=cost;
+    proc(s,'tsuishou',`${c.spell.name}を追唱（MP${cost}）`);
     castSpell(s,c.spell,c.target,{mult:0.5,isExtra:true});}},
 atooi:{name:'後追い',cat:'連携',desc:'味方が行動を終える度、自分の次の行動が+8%強化（3回まで累積／行動でリセット）。',
   actionEnd(s,c){ if(c.actor===s||c.actor.side!==s.side||!s.alive)return;
@@ -1290,6 +1295,9 @@ function mpCost(u,sp){
   if(hasT(u,'shousen')) c*=0.75;
   return Math.max(1,Math.floor(c));
 }
+/* 《追唱》でコピーする時の消費。コピー元の実消費の半分・最低4。
+   mpCost 経由なので増幅の消費増もここに掛かる（威力だけ1.5倍にする抜け道を塞ぐ）。 */
+function tsuishouCost(u,sp){ return Math.max(4,Math.ceil(mpCost(u,sp)*0.5)); }
 /* 増幅による威力倍率（攻撃と回復に掛かる）。 */
 const ampMult=u=>hasT(u,'amp')?1.5:1;
 function healRaw(u,v){
