@@ -131,6 +131,23 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .sp.dup{opacity:.35;border-style:dashed}
 .duptag{color:var(--foe);font-size:10px;margin-left:4px}
 .rnone{opacity:.5}
+/* --- アブレーション結果 --- */
+.ablwrap{max-height:420px;overflow-y:auto;border:1px solid var(--line);border-radius:2px}
+.abltbl{width:100%;border-collapse:collapse;font-size:11px}
+.abltbl th{position:sticky;top:0;background:var(--panel2);color:var(--muted);font-weight:400;
+  text-align:left;padding:6px 8px;border-bottom:1px solid var(--line2);font-size:10px;letter-spacing:.08em}
+.abltbl td{padding:5px 8px;border-bottom:1px solid var(--line)}
+.abltbl tr:hover td{background:var(--panel2)}
+.abltbl .num{text-align:right;font-family:var(--mono)}
+.abltbl .num.w{color:var(--ally)}
+.abltbl .num.l{color:var(--foe)}
+.twoin{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.twoin input{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:2px;
+  padding:7px 9px;font-family:inherit;font-size:12px;width:70px;text-align:center}
+.twoin input:focus{outline:none;border-color:var(--gold)}
+.tdesc b.w{color:var(--ally)} .tdesc b.l{color:var(--foe)} .tdesc b.mid{color:var(--muted)}
+.seghint b.w{color:var(--ally)}
+.seghint b.l{color:var(--foe)}
 .echip{font-size:8.5px;padding:1px 4px;border-radius:2px;background:#262231;border:1px solid #3d3750;
   color:#a29ab4;line-height:1.5}
 .eqrow{margin-top:-1px;opacity:.9}
@@ -209,6 +226,10 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .cancelsel{background:var(--panel2);border:1px solid var(--line2);border-radius:2px;
   padding:6px 12px;font-size:11.5px;color:var(--muted);cursor:pointer;flex:0 0 auto}
 .cancelsel:hover{border-color:var(--foe);color:var(--foe)}
+/* 対象を取らない行動の「決定」。押し間違えないよう金色で目立たせる */
+.oksel{background:var(--gold);border:1px solid var(--gold);border-radius:2px;
+  padding:6px 16px;font-size:11.5px;color:#1a1526;font-weight:700;cursor:pointer;flex:0 0 auto}
+.oksel:hover{filter:brightness(1.12)}
 
 .logbody{padding:8px 12px;font-family:var(--mono);font-size:11px;line-height:1.65;height:242px;overflow-y:auto;display:flex;flex-direction:column-reverse}
 .logbody div{border-bottom:1px dotted #262135;padding:1px 0}
@@ -318,9 +339,12 @@ body.mobile .tip{display:none}
 /* カード上のチップはタップを飲み込まない。説明は編集画面で読む */
 body.mobile .u .tchip,body.mobile .u .schip,body.mobile .u .echip{pointer-events:none}
 
-body.mobile .top{padding:8px 10px 6px;gap:8px;position:sticky;top:0;z-index:15;background:var(--ink)}
-body.mobile h1{font-size:15px}
-body.mobile h1 small{display:none}
+/* タイトル行は携帯では丸ごと落とす。盤面が下にはみ出す原因の一番大きい塊。
+   ただし .controls がこの中にいるので、メニュータブの時だけは器として残す
+   （中身は position:fixed で全画面に出る）。 */
+body.mobile .top{display:none}
+body.mobile.tabmenu .top{display:block;padding:0;gap:0;border:0;position:static}
+body.mobile h1{display:none}
 
 /* メニュータブ ＝ PC版のコントロール群をそのまま全画面に出す */
 body.mobile .controls{display:none}
@@ -365,15 +389,18 @@ body.mobile .otk{font-size:10px}
 /* コマンド — 盤面の下にそのまま置く。押しやすい高さにする */
 body.mobile #cmdBox{border-radius:0;border-left:0;border-right:0;border-bottom:0}
 body.mobile #cmdBox h2{display:none}
-body.mobile .cmdbody{min-height:0;padding:9px 11px 12px;gap:8px}
-body.mobile .cmd{flex:1;min-height:50px;font-size:14px}
-body.mobile .spells{grid-template-columns:1fr 1fr;gap:6px}
-body.mobile .sp{min-height:48px}
+body.mobile .cmdbody{min-height:0;padding:7px 11px 9px;gap:6px}
+/* ボタンの高さは半分に。指で押せる下限（約26px）は割らない範囲で詰める */
+body.mobile .cmd{flex:1;min-height:26px;padding:4px 8px;font-size:13px}
+body.mobile .spells{grid-template-columns:1fr 1fr;gap:4px}
+body.mobile .sp{min-height:26px;padding:3px 7px;font-size:11px}
+body.mobile .sp em{font-size:10px}
+body.mobile .who{font-size:14px}
 body.mobile .targetbar,body.mobile .hint{font-size:12px}
 body.mobile .armhint{padding:9px 11px}
 body.mobile .armhint .armname{font-size:14px}
 body.mobile .armhint .armdesc{font-size:11.5px}
-body.mobile .cancelsel{min-height:38px;padding:8px 14px}
+body.mobile .cancelsel,body.mobile .oksel{min-height:38px;padding:8px 14px}
 
 /* 画面いっぱいのモーダル。編集・編成・集計・データ・対戦すべて共通 */
 body.mobile .mask{padding:0;align-items:stretch}
@@ -2189,6 +2216,7 @@ function renderOrder(){
 function renderLog(){ if(SIM)return;
   $('#log').innerHTML=logs.slice(-160).reverse().map(l=>`<div class="${l.cls}">${l.t}</div>`).join(''); }
 function renderCmd(u){
+  ARMED=null;                 // コマンド欄を描き直したら確認待ちは解除
   const box=$('#cmdbody');
   if(!u||!u.alive){ box.innerHTML=`<div class="hint">${running||NET.matched?'進行中…'
     :'決着しました。<b>リセット: 全回復</b>で同じ編成のまま再戦、<b>味方</b>／<b>敵</b>で片側だけ引き直せます。'}</div>`; return; }
@@ -2212,12 +2240,21 @@ function renderCmd(u){
     {el:atkBtn,title:'たたかう',
      desc:'通常攻撃。命中判定あり。前列に生存者がいる間は前列しか狙えません。'
          +'《奪取》《崩し》《毒撃》《吸魔》はこれでのみ発動します。'},true);
-  box.querySelector('[data-c="guard"]').onclick=()=>send({cmd:'guard'});
+  const gBtn=box.querySelector('[data-c="guard"]');
+  gBtn.onclick=()=>confirmAction(u,'guard',()=>send({cmd:'guard'}),
+    {el:gBtn,title:'ぼうぎょ',
+     desc:'この手番は防御力・魔防が1.8倍になり、最大MPの10%を回復します。攻撃はしません。'});
   const swBtn=box.querySelector('[data-c="swap"]');
   if(swBtn&&!swBtn.disabled) swBtn.onclick=()=>chooseSwap(u,swBtn);
   box.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{
     const sp=SP[b.dataset.sp];
-    if(sp.scope==='all') return send({cmd:'spell',sp});
+    if(sp.scope==='all'){
+      // 範囲スキルも「押しただけで発動」にはしない。単体と同じく一度止めて説明を出す。
+      const to=['heal','buff','cure','evade'].includes(sp.type)?'味方全体':'敵全体';
+      return confirmAction(u,'sp:'+sp.id,()=>send({cmd:'spell',sp}),
+        {el:b,title:sp.name,
+         desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／<b>${to}</b>／${TYPE_LABEL[sp.type]}　${sp.desc}`});
+    }
     const phys=isPhysSingle(sp);
     chooseTarget(u,['heal','buff','cure','evade'].includes(sp.type)?MY():OP(),
       t=>send({cmd:'spell',sp,target:t}),
@@ -2233,6 +2270,7 @@ function swapOptions(u){
   return {others,empties,none:!others.length&&!empties.length};
 }
 function chooseSwap(u,btn){
+  ARMED=null;
   const {others,empties}=swapOptions(u);
   selecting={
     valid:x=>others.includes(x),
@@ -2256,12 +2294,38 @@ function chooseSwap(u,btn){
     if(c) c.onclick=()=>{ selecting=null; renderCmd(u); renderField(); };
   }
 }
-function send(act){ const r=resolveCmd; resolveCmd=null; selecting=null; render(); r&&r(act); }
+function send(act){ ARMED=null; const r=resolveCmd; resolveCmd=null; selecting=null; render(); r&&r(act); }
+
+/* 対象を取らない行動（ぼうぎょ・範囲スキル）の確認ステップ。
+   押しただけで発動すると、説明を読む機会が無いまま手番が消える。
+   単体スキルと同じ形で一度止め、同じボタンをもう一度押すか「決定」で発動する。 */
+let ARMED=null;
+function confirmAction(u,key,run,armed){
+  if(ARMED===key) return run();          // もう一度押した＝決定
+  ARMED=key;
+  selecting={valid:()=>false,done:()=>{}};   // 盤面のユニットは選べない
+  renderField();
+  const box=$('#cmdbody');
+  if(box){ box.querySelectorAll('.cmd,.sp').forEach(b=>b.classList.remove('armed'));
+    if(armed&&armed.el) armed.el.classList.add('armed'); }
+  const h=$('#hint');
+  if(h){
+    h.className='hint armhint';
+    h.innerHTML=`<b class="armname">${armed.title}</b><span class="armdesc">${armed.desc||''}</span>`
+      +`<span class="armpick">対象を選ぶ必要はありません。<b>決定</b>（またはもう一度同じボタン）で発動します</span>`
+      +`<button class="oksel" id="okSel">決定</button>`
+      +`<button class="cancelsel" id="cancelSel">やめる</button>`;
+    const o=$('#okSel'); if(o) o.onclick=()=>run();
+    const c=$('#cancelSel');
+    if(c) c.onclick=()=>{ ARMED=null; selecting=null; renderCmd(u); renderField(); };
+  }
+}
 
 /* 対象選択に入る。
    どのスキルを撃とうとしているのかが分からないと押し間違えるので、
    選んだボタンを光らせ、その説明をコマンド欄の下に出す。 */
 function chooseTarget(u,side,cb,armed,physOnly){
+  ARMED=null;                 // 別の行動へ切り替えたら確認待ちは捨てる
   const reach=physOnly?reachable(u,side):null;
   selecting={valid:x=>x.alive&&x.side===side&&(!reach||reach.includes(x)),done:cb};
   renderField();
@@ -2716,7 +2780,7 @@ function simOneBattle(limit){
 let SIMRUN=null;
 let LASTSIM=null;              // 最後に完了した集計結果（自動・手動どちらでも）
 function runSim(times,limit){
-  if(SIMRUN||AUTO.run||matchBlocked())return;
+  if(SIMRUN||ABL||RND||AUTO.run||matchBlocked())return;
   abortLoop(); closePicker();
   const names=U.map(u=>u.name0||u.name);
   const st={n:0,times,limit,win:0,lose:0,draw:0,turns:0,aliveA:0,aliveF:0,dmgA:0,dmgF:0,
@@ -2779,6 +2843,8 @@ function buildSig(){
 function renderSimChip(){
   const el=$('#simChip'); if(!el)return;
   const set=(c,t)=>{ el.className='netchip '+c; el.textContent=t; };
+  if(ABL) return set('run','アブレーション中');
+  if(RND) return set('run','粗探し中');
   if(SIMRUN) return set('run',`集計中 ${Math.round(SIMRUN.n/SIMRUN.times*100)}%`);
   if(AUTO.run) return set('run',`自動集計 ${Math.round(AUTO.run.n/AUTO.run.times*100)}%`);
   if(!AUTO.on) return set('off','自動集計 OFF');
@@ -2788,7 +2854,7 @@ function renderSimChip(){
 }
 /* ビルドの変化を見張る。変わったら走っている集計を捨てて回し直す。 */
 function watchBuild(){
-  if(LOADING||NET.matched)return;
+  if(LOADING||NET.matched||ABL||RND)return;  // 調査中は自分で個性を抜き差しするので見張らない
   const sig=buildSig(); if(sig===null||sig===AUTO.sig)return;
   AUTO.sig=sig;
   AUTO.gen++;                     // 走行中の自動集計はこれで無効になる
@@ -2824,7 +2890,7 @@ async function runAutoSim(){
   // チップだけ古い勝率のまま残ってしまう。
   // AUTO.busy … ループの停止待ちをしている間はまだ AUTO.run が立たないので、
   // ここを守らないと二重に走り出せてしまう（タイマーと手動ONが重なるなど）。
-  if(SIM||SIMRUN||AUTO.run||AUTO.busy||LOADING){ clearTimeout(AUTO.timer); AUTO.timer=setTimeout(runAutoSim,800); return; }
+  if(SIM||SIMRUN||ABL||RND||AUTO.run||AUTO.busy||LOADING){ clearTimeout(AUTO.timer); AUTO.timer=setTimeout(runAutoSim,800); return; }
   if(!U.some(u=>u.side==='ally')||!U.some(u=>u.side==='foe')){ renderSimChip(); return; }
   const gen=AUTO.gen, sig=AUTO.sig;
   // ループがターンの切れ目で止まるのを待つ。手動コマンド待ちなどで止まらなければ出直す。
@@ -2863,6 +2929,374 @@ async function runAutoSim(){
   setTimeout(step,0);
 }
 $('#simChip').onclick=()=>openSimPanel();
+
+/* =========================================================
+   12.6.5 アブレーション
+
+   「今この盤に出ている個性・スキル」を1つずつ全員から取り除いて回し、
+   味方勝率がどれだけ動いたかを並べる。
+
+   ★ 推測せずに犯人を名指しするための道具 ★
+   発動回数は「働いた回数」であって「勝敗に効いた量」ではない。
+   地味に1回だけ効く個性が勝負を決めていることも、派手に20回光る個性が
+   勝敗に無関係なこともある。抜いて勝率が動くかどうかだけが答えになる。
+
+   差の読み方:
+     マイナス … 抜くと味方が弱くなる ＝ 味方側で効いていた
+     プラス   … 抜くと味方が強くなる ＝ 敵側で効いていた
+
+   ★ 勝率だけでは 0% / 100% に張り付くと何も測れない ★
+   完敗している編成から1つ抜いてもやはり完敗なので、全部の行が同じ数字になる。
+   そこで「与ダメージ比」も一緒に測る。これは勝敗と違って飽和しない連続値なので、
+   完敗のままでも「どれだけマシになったか」が出る。勝率が動かない時はこちらで読む。
+   ========================================================= */
+let ABL=null;
+let ablN=100;
+
+/* 場に出ているものだけを候補にする。控えや未所持は関係ない。 */
+function fieldCandidates(){
+  const tr={}, sp={};
+  U.forEach(u=>{
+    traitSlots(u).forEach(x=>{ if(x.id&&x.id!=='none'&&TRAITS[x.id]){
+      (tr[x.id]=tr[x.id]||{ally:0,foe:0})[u.side]++; }});
+    spellSlots(u).forEach(x=>{ if(x.id&&x.id!=='none'&&SP[x.id]){
+      (sp[x.id]=sp[x.id]||{ally:0,foe:0})[u.side]++; }});
+  });
+  return [...Object.keys(tr).map(id=>({kind:'trait',id,name:TRAITS[id].name,own:tr[id]})),
+          ...Object.keys(sp).map(id=>({kind:'spell',id,name:SP[id].name,own:sp[id]}))];
+}
+/* 取り除きと戻し。装備の付与も対象なので INV も一緒に退避する。 */
+function ablSnapshot(){
+  return {units:[...U,...BENCH].map(u=>({u,traits:u.traits.slice(),spells:u.spells.slice()})),
+          inv:INV.map(it=>({it,spell:it.spell,trait:it.trait}))};
+}
+function ablRestore(s){
+  s.units.forEach(o=>{ o.u.traits=o.traits.slice(); o.u.spells=o.spells.slice(); });
+  s.inv.forEach(o=>{ o.it.spell=o.spell; o.it.trait=o.trait; });
+  [...U,...BENCH].forEach(refreshVitals);
+}
+function ablStripMany(list){
+  const tr={}, sp={};
+  list.forEach(c=>{ (c.kind==='trait'?tr:sp)[c.id]=1; });
+  U.forEach(u=>{
+    u.traits=u.traits.map(t=>tr[t]?'none':t);
+    u.spells=u.spells.map(t=>sp[t]?'none':t);
+  });
+  INV.forEach(it=>{
+    if(it.trait&&tr[it.trait]) it.trait=null;
+    if(it.spell&&sp[it.spell]) it.spell=null;
+  });
+  // 強靭・叡智のような最大HP/MPを動かす個性を抜いた場合に取り直す
+  U.forEach(refreshVitals);
+}
+const ablStrip=(kind,id)=>ablStripMany([{kind,id}]);
+
+/* =========================================================
+   粗探し（ランダム抜き取り）
+
+   1つずつ抜く方法は、原因が1つの時にしか効かない。
+   「A と B が両方あって初めて壊れる」「小さいものが5つ積み上がっている」型は、
+   1つ抜いても何も動かないので全部0になる。
+
+   そこで **毎回ランダムに半分を抜いて少しだけ戦わせる** ことを何十セットも繰り返し、
+   ・どのセットが一番勝率を動かしたか（＝効く組み合わせそのもの）
+   ・各項目が「抜かれた時」と「残った時」でどれだけ差が出たか（＝寄与の粗い推定）
+   を出す。1セットの戦闘数は少なくてよい。セット数で均されるため。
+   ========================================================= */
+let RND=null;
+let rndSets=40, rndPer=8;
+
+function runCoarse(sets,per){
+  if(SIM||SIMRUN||ABL||RND||AUTO.run||AUTO.busy||matchBlocked())return;
+  const cands=fieldCandidates();
+  if(cands.length<2){ alert('候補が少なすぎます'); return; }
+  abortLoop(); closePicker();
+  const names=U.map(u=>u.name0||u.name);
+  RND={sets,per,limit:turnLimit,cands,snap:ablSnapshot(),names,
+       i:-1,cur:null,rows:[],base:null,baseShare:null,t0:nowMs(),stop:false};
+  const keepP=PROC, keepO=OWN;
+  SIM=true;
+  const half=Math.max(1,Math.round(cands.length/2));
+  const begin=()=>{
+    let pickSet=[];
+    if(RND.i>=0){
+      const sh=cands.slice();
+      for(let k=sh.length-1;k>0;k--){ const j=RI(k+1); [sh[k],sh[j]]=[sh[j],sh[k]]; }
+      pickSet=sh.slice(0,half);
+      ablStripMany(pickSet);
+    }
+    RND.cur={set:pickSet,n:0,win:0,lose:0,draw:0,dmgA:0,dmgF:0};
+  };
+  const finishOne=()=>{
+    const c=RND.cur;
+    const rate=c.win/Math.max(1,c.win+c.lose)*100;
+    const share=c.dmgA/Math.max(1,c.dmgA+c.dmgF)*100;
+    if(RND.i<0){ RND.base=rate; RND.baseShare=share;
+                 RND.msPer=(nowMs()-RND.t0)/Math.max(1,c.n); }
+    else{ ablRestore(RND.snap);
+          RND.rows.push({set:c.set,rate,share,diff:rate-RND.base,sdiff:share-RND.baseShare}); }
+    RND.i++;
+  };
+  const done=(aborted)=>{
+    ablRestore(RND.snap);
+    SIM=false; PROC=keepP; OWN=keepO;
+    const st=RND; RND=null;
+    newBattleState();
+    U.forEach((u,i)=>{ u.name=names[i]; resetUnit(u); });
+    logs=[]; render(); renderLog(); renderSimChip();
+    renderCoarseResult(st,aborted);
+  };
+  const step=()=>{
+    if(!RND||RND.stop){ if(RND) done(true); return; }
+    try{
+      const batch=Math.min(8,RND.per-RND.cur.n);
+      for(let k=0;k<batch;k++){
+        const r=simOneBattle(RND.limit), c=RND.cur;
+        if(r.result==='ally')c.win++; else if(r.result==='foe')c.lose++; else c.draw++;
+        c.dmgA+=r.dmgA; c.dmgF+=r.dmgF; c.n++;
+      }
+    }catch(e){ console.error('粗探しで例外',e); done(true); return; }
+    if(RND.cur.n>=RND.per){
+      finishOne();
+      if(RND.i>=RND.sets){ done(false); return; }
+      begin();
+    }
+    renderCoarseProgress();
+    setTimeout(step,0);
+  };
+  begin(); renderCoarseProgress(); setTimeout(step,0);
+}
+function renderCoarseProgress(){
+  const o=$('#simOut'); if(!o||!RND)return;
+  const total=(RND.sets+1)*RND.per, done=(RND.i+1)*RND.per+RND.cur.n;
+  const rest=RND.msPer?`　残り およそ ${Math.max(1,Math.round((total-done)*RND.msPer/1000))} 秒`:'';
+  o.innerHTML=`<div class="simprog"><span style="width:${done/total*100}%"></span></div>
+    <div class="hint">${RND.i<0?'ベースライン':'ランダムに半分を抜いて計測中'}　—
+      ${Math.max(0,RND.i)} / ${RND.sets} セット（${done} / ${total} 戦）${rest}</div>
+    <div class="cmds"><button class="btn" id="rndStop">中止</button></div>`;
+  const b=$('#rndStop'); if(b) b.onclick=()=>{ if(RND) RND.stop=true; };
+}
+function renderCoarseResult(st,aborted){
+  const o=$('#simOut'); if(!o)return;
+  if(st.base==null){ o.innerHTML='<div class="warn">ベースラインを測る前に中止しました。</div>'; return; }
+  const key=c=>c.kind+':'+c.id;
+  // 項目ごとに「抜かれたセット」と「残ったセット」の平均を取り、その差を寄与とみなす
+  const acc={};
+  st.cands.forEach(c=>acc[key(c)]={c,inN:0,inR:0,inS:0,outN:0,outR:0,outS:0});
+  st.rows.forEach(r=>{
+    const inSet={}; r.set.forEach(c=>inSet[key(c)]=1);
+    st.cands.forEach(c=>{ const a=acc[key(c)];
+      if(inSet[key(c)]){ a.inN++; a.inR+=r.rate; a.inS+=r.share; }
+      else             { a.outN++; a.outR+=r.rate; a.outS+=r.share; } });
+  });
+  const items=Object.values(acc).filter(a=>a.inN&&a.outN).map(a=>({
+    c:a.c, n:a.inN,
+    dr:a.inR/a.inN-a.outR/a.outN,        // 抜かれた時 − 残った時（勝率）
+    ds:a.inS/a.inN-a.outS/a.outN }));    // 同（与ダメ比）
+  items.sort((x,y)=>(Math.abs(y.dr)-Math.abs(x.dr))*100+(Math.abs(y.ds)-Math.abs(x.ds)));
+  const top=st.rows.slice().sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff)||Math.abs(b.sdiff)-Math.abs(a.sdiff)).slice(0,6);
+  const sg=v=>(v>0?'+':'')+v.toFixed(1);
+  const col=(v,g)=>Math.abs(v)<g?'':(v<0?'w':'l');
+  o.innerHTML=`
+    <div class="statgrid">
+      <div class="sc"><u>ベース味方勝率</u><b>${st.base.toFixed(1)}%</b></div>
+      <div class="sc"><u>ベース与ダメ比</u><b>${st.baseShare.toFixed(1)}%</b></div>
+      <div class="sc"><u>セット</u><b>${st.rows.length} / ${st.sets}</b></div>
+      <div class="sc"><u>1セット</u><b>${st.per} 戦</b></div>
+    </div>
+    ${aborted?'<div class="warn">中止しました。ここまでの結果です。</div>':''}
+    <div class="seghint"><b>粗探しです。1セットが ${st.per} 戦しかないので、個々の数字は当てになりません。</b>
+      見るのは順位だけ。上位に繰り返し顔を出すものが本命です。<br>
+      <b>与ダメ比</b>は勝率と違って飽和しないので、<b>完敗・完勝で張り付いている時はこちらで読みます</b>。</div>
+
+    <div class="sechead">勝率を大きく動かした抜き方（上位6セット）</div>
+    ${top.map(r=>`<div class="tdesc">
+      <b class="${col(r.diff,1)||'mid'}">勝率 ${r.rate.toFixed(1)}%（${sg(r.diff)}）</b>
+      与ダメ比 ${r.share.toFixed(1)}%（${sg(r.sdiff)}）<br>
+      <span class="rsub">抜いたもの: ${r.set.map(c=>c.name).join('・')}</span></div>`).join('')
+      ||'<div class="tdesc">セットがありません。</div>'}
+
+    <div class="sechead">項目ごとの寄与（抜かれた時 − 残った時）</div>
+    <div class="ablwrap"><table class="abltbl">
+      <thead><tr><th>種別</th><th>名前</th><th>味方</th><th>敵</th><th>抜かれた回数</th>
+        <th>勝率の差</th><th>与ダメ比の差</th></tr></thead>
+      <tbody>${items.map(it=>`<tr>
+        <td>${it.c.kind==='trait'?'個性':'スキル'}</td>
+        <td><b>${it.c.name}</b></td>
+        <td class="num">${it.c.own.ally}</td>
+        <td class="num">${it.c.own.foe}</td>
+        <td class="num">${it.n}</td>
+        <td class="num ${col(it.dr,3)}"><b>${sg(it.dr)}</b></td>
+        <td class="num ${col(it.ds,1.5)}"><b>${sg(it.ds)}</b></td></tr>`).join('')}
+      </tbody></table></div>`;
+}
+
+/* ミラー編成 — 敵を味方の完全なコピーにする。
+   これで50%付近にならなければ、編成の中身ではなく**陣営そのものが非対称**。
+   （装備の有無・foeBoost・行動順など、個性やスキルでは直らない要因）
+   装備は個体なので、取り合いにならないよう同じ中身の複製を作って渡す。 */
+function mirrorRoster(){
+  if(matchBlocked())return;
+  const src=U.filter(u=>u.side==='ally');
+  if(!src.length){ alert('味方が出撃していません'); return; }
+  if(!confirm('敵を味方のコピーに置き換えます。今の敵編成（出撃・控え）は消えます。よろしいですか？'))return;
+  abortLoop(); closeEditor();
+  U=U.filter(u=>u.side!=='foe');
+  BENCH=BENCH.filter(u=>u.side!=='foe');
+  src.forEach(a=>{
+    const o=JSON.parse(JSON.stringify(serSave(a)));
+    o.side='foe'; o.foeBoost=false; o.equip=null;
+    const n=buildUnit(o);
+    n.name=n.name0=(a.name0||a.name)+'・鏡';
+    if(a.equip){ n.equip=emptyEquip();
+      ['w','a'].forEach(s=>{ const it=invOf(a.equip[s]); if(!it||INV.length>=INV_MAX)return;
+        const c={iid:++iidc,id:it.id,slot:it.slot,spell:it.spell,trait:it.trait};
+        INV.push(c); n.equip[s]=c.iid; }); }
+    refreshVitals(n); resetUnit(n);
+    U.push(n);
+  });
+  newBattleState(); logs=[];
+  addLog('敵を味方のミラーにしました。勝率が50%付近にならなければ、編成の中身ではなく陣営そのものが非対称です','l-turn');
+  saveLocal(); syncCountUI(); render(); renderLog(); loop();
+}
+
+function runAblation(times){
+  if(SIM||SIMRUN||ABL||RND||AUTO.run||AUTO.busy||matchBlocked())return;
+  const cands=fieldCandidates();
+  if(!cands.length){ alert('盤に個性・スキルが1つも出ていません'); return; }
+  abortLoop(); closePicker();
+  const names=U.map(u=>u.name0||u.name);
+  ABL={times,limit:turnLimit,cands,snap:ablSnapshot(),names,
+       idx:-1,                       // -1 … ベースライン計測中
+       cur:null,rows:[],base:null,t0:nowMs(),stop:false};
+  const keepP=PROC, keepO=OWN;
+  SIM=true;
+  const begin=()=>{
+    const c=ABL.idx<0?null:ABL.cands[ABL.idx];
+    if(c) ablStrip(c.kind,c.id);
+    ABL.cur={cand:c,n:0,win:0,lose:0,draw:0,dmgA:0,dmgF:0,aliveA:0,aliveF:0,turns:0};
+  };
+  const summarize=cur=>({
+    rate: cur.win/Math.max(1,cur.win+cur.lose)*100,
+    // 与ダメージ比。50%で互角。勝敗と違って飽和しないので完敗中でも動く。
+    share: cur.dmgA/Math.max(1,cur.dmgA+cur.dmgF)*100,
+    aliveA: cur.aliveA/Math.max(1,cur.n), aliveF: cur.aliveF/Math.max(1,cur.n),
+    turns: cur.turns/Math.max(1,cur.n),
+    win:cur.win, lose:cur.lose, draw:cur.draw });
+  const finishOne=()=>{
+    const cur=ABL.cur, s=summarize(cur);
+    if(!cur.cand){ ABL.base=s.rate; ABL.baseShare=s.share; ABL.baseSum=s;
+                   ABL.msPer=(nowMs()-ABL.t0)/Math.max(1,cur.n); }
+    else{ ablRestore(ABL.snap);
+          ABL.rows.push({...cur.cand,...s,
+            diff:s.rate-ABL.base, sdiff:s.share-ABL.baseShare}); }
+    ABL.idx++;
+  };
+  const done=(aborted)=>{
+    ablRestore(ABL.snap);
+    SIM=false; PROC=keepP; OWN=keepO;
+    const st=ABL; ABL=null;
+    newBattleState();
+    U.forEach((u,i)=>{ u.name=names[i]; resetUnit(u); });
+    logs=[]; render(); renderLog(); renderSimChip();
+    renderAblResult(st,aborted);
+  };
+  const step=()=>{
+    if(!ABL||ABL.stop){ if(ABL) done(true); return; }
+    try{
+      const batch=Math.min(10,ABL.times-ABL.cur.n);
+      for(let i=0;i<batch;i++){
+        const r=simOneBattle(ABL.limit), c=ABL.cur;
+        if(r.result==='ally')c.win++; else if(r.result==='foe')c.lose++; else c.draw++;
+        c.dmgA+=r.dmgA; c.dmgF+=r.dmgF; c.aliveA+=r.aliveA; c.aliveF+=r.aliveF; c.turns+=r.turns;
+        c.n++;
+      }
+    }catch(e){ console.error('アブレーションで例外',e); done(true); return; }
+    if(ABL.cur.n>=ABL.times){
+      finishOne();
+      if(ABL.idx>=ABL.cands.length){ done(false); return; }
+      begin();
+    }
+    renderAblProgress();
+    setTimeout(step,0);
+  };
+  begin(); renderAblProgress(); setTimeout(step,0);
+}
+
+function renderAblProgress(){
+  const o=$('#simOut'); if(!o||!ABL)return;
+  const total=(ABL.cands.length+1)*ABL.times;
+  const done=(ABL.idx+1)*ABL.times+ABL.cur.n;
+  const pct=done/total*100;
+  const nm=ABL.cur.cand?`《${ABL.cur.cand.name}》を抜いて計測中`:'ベースライン（何も抜かない）を計測中';
+  const rest=ABL.msPer?`　残り およそ ${Math.max(1,Math.round((total-done)*ABL.msPer/1000))} 秒`:'';
+  o.innerHTML=`<div class="simprog"><span style="width:${pct}%"></span></div>
+    <div class="hint">${nm}　—　${ABL.idx+1} / ${ABL.cands.length} 項目　（${done} / ${total} 戦）${rest}</div>
+    <div class="cmds"><button class="btn" id="ablStop">中止</button></div>`;
+  const b=$('#ablStop'); if(b) b.onclick=()=>{ if(ABL) ABL.stop=true; };
+}
+function renderAblResult(st,aborted){
+  const o=$('#simOut'); if(!o)return;
+  if(st.base==null){
+    o.innerHTML='<div class="warn">ベースラインを測り終える前に中止しました。結果はありません。</div>';
+    return;
+  }
+  // 勝率の標準偏差はおよそ 50/√n [%]。これ以下の差は読んではいけない。
+  const noise=50/Math.sqrt(st.times), nz=noise.toFixed(1), gate=noise*2;
+  const b=st.baseSum;
+  // 勝率が張り付いていると差が全部0になる。その時は与ダメージ比で並べる。
+  const flat=st.rows.every(r=>Math.abs(r.diff)<gate);
+  const rows=st.rows.slice().sort((x,y)=>
+    (Math.abs(y.diff)-Math.abs(x.diff))*1000 + (Math.abs(y.sdiff)-Math.abs(x.sdiff)));
+  const cell=r=>{
+    const sg=v=>v>0?'+':'';
+    const col=(v,g)=>Math.abs(v)<g?'':(v<0?'w':'l');
+    return `<tr>
+      <td>${r.kind==='trait'?'個性':'スキル'}</td>
+      <td><b>${r.name}</b></td>
+      <td class="num">${r.own.ally}</td>
+      <td class="num">${r.own.foe}</td>
+      <td class="num">${r.rate.toFixed(1)}%</td>
+      <td class="num ${col(r.diff,gate)}"><b>${sg(r.diff)}${r.diff.toFixed(1)}</b></td>
+      <td class="num">${r.share.toFixed(1)}%</td>
+      <td class="num ${col(r.sdiff,1.5)}"><b>${sg(r.sdiff)}${r.sdiff.toFixed(1)}</b></td>
+      <td class="num">${r.aliveF.toFixed(2)}</td></tr>`;
+  };
+  o.innerHTML=`
+    <div class="simbar">
+      ${b.win?`<span class="w" style="flex:${b.win}">味方 ${b.win}</span>`:''}
+      ${b.draw?`<span class="d" style="flex:${b.draw}">分 ${b.draw}</span>`:''}
+      ${b.lose?`<span class="l" style="flex:${b.lose}">敵 ${b.lose}</span>`:''}
+    </div>
+    <div class="statgrid">
+      <div class="sc"><u>ベース味方勝率</u><b>${st.base.toFixed(1)}%</b></div>
+      <div class="sc"><u>ベース与ダメ比</u><b>${st.baseShare.toFixed(1)}%</b></div>
+      <div class="sc"><u>平均残存 味方</u><b>${b.aliveA.toFixed(2)}</b></div>
+      <div class="sc"><u>平均残存 敵</u><b>${b.aliveF.toFixed(2)}</b></div>
+      <div class="sc"><u>平均ターン</u><b>${b.turns.toFixed(0)}</b></div>
+      <div class="sc"><u>誤差の目安</u><b>±${nz}%</b></div>
+    </div>
+    ${aborted?'<div class="warn">中止しました。ここまでの結果です。</div>':''}
+    ${b.draw>st.times*0.5?`<div class="warn"><b>${b.draw} 戦が引き分けです。</b>
+      勝率は「勝÷(勝+敗)」なので、引き分けだらけだと 0.0% と出ます。
+      決着していないのか、そもそも戦闘が進んでいないのかを、いちど手動で1戦見て確かめてください。</div>`:''}
+    ${flat?`<div class="warn"><b>勝率の差が全項目で誤差以下です。</b>
+      ベース勝率が ${st.base.toFixed(0)}% に張り付いているため、<b>何を抜いても勝敗が動きません</b>
+      （完敗している編成から1つ抜いてもやはり完敗）。
+      <b>この場合は右の「与ダメ比」の差で読んでください。</b>こちらは飽和しないので、
+      勝敗が動かなくても「どれだけ形勢がマシになったか」が出ます。</div>`:''}
+    <div class="seghint">
+      <b>差の読み方</b> — <b class="w">マイナス</b>は「抜くと味方が弱くなる」＝<b>味方側で効いていた</b>。
+      <b class="l">プラス</b>は「抜くと味方が強くなる」＝<b>敵側で効いていた</b>。<br>
+      <b>勝率差</b>は ±${nz}% が乱数のブレ。その2倍を超えた行にだけ色を付けています。<br>
+      <b>与ダメ比</b>は味方が与えたダメージの割合（50%で互角）。<b>勝敗が動かない時はこちらを見ます。</b>
+      <b>残敵</b>は平均で何体の敵を倒しきれずに残したか。少ないほど味方が押しています。
+    </div>
+    <div class="ablwrap"><table class="abltbl">
+      <thead><tr><th>種別</th><th>名前</th><th>味方</th><th>敵</th>
+        <th>勝率</th><th>差</th><th>与ダメ比</th><th>差</th><th>残敵</th></tr></thead>
+      <tbody>${rows.map(cell).join('')}</tbody></table></div>`;
+}
 function renderSimResult(st){
   const o=$('#simOut'); if(!o||!st)return;
   // 発動回数は結果に同梱して持ち歩く。自動集計と手動集計が交互に走っても混ざらない。
@@ -2919,6 +3353,9 @@ function openSimPanel(){
         <label>試行回数</label><input id="simN" value="${lastManualN}">
         <label>打ち切りターン</label><input id="simL" value="${turnLimit}">
         <label>自動集計の回数</label><input id="simAN" value="${AUTO.n}">
+        <label>アブレーション回数</label><input id="ablIn" value="${ablN}">
+        <label>粗探し（セット × 戦数）</label>
+        <span class="twoin"><input id="rndSets" value="${rndSets}"> × <input id="rndPer" value="${rndPer}"> 戦</span>
         <div class="seghint">
           描画とログを止めて一気に回します。<b>変わるのは戦闘中の乱数だけ</b>で、編成・職業・個性・スキル・オート行動はそのままです。<br>
           決着しなかった場合は<b>与えた総ダメージ</b>で判定します（毒・反動・倍化とオーバーキル分は数えません）。<br>
@@ -2926,11 +3363,28 @@ function openSimPanel(){
           気になる個性は編集画面で持たせてから回してください。<br><br>
           <b>自動集計</b>は、個性・スキル・装備・職業・編成・オート行動・打切ターンのどれかを変えると
           裏で走り、上の勝率チップを書き換えます。進行中の戦闘は退避して元に戻すので、戦闘は中断されません。
-          回数を増やすほど数字は安定しますが、変更のたびに待たされます。
+          回数を増やすほど数字は安定しますが、変更のたびに待たされます。<br><br>
+          <b>アブレーション</b>は、<b>今この盤に出ている個性・スキルを1つずつ全員から取り除いて</b>回し、
+          味方勝率がどれだけ動いたかを並べます。<b>発動回数では「勝敗にどれだけ効いたか」は分かりません</b>
+          （1回しか光らない個性が勝負を決めていることも、20回光る個性が無関係なこともある）。
+          抜いて勝率が動くかどうかだけが答えです。<br>
+          （項目数＋1）×回数ぶん戦うので時間がかかります。<b>まず50戦で当たりを付けて、
+          怪しいものが出たら回数を上げる</b>のが早いです。<br><br>
+          <b>粗探し</b>は、<b>毎回ランダムに半分を抜いて少しだけ戦わせる</b>のを何十セットも繰り返します。
+          1つずつ抜く方法は原因が1つの時にしか効きません。「AとBが揃って初めて壊れる」型や
+          「小さいものが5つ積み上がっている」型は、1つ抜いても動かないので全部0になります。
+          <b>勝率を一番動かした抜き方</b>と、<b>各項目が抜かれた時と残った時の差</b>が出ます。
+          1セットは数戦で構いません。セット数で均されます。<br><br>
+          <b>ミラー編成</b>は、敵を味方の完全なコピー（装備の中身まで同じ）に置き換えます。
+          <b>これで勝率が50%付近にならなければ、原因は編成の中身ではなく陣営そのものの非対称</b>です。
+          今の敵編成は消えるので、必要ならデータを書き出してから押してください。
         </div>
       </div>
       <div class="cmds">
         <button class="btn" id="simGo">実行</button>
+        <button class="btn" id="rndGo">粗探し</button>
+        <button class="btn" id="ablGo">アブレーション</button>
+        <button class="btn" id="mirGo">ミラー編成</button>
         <button class="btn${AUTO.on?' on':''}" id="simAuto">自動集計 ${AUTO.on?'ON':'OFF'}</button>
       </div>
       <div id="simOut"></div>
@@ -2947,14 +3401,33 @@ function openSimPanel(){
     saveLocal(); renderSimChip();
     if(AUTO.on&&(!LASTSIM||LASTSIM.sig!==AUTO.sig)) runAutoSim();
   };
-  $('#simGo').onclick=()=>{
+  const readInputs=()=>{
     const n=clamp(parseInt($('#simN').value,10)||100,1,5000);
     const l=clamp(parseInt($('#simL').value,10)||turnLimit,10,100000);
     const an=clamp(parseInt($('#simAN').value,10)||100,10,2000);
-    $('#simN').value=n; $('#simL').value=l; $('#simAN').value=an;
-    lastManualN=n; AUTO.n=an;
+    const ab=clamp(parseInt($('#ablIn').value,10)||100,10,2000);
+    const rs=clamp(parseInt($('#rndSets').value,10)||40,4,400);
+    const rp=clamp(parseInt($('#rndPer').value,10)||8,2,200);
+    $('#simN').value=n; $('#simL').value=l; $('#simAN').value=an; $('#ablIn').value=ab;
+    $('#rndSets').value=rs; $('#rndPer').value=rp;
+    lastManualN=n; AUTO.n=an; ablN=ab; rndSets=rs; rndPer=rp;
     turnLimit=l; $('#tlIn').value=l;
-    saveLocal(); runSim(n,l);
+    saveLocal();
+    return {n,l};
+  };
+  $('#simGo').onclick=()=>{ const {n,l}=readInputs(); runSim(n,l); };
+  $('#mirGo').onclick=()=>{ saveLocal(); mirrorRoster(); closeEditor(); };
+  $('#rndGo').onclick=()=>{
+    readInputs();
+    if(fieldCandidates().length<2){ alert('候補が少なすぎます'); return; }
+    runCoarse(rndSets,rndPer);
+  };
+  $('#ablGo').onclick=()=>{
+    readInputs();
+    const c=fieldCandidates().length;
+    if(!c){ alert('盤に個性・スキルが1つも出ていません'); return; }
+    if(!confirm(`${c} 項目 ＋ ベースラインで、合計 ${(c+1)*ablN} 戦します。始めますか？`))return;
+    runAblation(ablN);
   };
 }
 let lastManualN=100;
@@ -3031,7 +3504,7 @@ function normEquip(e){
   return {w:e.w==null?null:+e.w, a:e.a==null?null:+e.a};
 }
 function saveData(){
-  return {v:2,turnLimit,equipOn:EQUIP_ON,autoSim:AUTO.on,autoSimN:AUTO.n,
+  return {v:2,turnLimit,equipOn:EQUIP_ON,autoSim:AUTO.on,autoSimN:AUTO.n,ablN,rndSets,rndPer,
     inv:INV.map(it=>({iid:it.iid,id:it.id,slot:it.slot,spell:it.spell,trait:it.trait})),
     units:[...U,...BENCH].map(serSave)};
 }
@@ -3045,6 +3518,9 @@ function applySave(d){
     turnLimit=d.turnLimit||300; if($('#tlIn')) $('#tlIn').value=turnLimit;
     EQUIP_ON=d.equipOn!==false; syncEquipBtn();
     AUTO.on=d.autoSim!==false; AUTO.n=clamp(parseInt(d.autoSimN,10)||100,10,2000);
+    ablN=clamp(parseInt(d.ablN,10)||100,10,2000);
+    rndSets=clamp(parseInt(d.rndSets,10)||40,4,400);
+    rndPer=clamp(parseInt(d.rndPer,10)||8,2,200);
     // 所持装備を先に戻す。ユニットは iid で参照するだけなので順序が大事。
     if(Array.isArray(d.inv)) d.inv.forEach(o=>{
       const def=EQ[o.id]; if(!def||!def.slot)return;
