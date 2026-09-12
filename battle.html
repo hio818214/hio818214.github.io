@@ -494,7 +494,10 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
   誰かが装備しているものは一覧に持ち主が出て、<b>削除できません</b>。
   ユニットの編集画面では、<b>所持している未装備のものだけ</b>が候補に並びます。
   付与スキルを着け外しすると<b>オート行動も自動で増減</b>します（回復系は先頭、それ以外は末尾に入ります）。
-  <b>データ</b>は編成をブラウザに保存します（編集のたびに自動保存）。JSONで書き出して別の環境へ持っていくこともできます。<br>
+  <b>データ</b>は編成をブラウザに保存します（編集のたびに自動保存）。
+  ただし<b>自動保存は1枠を上書きし続けるので、戻る場所にはなりません。</b>
+  壊して試す前は<b>保存スロット</b>（名前付き・8個まで）へ退避してください。読込・上書き・改名・削除ができます。
+  JSONで書き出して別の環境へ持っていくこともできます。<br>
   <b>隊列</b> — <b>通常攻撃と単体特技は、前列に生存者がいる間は前列しか狙えません</b>（前列が空・全滅なら後列へ）。
   魔法と範囲攻撃は素通しなので、固めた前列は範囲で崩します。例外は2つ、<b>《挑発》</b>持ちは後列でも狙われ、<b>弓兵（射手）</b>は列を無視して後列を撃てます。
   コマンドの<b>いれかえ</b>で別列の味方と交代（または空き枠へ移動）でき、<b>後列へ下がったときだけ最大HPの20%を回復</b>します。手番は1つ消費します。</p>
@@ -519,7 +522,7 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
    ========================================================= */
 const R=n=>Math.random()*n, RI=n=>Math.floor(Math.random()*n);
 const pick=a=>a[RI(a.length)], clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const SN={atk:'攻撃',def:'防御',mat:'魔力',mdf:'魔防',spd:'素早',eva:'回避'};
+const SN={atk:'攻撃',def:'防御',mat:'魔力',mdf:'魔防',spd:'素早',eva:'回避',acc:'命中'};
 
 /* 個性が「効いた」ことを記録する。チップを光らせ、集計の発動回数を数える。
    ログを出さない地味な効果（軽減・適応・余熱など）もここを通すので、
@@ -717,7 +720,7 @@ tekiou:{name:'適応',cat:'習熟',desc:'同系統（物理／魔法）の攻撃
   damaged(s,c){ if(c.target!==s)return; const k='ad_'+c.kind; s.cnt[k]=Math.min(5,(s.cnt[k]||0)+1);}},
 kasoku:{name:'加速',cat:'習熟',desc:'自分の手番終了時、最も出番が近い味方1人の行動順を25%早める。',
   turnEnd(s,c){ if(c.unit!==s||!s.alive)return;
-    const t=allies(s).filter(x=>x.alive&&x!==s).sort((a,b)=>a.ct-b.ct)[0]; if(!t)return;
+    const t=allies(s).filter(x=>x.alive&&x!==s&&!hasT(x,'fudou')).sort((a,b)=>a.ct-b.ct)[0]; if(!t)return;
     t.ct-=(t.ct-time)*0.25; proc(s,'kasoku',`${t.name}の行動順を早めた`);}},
 
 /* ---------- 状態・資源・確率・弱い個性 ---------- */
@@ -777,6 +780,7 @@ dokugeki:{name:'毒撃',cat:'対敵',desc:'通常攻撃が命中した時、相�
 chitai:{name:'遅滞',cat:'対敵',desc:'被弾した時、攻撃者の行動順を少し遅らせる。1手番につき1回まで。範囲攻撃・多段攻撃への備え。',
   damaged(s,c){ if(c.target!==s||!c.attacker||!c.attacker.alive)return;
     if(s.cnt.chitaiTurn===turnNo)return;             // 多段攻撃で何度も遅らせない
+    if(hasT(c.attacker,'fudou'))return;              // 《不動》は行動順を動かされない
     s.cnt.chitaiTurn=turnNo;
     c.attacker.ct+=(10000/stat(c.attacker,'spd'))*0.15;
     proc(s,'chitai',`${c.attacker.name}の行動を遅らせた`);}},
@@ -828,10 +832,142 @@ tazuna:{name:'手綱',cat:'持続',desc:'自分にバフ・デバフが掛かっ
     const gone=before-s.buffs.length;
     proc(s,'tazuna',`強化${up}件を延長・弱体${dn}件を短縮`+(gone?`（${gone}件が消滅）`:''));}},
 
+/* ---------- 種族専用（needs 付き。その種族以外は抽選で絶対に出ない） ---------- */
+himei:{name:'悲鳴',cat:'専用',needs:'mandra',
+  desc:'ダメージを受けるたび「叫ぶ」を発動する。スキルとして持っていなくても撃てるが、MPは消費する。マンドラゴラ専用。',
+  damaged(s,c){ if(c.target!==s||!s.alive)return;
+    // 回数制限は置かない。MPという上限がそのまま歯止めになる。
+    const cost=mpCost(s,SP.sakebu); if(s.mp<cost)return;
+    s.mp-=cost;
+    proc(s,'himei',`悲鳴を上げた（MP${cost}）`);
+    // 手番を使わない反撃なので isExtra。叫ぶはダメージが無いので連鎖もしない。
+    castSpell(s,SP.sakebu,null,{isExtra:true});}},
+nebari:{name:'根張り',cat:'専用',needs:'mandra',
+  desc:'自分の手番が回るたび防御・魔防が+8%累積（上限+40%）。「いれかえ」で動くとリセットされる。マンドラゴラ専用。',
+  turnEnd(s,c){ if(c.unit!==s||!s.alive)return;
+    if((s.cnt.nebari||0)>=5)return;
+    s.cnt.nebari=(s.cnt.nebari||0)+1; proc(s,'nebari',`根を張った（防御+${s.cnt.nebari*8}%）`);},
+  mod(s,k){ return (k==='def'||k==='mdf')?1+0.08*(s.cnt.nebari||0):1;}},
+
+yaten:{name:'夜天',cat:'専用',needs:'vampire',
+  desc:'自分が生きている間、「飛行」タグを持つ味方全体の素早さ+10%（自分も含む）。ヴァンパイア専用。'},
+
+yokai:{name:'溶解',cat:'専用',needs:'slime',
+  desc:'通常攻撃が命中した時、相手の防御力を-10%する。同じ相手に重ねて掛かり、-50%まで累積する。スライム専用。',
+  dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target||!c.target.alive)return;
+    const t=c.target, ex=t.buffs.find(b=>b.label==='溶解');
+    if(ex&&ex.value<=-0.50)return;
+    if(ex){ ex.value=Math.max(-0.50,ex.value-0.10); ex.turns=Math.max(ex.turns,3);
+            proc(s,'yokai',`${t.name}の防御 ${Math.round(ex.value*100)}%`); }
+    else{ addBuff(t,{label:'溶解',stat:'def',value:-0.10,turns:3,kind:'debuff'},s);
+          proc(s,'yokai',`${t.name}の防御を溶かし始めた`); }}},
+futeikei:{name:'不定形',cat:'専用',needs:'slime',
+  desc:'物理ダメージを30%軽減する代わりに、魔法ダメージを20%多く受ける。スライム専用。',
+  incoming(s,c){ if(c.target!==s)return;
+    if(c.kind==='phys'){ c.dmg*=0.70; c.tags.push('不定形'); }
+    else { c.dmg*=1.20; c.tags.push('不定形×'); }
+    fire(s,'futeikei');}},
+
+honemi:{name:'骨身',cat:'専用',needs:'skeleton',
+  desc:'物理ダメージを20%軽減する代わりに、魔法ダメージを20%多く受ける。スケルトン専用。',
+  incoming(s,c){ if(c.target!==s)return;
+    if(c.kind==='phys'){ c.dmg*=0.80; c.tags.push('骨身'); }
+    else { c.dmg*=1.20; c.tags.push('骨身×'); }
+    fire(s,'honemi');}},
+ensa:{name:'怨嗟',cat:'専用',needs:'skeleton',
+  desc:'「不死」タグを持つ味方が倒れるたび、自分の攻撃力が永続で+12%。スケルトン専用。',
+  kill(s,c){ if(!c.victim||c.victim===s||c.victim.side!==s.side||!s.alive)return;
+    if(!hasTag(c.victim,'不死'))return;
+    s.cnt.ensa=(s.cnt.ensa||0)+1; proc(s,'ensa',`怨嗟 攻撃+${s.cnt.ensa*12}%`);},
+  mod(s,k){ return (k==='atk')?1+0.12*(s.cnt.ensa||0):1;}},
+
+kazu:{name:'数の利',cat:'専用',needs:'goblin',
+  desc:'生き残っている味方1人につき攻撃力+4%（自分も数える）。ゴブリン専用。',
+  mod(s,k){ if(k!=='atk')return 1; const n=aliveOf(s.side).length; if(!n)return 1;
+    s.fired.kazu=2; return 1+0.04*n;}},
+koukatsu:{name:'狡猾',cat:'専用',needs:'goblin',
+  desc:'自分より攻撃力が低い相手への与ダメージ+30%。ゴブリン専用。',
+  outgoing(s,c){ if(c.attacker!==s||!c.target)return;
+    if(stat(c.target,'atk')>=stat(s,'atk'))return;
+    c.dmg*=1.30; c.tags.push('狡猾'); fire(s,'koukatsu');}},
+
+ryuurin:{name:'竜鱗',cat:'専用',needs:'wyvern',
+  desc:'1回に受けるダメージが最大HPの12%を超えない。大技ほど効く。ワイバーン専用。',
+  incoming(s,c){ if(c.target!==s)return;
+    const cap=Math.max(1,Math.round(s.maxHp*0.12));
+    if(c.dmg<=cap)return;
+    c.dmg=cap; c.tags.push('竜鱗'); fire(s,'ryuurin');}},
+
+konbaku:{name:'魂縛',cat:'専用',needs:'lich',
+  desc:'自分が倒れた時、敵1体を休み状態にする。リッチ専用。',
+  death(s,c){ if(c.unit!==s)return;
+    const e=aliveOf(s.side==='ally'?'foe':'ally'); if(!e.length)return;
+    const t=pick(e); proc(s,'konbaku',`${t.name}を縛った`); addAil(t,'rest',null,s);}},
+shireijutsu:{name:'死霊術',cat:'専用',needs:'lich',
+  desc:'敵味方を問わず誰かが倒れるたび、最大MPの15%を回復する。リッチ専用。',
+  kill(s,c){ if(!c.victim||c.victim===s||!s.alive||s.mp>=s.maxMp)return;
+    const g=Math.max(1,Math.round(s.maxMp*0.15)); gainMp(s,g);
+    proc(s,'shireijutsu',`死を糧に MP+${g}`);}},
+
+sekika:{name:'石化',cat:'専用',needs:'gargoyle',
+  desc:'HPが30%以下になった時、1度だけ全快する。その代わり2ターン行動できなくなる。ガーゴイル専用。',
+  damaged(s,c){ if(c.target!==s||!s.alive||s.cnt.sekika)return;
+    if(hpR(s)>0.30)return;
+    s.cnt.sekika=1;
+    const before=s.hp; s.hp=s.maxHp;
+    proc(s,'sekika',`石化して全快した（+${s.maxHp-before}／2ターン動けない）`);
+    pop(s,'+'+(s.maxHp-before),'heal');
+    addAil(s,'rest',null,s); s.ail.rest=2;}},
+fudou:{name:'不動',cat:'専用',needs:'gargoyle',
+  desc:'素早さを下げるデバフを受け付けず、行動順を早められたり遅らされたりしない。「いれかえ」で動かされることもない。ガーゴイル専用。',
+  buffApplied(s,c){ if(c.unit!==s||c.buff.kind!=='debuff'||c.buff.stat!=='spd')return;
+    s.buffs=s.buffs.filter(b=>b!==c.buff);
+    proc(s,'fudou',`${c.buff.label}を受け付けなかった`);}},
+
+mikubi:{name:'三首',cat:'専用',needs:'cerberus',
+  desc:'通常攻撃が威力40%の3連撃になる。命中判定も3回。追撃・崩し・吸魔と噛み合う。ケルベロス専用。'},
+tsuisou:{name:'追走',cat:'専用',needs:'cerberus',
+  desc:'敵が「いれかえ」で動いた時、その相手へ威力60%で追撃する。ケルベロス専用。',
+  swapped(s,c){ if(!s.alive||!c.unit||c.unit.side===s.side||!c.unit.alive)return;
+    proc(s,'tsuisou',`${c.unit.name}を追った`);
+    doAttack(s,c.unit,{power:0.6,isExtra:true});}},
+
+kazematoi:{name:'風纏い',cat:'専用',needs:'harpy',
+  desc:'相手より素早いほど回避率が上がる（最大+25%）。ハーピィ専用。',
+  eva(s,a){ if(!a)return 0;
+    const d=Math.max(0,stat(s,'spd')-stat(a,'spd'));
+    const v=Math.min(0.25,d/400); if(v>0) s.fired.kazematoi=2; return v;}},
+fukitobasu:{name:'吹き飛ばす',cat:'専用',needs:'harpy',
+  desc:'通常攻撃が命中した時、25%で相手を反対の列へ吹き飛ばす。隊列そのものを崩す。ハーピィ専用。',
+  dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target||!c.target.alive)return;
+    if(R(1)>=0.25)return;
+    if(forceMove(c.target)) proc(s,'fukitobasu',`${c.target.name}を吹き飛ばした`);}},
+
+kubinashi:{name:'首無し',cat:'専用',needs:'dullahan',
+  desc:'毒・眠り・休み・宣告、すべての状態異常を受け付けない。デュラハン専用。',
+  ailApplied(s,c){ if(c.unit!==s)return;
+    delete s.ail[c.ail];
+    proc(s,'kubinashi',`${AIL_LABEL[c.ail]||c.ail}を受け付けなかった`);}},
+senkoku:{name:'死の宣告',cat:'専用',needs:'dullahan',
+  desc:'通常攻撃が命中した時、10%で相手に「宣告」を付ける。3手番後に倒れる。デュラハン専用。',
+  dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target||!c.target.alive)return;
+    if(c.target.ail.doom||R(1)>=0.10)return;
+    proc(s,'senkoku',`${c.target.name}に死を宣告した`);
+    addAil(c.target,'doom',3,s);}},
+
 none:{name:'—',cat:'なし',desc:'個性なし（空き枠）。素の性能を確かめたい時に使います。'},
 };
 const TRAIT_IDS=Object.keys(TRAITS).filter(id=>id!=='none');
 const hasT=(u,id)=>u.traits.includes(id)||(typeof eqTraits==='function'&&eqTraits(u).includes(id));
+/* 個性の needs（種族専用）。スキルの skillAllowed と同じ考え方。
+   ミミックは《擬態》で全部素通しにする（スキル側と揃える）。 */
+function traitAllowed(t,cls){
+  if(!t||!t.needs)return true;
+  if(!cls)return true;
+  if(cls.tags&&cls.tags.includes('擬態'))return true;
+  const need=Array.isArray(t.needs)?t.needs:[t.needs];
+  return need.some(n=>n===cls.id||(cls.tags&&cls.tags.includes(n)));
+}
 /* ※ allTraits / traitSlots は 2.5 装備 で定義。個性のフック呼び出しは必ずそちらを通す。 */
 
 /* =========================================================
@@ -908,6 +1044,47 @@ const SPELLS=[
   desc:'敵全体を50%の確率で休み状態に。ダメージは無い。確率のみで判定し、命中判定は行わない。マンドラゴラ専用。'},
  {id:'kiri',    name:'眠りの霧',kind:'art',type:'ail',scope:'all',mp:18,ail:'sleep',needs:'harpy',
   desc:'敵全体を眠らせる。対象ごとに命中判定を行う。ハーピィ専用。'},
+
+ /* ---------- 種族専用（魔物1種につき1〜2個） ---------- */
+ {id:'chisusuri',name:'血啜り',kind:'art',type:'atk',scope:'one',mp:12,power:1.2,lifesteal:1.0,needs:'vampire',
+  desc:'攻撃力×1.2。与えたダメージと同じだけ自分を回復する。ヴァンパイア専用。'},
+ {id:'kurenai', name:'クレナイ',kind:'magic',type:'atk',scope:'one',mp:14,power:1.5,lifesteal:0.5,needs:'vampire',
+  desc:'単体に魔力×1.5。与えたダメージの半分を自分に回復する。ヴァンパイア専用。'},
+ {id:'nomikomu',name:'飲み込む',kind:'art',type:'atk',scope:'one',mp:10,power:1.0,mpDrain:12,needs:'slime',
+  desc:'攻撃力×1.0。さらに相手のMPを12奪って自分のものにする。スライム専用。'},
+ {id:'numeri',  name:'ヌメリ',kind:'magic',type:'debuff',scope:'all',mp:16,stat:'spd',value:-0.20,turns:3,needs:'slime',
+  desc:'敵全体の素早さ-20%（3ターン）。手数そのものを削る。スライム専用。'},
+ {id:'honenage',name:'骨投げ',kind:'art',type:'atk',scope:'one',mp:8,power:0.9,ignoreRow:true,needs:'skeleton',
+  desc:'攻撃力×0.9。列を無視して後列を直接狙える。スケルトン専用。'},
+ {id:'ishinage',name:'石投げ',kind:'art',type:'atk',scope:'one',mp:6,power:0.7,ignoreRow:true,needs:'goblin',
+  desc:'攻撃力×0.7。列を無視して後列を直接狙える。ゴブリン専用。'},
+ {id:'fuiuchi', name:'不意打ち',kind:'art',type:'atk',scope:'one',mp:10,power:1.6,frontHalf:true,needs:'goblin',
+  desc:'攻撃力×1.6。ただし自分が前列にいると威力が半分になる。後列から刺す技。ゴブリン専用。'},
+ {id:'obigeki', name:'尾撃',kind:'art',type:'atk',scope:'all',mp:16,power:0.6,needs:'wyvern',
+  desc:'敵全体へ攻撃力×0.6。数少ない範囲物理。ワイバーン専用。'},
+ {id:'kyuukouka',name:'急降下',kind:'art',type:'atk',scope:'one',mp:14,power:2.0,selfRest:true,needs:'wyvern',
+  desc:'攻撃力×2.0の大技。撃つと自分が休み状態になり、次の手番を失う。ワイバーン専用。'},
+ {id:'horobi',  name:'ホロビ',kind:'magic',type:'atk',scope:'all',mp:20,ratio:0.12,needs:'lich',
+  desc:'敵全体の現在HPを12%削る。魔防も軽減も無視するので、硬い相手ほど効く。リッチ専用。'},
+ {id:'noshikakari',name:'のしかかり',kind:'art',type:'atk',scope:'one',mp:10,power:1.3,ail:'rest',ailChance:0.3,needs:'gargoyle',
+  desc:'攻撃力×1.3。30%で相手を休み状態にする。ガーゴイル専用。'},
+ {id:'kamikudaki',name:'噛み砕き',kind:'art',type:'atk',scope:'one',mp:10,power:1.1,
+  debuffOn:{stat:'def',value:-0.25,turns:3},needs:'cerberus',
+  desc:'攻撃力×1.1。命中すると相手の防御力-25%（3ターン）。ケルベロス専用。'},
+ {id:'houkou',  name:'咆哮',kind:'art',type:'debuff',scope:'all',mp:12,stat:'atk',value:-0.20,turns:3,needs:'cerberus',
+  desc:'敵全体の攻撃力-20%（3ターン）。ダメージは無い。ケルベロス専用。'},
+ {id:'kamaitachi',name:'かまいたち',kind:'art',type:'atk',scope:'one',mp:12,power:0.5,hits:3,randomTarget:true,needs:'harpy',
+  desc:'攻撃力×0.5を3回。毎回ランダムに対象を選び直す。ハーピィ専用。'},
+ {id:'habataki',name:'羽撃き',kind:'art',type:'debuff',scope:'all',mp:12,stat:'acc',value:-0.20,turns:3,needs:'harpy',
+  desc:'敵全体の命中率-20%（3ターン）。魔法は必中なので、通常攻撃と特技にだけ効く。ハーピィ専用。'},
+ {id:'houshi',  name:'胞子',kind:'art',type:'ail',scope:'all',mp:14,ail:'poison',turns:4,alwaysHit:true,needs:'mandra',
+  desc:'敵全体を毒状態にする（4ターン）。命中判定は行わない。マンドラゴラ専用。'},
+ {id:'nemuribana',name:'ネムリバナ',kind:'magic',type:'ail',scope:'one',mp:16,ail:'sleep',ail2:'poison',turns:4,needs:'mandra',
+  desc:'敵単体を眠らせ、同時に毒状態にする。起こしても毒は残る。マンドラゴラ専用。'},
+ {id:'kubikari',name:'首刈り',kind:'art',type:'atk',scope:'one',mp:12,power:1.4,exec:{hp:0.3,mul:2},needs:'dullahan',
+  desc:'攻撃力×1.4。相手のHPが30%以下なら必中かつ威力2倍。デュラハン専用。'},
+ {id:'kokubatotsu',name:'黒馬突',kind:'art',type:'atk',scope:'one',mp:12,power:1.2,multi:2,needs:'dullahan',
+  desc:'攻撃力×1.2で、届く範囲の敵2体を同時に貫く。デュラハン専用。'},
 ];
 const SP=Object.fromEntries(SPELLS.map(s=>[s.id,s]));
 SP.none={id:'none',name:'—',type:'none',desc:'スキルなし（空き枠）。'};
@@ -917,8 +1094,10 @@ const spellsOf=u=>allSpells(u).filter(id=>id&&id!=='none');
 const isArt=sp=>sp&&sp.kind==='art';
 const skillKind=sp=>isArt(sp)?'特技':'魔法';
 const skillCat=sp=>isArt(sp)?'特技':TYPE_LABEL[sp.type];
+/* 射程の表記。範囲／2体／単体 を1か所で決める。 */
+const scopeLabel=sp=>!sp?'単体':(sp.scope==='all'?'範囲':(sp.multi?sp.multi+'体':'単体'));
 /* スキルの説明ツールチップ（カード・コマンド欄で共通） */
-const skillTip=sp=>`【${sp.name}】${skillKind(sp)}／MP${sp.mp}／${sp.scope==='all'?'範囲':'単体'}／${TYPE_LABEL[sp.type]}　${sp.desc}`;
+const skillTip=sp=>`【${sp.name}】${skillKind(sp)}／MP${sp.mp}／${scopeLabel(sp)}／${TYPE_LABEL[sp.type]}　${sp.desc}`;
 
 /* この職業がそのスキルを抽選で引けるか。編集画面での手動選択には効かない。 */
 function skillAllowed(sp,cls){
@@ -1002,7 +1181,8 @@ function invCreate(slot){
   const it={iid:++iidc,id:def.id,slot:def.slot,spell:null,trait:null};
   // 付与は生成時に確定する。あとから引き直せると「良い個体を探す」意味が消えるため。
   if(def.slot==='w'){ if(R(1)<EQ_SPELL_CHANCE) it.spell=rollEqSpellFor(def); }
-  else             { if(R(1)<EQ_TRAIT_CHANCE) it.trait=pick(TRAIT_IDS); }
+  // 防具は誰が着けるか分からないので、種族専用（needs 付き）の個性は付けない
+  else             { if(R(1)<EQ_TRAIT_CHANCE) it.trait=pick(TRAIT_IDS.filter(id=>!TRAITS[id].needs)); }
   INV.push(it);
   return it;
 }
@@ -1157,58 +1337,59 @@ const CLASSES=[
  {id:'vampire',n:'ヴァンパイア',c:'VP',kind:'monster',hp:500,mp:60,atk:74,def:48,mat:70,mdf:54,spd:64,
   tags:['人型','不死','飛行'],
   desc:'与えたダメージを糧に立ち直る。吸血を持ちやすい。',
-  bias:{drain:24,hitokiri:20,juso:9,tensei:8,shokei:6,kouun:5},
-  spN:2, spBias:{tsumesaki:12,weaken:10,fire:8,heal:6}},
+  bias:{drain:24,yaten:20,hitokiri:18,juso:9,tensei:8,shokei:6,kouun:5},
+  spN:2, spBias:{chisusuri:18,kurenai:14,tsumesaki:12,weaken:8,fire:6}},
  {id:'slime',n:'スライム',      c:'SL',kind:'monster',hp:620,mp:52,atk:52,def:60,mat:58,mdf:44,spd:30,
   tags:['粘体'],
   desc:'鈍いが硬く、毒を撒く。ドーセと毒血を持ちやすい。',
-  bias:{dokuchi:24,mitigate:12,shouki:10,fukutsu:8,thorns:6},
-  spN:2, spBias:{venom:30,taiatari:10,slow:6}},
+  bias:{dokuchi:24,futeikei:20,yokai:18,mitigate:12,shouki:10,fukutsu:8,thorns:6},
+  spN:2, spBias:{venom:26,nomikomu:18,numeri:14,taiatari:8}},
  {id:'skeleton',n:'スケルトン', c:'SK',kind:'monster',hp:430,mp:26,atk:66,def:52,mat:24,mdf:30,spd:56,
   tags:['人型','不死','剣所持'],
   desc:'倒れても立ち上がる。不屈と転生を持ちやすい。',
-  bias:{fukutsu:22,tensei:14,shuunen:10,hitokiri:8,haisui:6},
-  spN:1, spBias:{zenryoku:14,hicchuu:8,weaken:4}},
+  bias:{fukutsu:22,honemi:20,ensa:16,tensei:14,shuunen:10,hitokiri:8,haisui:6},
+  spN:1, spBias:{honenage:20,zenryoku:14,hicchuu:8,weaken:4}},
  {id:'goblin',n:'ゴブリン',     c:'GB',kind:'monster',hp:380,mp:20,atk:60,def:40,mat:20,mdf:26,spd:66,
   tags:['人型','剣所持'],
   desc:'単体では弱いが群れる。隣接と追撃を持ちやすい。',
-  bias:{rinsetsu:22,tsuigeki:12,timid:9,sakigake:7,share:6},
-  spN:1, spBias:{hayabusa:12,taiatari:10}},
+  bias:{rinsetsu:22,kazu:20,koukatsu:16,tsuigeki:12,timid:9,sakigake:7,share:6},
+  spN:1, spBias:{ishinage:16,fuiuchi:14,hayabusa:10,taiatari:8}},
  {id:'wyvern',n:'ワイバーン',   c:'WY',kind:'monster',hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
   tags:['獣','飛行'],
   desc:'最速級の飛竜。疾走と加速で手数を稼ぐ。',
-  bias:{shissou:22,kasoku:14,sakigake:12,tsuigeki:10,hitokiri:8,iatsu:6},
-  spN:2, spBias:{kamitsuki:16,tsumesaki:12,fire:8}},
+  bias:{shissou:22,ryuurin:20,kasoku:14,sakigake:12,tsuigeki:10,hitokiri:8,iatsu:6},
+  spN:2, spBias:{obigeki:18,kyuukouka:16,kamitsuki:14,tsumesaki:10}},
  {id:'lich',n:'リッチ',         c:'LC',kind:'monster',hp:400,mp:92,atk:30,def:36,mat:92,mdf:70,spd:46,
   tags:['人型','不死'],
   desc:'魔力が全体で最高。呪詛と遺志で死後も削る。',
-  bias:{juso:22,ishi:14,tsuishou:10,mekiki:8,seimei:7},
-  spN:3, spBias:{inferno:18,blast:14,venom:10,sleep:8}},
+  bias:{juso:22,shireijutsu:18,konbaku:16,ishi:14,tsuishou:10,mekiki:8,seimei:7},
+  spN:3, spBias:{horobi:18,inferno:16,blast:12,venom:8,sleep:8}},
  {id:'gargoyle',n:'ガーゴイル', c:'GG',kind:'monster',hp:660,mp:24,atk:58,def:86,mat:22,mdf:52,spd:32,
   tags:['無機','飛行'],
   desc:'防御が全体で最高の石像。軽減と倍化で攻撃を跳ね返す。',
-  bias:{mitigate:22,thorns:16,nirami:12,chouhatsu:10,cover:7},
-  spN:1, spBias:{guardup:14,tsumesaki:10,taiatari:8}},
+  bias:{mitigate:22,fudou:20,sekika:18,thorns:16,nirami:12,chouhatsu:10,cover:7},
+  spN:1, spBias:{noshikakari:18,guardup:12,taiatari:8}},
  {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
   tags:['獣','四足'],
   desc:'追い詰めるほど強くなる猟犬。追撃と処刑を持ちやすい。',
-  bias:{tsuigeki:20,kajiba:14,shokei:12,hitokiri:10,sakigake:8,haisui:8},
-  spN:2, spBias:{kamitsuki:18,tsumesaki:14,taiatari:8}},
+  bias:{mikubi:22,tsuigeki:20,tsuisou:16,kajiba:14,shokei:12,hitokiri:10,sakigake:8,haisui:8},
+  spN:2, spBias:{kamikudaki:18,houkou:14,kamitsuki:14,tsumesaki:10}},
  {id:'harpy',n:'ハーピィ',      c:'HP',kind:'monster',hp:360,mp:36,atk:62,def:34,mat:44,mdf:40,spd:86,
   tags:['人型','飛行'],
   desc:'最速。脆いが先手を取って掻き乱す。眠りの霧を使う唯一の種族。',
-  bias:{shissou:22,karuwaza:18,kasoku:12,timid:12,sonae:10,kouun:6},
-  spN:2, spBias:{kiri:16,blur:12,tsumesaki:10,slow:8}},
+  bias:{shissou:22,kazematoi:20,karuwaza:18,fukitobasu:16,kasoku:12,timid:12,sonae:10,kouun:6},
+  spN:2, spBias:{kiri:16,kamaitachi:14,habataki:12,blur:10,tsumesaki:8}},
  {id:'mandra',n:'マンドラゴラ', c:'MD',kind:'monster',hp:470,mp:66,atk:34,def:46,mat:74,mdf:64,spd:24,
   tags:['植物'],
-  desc:'最も遅い。動かないが毒と呪いを撒き続ける。専用スキルを3つ持つ。',
-  bias:{dokuchi:20,shouki:18,juso:14,regen:10,recoil:6},
-  spN:3, spBias:{sakebu:16,otakebi:12,leafdance:12,venom:14}},
+  desc:'最も遅い。動かないが毒と呪いを撒き続ける。専用スキル3つと専用個性《悲鳴》を持つ。'
+      +'遅くて手番が回らないぶんを、殴られた時の悲鳴で取り返す。',
+  bias:{himei:26,nebari:18,dokuchi:18,shouki:14,juso:12,regen:8,recoil:5},
+  spN:3, spBias:{sakebu:16,houshi:14,nemuribana:12,otakebi:10,leafdance:10,venom:10}},
  {id:'dullahan',n:'デュラハン', c:'DH',kind:'monster',hp:600,mp:40,atk:80,def:66,mat:34,mdf:48,spd:54,
   tags:['人型','不死','四足','剣所持'],
   desc:'首無しの騎士。威圧と処刑で確実に落としにくる。',
-  bias:{iatsu:22,shokei:14,hitokiri:14,mustHit:12,nirami:10,cover:9,shuunen:8},
-  spN:2, spBias:{zenryoku:16,hicchuu:12,weaken:8}},
+  bias:{kubinashi:22,iatsu:20,senkoku:16,shokei:14,hitokiri:12,mustHit:10,nirami:9,cover:8,shuunen:8},
+  spN:2, spBias:{kubikari:18,kokubatotsu:16,zenryoku:12,hicchuu:10,weaken:6}},
  {id:'mimic',n:'ミミック',      c:'MM',kind:'monster',hp:520,mp:48,atk:68,def:58,mat:52,mdf:44,spd:40,
   tags:['無機','擬態'],
   desc:'何が出るか分からない。奪取と気分屋を持ちやすく、スキルは完全にランダム。剣も持たないのに剣技を使い、他種族の専用スキルまで出る。',
@@ -1255,8 +1436,11 @@ function pickWeighted(ids,bias,count){
    cls.fixed があれば、その個性は必ず持つ（指揮官の《共有》など）。残り枠だけ抽選する。 */
 function rollTraits(cls){
   const fixed=(cls&&cls.fixed||[]).filter(id=>TRAITS[id]);
-  if(!fixed.length) return pickWeighted(TRAIT_IDS,cls&&cls.bias,3);
-  const pool=TRAIT_IDS.filter(id=>!fixed.includes(id));
+  // needs 付きの個性（種族専用）は、その種族以外の抽選候補から外す。
+  // 編集画面のピッカーは検証用なので、そちらでは今までどおり全部選べる。
+  const ok=TRAIT_IDS.filter(id=>traitAllowed(TRAITS[id],cls));
+  if(!fixed.length) return pickWeighted(ok,cls&&cls.bias,3);
+  const pool=ok.filter(id=>!fixed.includes(id));
   return [...fixed,...pickWeighted(pool,cls.bias,Math.max(0,3-fixed.length))].slice(0,3);
 }
 /* 職業に応じたスキル。spN 枠だけ引き、残りは「なし」。
@@ -1286,7 +1470,7 @@ let OWN={};                     // 個性の延べ所持数（集計モード用
    これを分けないと「所持されているのに未発動」の一覧が常時型で埋まってしまう。 */
 const PROC_EVENTS=['turnStart','turnEnd','outgoing','incoming','damaged','dealt','healed',
   'missed','lethal','death','kill','buffApplied','allySkill','allyHit','actionEnd','ailApplied',
-  'battleStart'];
+  'battleStart','swapped'];
 const isPassiveTrait=id=>!PROC_EVENTS.some(ev=>TRAITS[id]&&TRAITS[id][ev]);
 /* 「いきなり系」は戦闘ごとに1度だけ。loop() は配置変更やパネルを閉じた時にも
    呼ばれるので、ここで持っている旗で二重発動を防ぐ。 */
@@ -1460,10 +1644,19 @@ function stat(u,k){
   u.buffs.forEach(b=>{ if(b.stat===k) pct+=b.value; });
   let m=1; for(const f of traitFns(u,'mod')) m*=(f(u,k)||1);
   m*=eqMult(u,k);                               // 装備の補正
+  m*=auraMult(u,k);                             // 味方から掛かるオーラ（夜天）
   if(u.guard&&(k==='def'||k==='mdf')) m*=1.8;
   return Math.max(1,base*(1+pct)*m);
 }
-function sumHook(u,ev){ let v=0; for(const f of traitFns(u,ev)) v+=f(u)||0; return v; }
+/* オーラ＝「他人に掛かる常時補正」。mod は自分の個性しか見ないので、ここで別に拾う。
+   専用個性は装備からは出ないので、u.traits を直接見るだけで足りる（軽い）。 */
+function auraMult(u,k){
+  if(k!=='spd')return 1;
+  if(!hasTag(u,'飛行'))return 1;
+  return U.some(x=>x.side===u.side&&x.alive&&x.traits.includes('yaten'))?1.10:1;
+}
+/* arg … eva のように「相手を見て決める」フックへ渡す。受け取らない側は無視するだけ。 */
+function sumHook(u,ev,arg){ let v=0; for(const f of traitFns(u,ev)) v+=f(u,arg)||0; return v; }
 
 /* =========================================================
    5. バフ・状態
@@ -1491,8 +1684,8 @@ function addBuff(u,b,src){
               ・ダメージを受けると即座に解除（起きる）
               ・眠っている間は個性が働かない（死亡関連だけは働く）
    rest   … 次の手番を 1 回失うだけ。ほかに不利は無い                        */
-const AIL_LABEL={poison:'毒',sleep:'眠',rest:'休'};
-const AIL_TIMED={poison:true};                 // 時間で減るのはこれだけ
+const AIL_LABEL={poison:'毒',sleep:'眠',rest:'休',doom:'宣告'};
+const AIL_TIMED={poison:true,doom:true};       // 時間で減るのはこの2つ
 const asleep=u=>!!u.ail.sleep;
 
 function addAil(u,name,turns,src){
@@ -1514,7 +1707,12 @@ function clearAils(u){
 /* 手番の頭で眠り／休みを消化する。戻り値がある＝この手番は行動できない。 */
 function consumeRest(u){
   if(u.ail.sleep){ delete u.ail.sleep; addLog(`${u.name} は目を覚ました`,'l-sys'); return 'sleep'; }
-  if(u.ail.rest){  delete u.ail.rest;  addLog(`${u.name} は体勢を立て直した`,'l-sys'); return 'rest'; }
+  // 休みは回数を持てる（《石化》が2ターン分を置く）。通常は1で、消費すると消える。
+  if(u.ail.rest){
+    if(u.ail.rest>1){ u.ail.rest--; addLog(`${u.name} はまだ動けない`,'l-sys'); }
+    else{ delete u.ail.rest; addLog(`${u.name} は体勢を立て直した`,'l-sys'); }
+    return 'rest';
+  }
   return null;
 }
 function tickBuffs(u){
@@ -1610,9 +1808,13 @@ function applyDamage(ctx){
 }
 /* バフによる回避（ヨーゲ）。stat() は atk〜spd しか見ないので、ここで別に拾う。 */
 const evaBuff=u=>u.buffs.reduce((s,b)=>s+(b.stat==='eva'?b.value:0),0);
+/* 命中率デバフ（羽撃き）。攻撃側に乗り、相手の回避を押し上げる形で効かせる。
+   魔法は必中なのでここを通らない＝特技と通常攻撃にだけ効く。 */
+const accBuff=u=>u.buffs.reduce((s,b)=>s+(b.stat==='acc'?b.value:0),0);
 function hitCheck(a,t){
   if(asleep(t)) return true;                 // 眠っている相手には必ず当たる
-  let ev=0.03+sumHook(t,'eva')+evaBuff(t)+Math.max(0,stat(t,'spd')-stat(a,'spd'))/900;
+  let ev=0.03+sumHook(t,'eva',a)+evaBuff(t)+Math.max(0,stat(t,'spd')-stat(a,'spd'))/900;
+  ev-=accBuff(a);
   if(t.guard) ev+=0.06;
   ev=Math.min(0.50,ev);                      // 回避に投資した分が報われるよう上限を50%に
   const roll=R(1);
@@ -1661,26 +1863,51 @@ function castSpell(a,sp,target,o={}){
     for(let h=0;h<hits;h++){
       let tg;
       if(sp.scope==='all') tg=foesOf();
+      else if(sp.multi) tg=reachOf().slice(0,sp.multi);        // 黒馬突 … 届く範囲から2体
       else if(sp.randomTarget){ const c=reachOf(); if(!c.length)break; tg=[pick(c)]; }
       else tg=oneTarget();
       if(!tg.length)break;
       for(const t of tg){
         if(!t.alive)continue;
+        /* 割合ダメージ（ホロビ）。「硬さを無視する」のが役目なので、
+           威力計算も軽減も会心も通さず、現在HPの割合をそのまま削る。 */
+        if(sp.ratio){
+          const d=Math.max(1,Math.round(t.hp*sp.ratio));
+          const rc={attacker:a,target:t,dmg:d,kind:dmgKind,tags:['割合'],crit:false,redirected:null};
+          applyDamage(rc); dealt+=rc.dmg; firstHit=firstHit||rc.target; continue;
+        }
         if(dodged(a,t))continue;
-        if(needHit&&!hitCheck(a,t)){
+        const low=!!(sp.exec&&hpR(t)<=sp.exec.hp);             // 首刈り … 瀕死には必中
+        if(needHit&&!low&&!hitCheck(a,t)){
           pop(t,'MISS','miss'); addLog(`${a.name} の ${sp.name} は外れた`,'l-sys');
           emit('missed',{attacker:a,target:t}); continue;
         }
-        const ctx=calcDamage(a,t,{power:sp.power*mult,kind:dmgKind});
+        let pw=sp.power*mult;
+        if(sp.frontHalf&&isFront(a)) pw*=0.5;                  // 不意打ち … 前列からでは活きない
+        if(low) pw*=sp.exec.mul;
+        const ctx=calcDamage(a,t,{power:pw,kind:dmgKind});
         ctx.noCounter=!!o.isExtra;
         applyDamage(ctx);
         dealt+=ctx.dmg; firstHit=firstHit||ctx.target;
-        if(sp.ail&&ctx.target.alive) addAil(ctx.target,sp.ail,sp.turns,a);   // 雄たけびなど
+        const ht=ctx.target;
+        // 命中時の追加効果
+        if(sp.ail&&ht.alive&&(!sp.ailChance||R(1)<sp.ailChance)) addAil(ht,sp.ail,sp.turns,a);
+        if(sp.debuffOn&&ht.alive) addBuff(ht,{label:sp.name,...sp.debuffOn,kind:'debuff'},a);
+        if(sp.mpDrain&&ht.alive){
+          const g=Math.min(ht.mp,sp.mpDrain);
+          if(g>0){ ht.mp-=g; pop(ht,'-'+g,'mp'); gainMp(a,g);
+            addLog(`${a.name} は ${ht.name} から MP${g} を奪った`,'l-buff'); }
+        }
+        if(sp.lifesteal&&ctx.dmg>0&&a.alive){
+          const hl=Math.max(1,Math.round(ctx.dmg*sp.lifesteal));
+          healRaw(a,hl); addLog(`${a.name} は ${hl} 回復した`,'l-heal');
+        }
       }
     }
     if(sp.recoil&&dealt>0){                                   // 体当たりの反動
       rawDamage(a,Math.max(1,Math.round(dealt*sp.recoil)),'反動');
     }
+    if(sp.selfRest&&a.alive) addAil(a,'rest',null,a);          // 急降下 … 撃ったら次が飛ぶ
     if(!o.isExtra&&firstHit) emit('allyHit',{attacker:a,target:firstHit});
 
   } else if(sp.type==='heal'){
@@ -1717,6 +1944,7 @@ function castSpell(a,sp,target,o={}){
       if(sp.chance&&R(1)>=sp.chance){ addLog(`${t.name} には効かなかった`,'l-sys'); return; }
       if(needHit&&!hitCheck(a,t)){ addLog(`${a.name} の ${sp.name} は ${t.name} に外れた`,'l-sys'); return; }
       addAil(t,sp.ail,sp.turns,a);
+      if(sp.ail2) addAil(t,sp.ail2,sp.turns,a);      // ネムリバナ … 眠りと毒を同時に
     });
   }
   if(!o.isExtra) emit('allySkill',{actor:a,spell:sp,target});
@@ -1904,8 +2132,25 @@ function reachable(a,side){
   return taunt.length?front.concat(taunt):front;
 }
 const canReach=(a,t)=>!!t&&reachable(a,t.side).includes(t);
+/* 相手を反対の列へ強制的に動かす（《吹き飛ばす》）。
+   空き枠があればそこへ、無ければ反対列の誰かと入れ替える。《不動》は動かない。 */
+function forceMove(t){
+  if(hasT(t,'fudou')){ proc(t,'fudou','押されても動かなかった'); return false; }
+  const toFront=!isFront(t);
+  const slots=toFront?[0,1,2]:[3,4,5,6];
+  const free=slots.filter(s=>!unitAt(t.side,s));
+  if(free.length){ t.slot=pick(free); }
+  else{
+    const others=aliveOf(t.side).filter(x=>x!==t&&isFront(x)===toFront&&!hasT(x,'fudou'));
+    if(!others.length)return false;
+    const o=pick(others); const tmp=t.slot; t.slot=o.slot; o.slot=tmp;
+  }
+  t.cnt.nebari=0;                      // 動いたら根張りはやり直し
+  addLog(`${t.name} は${toFront?'前列':'後列'}へ押し出された`,'l-sys');
+  return true;
+}
 /* 単体の物理攻撃かどうか。範囲と魔法は列を無視する。 */
-const isPhysSingle=sp=>isArt(sp)&&sp.type==='atk'&&sp.scope!=='all';
+const isPhysSingle=sp=>isArt(sp)&&sp.type==='atk'&&sp.scope!=='all'&&!sp.ignoreRow;
 
 function pickTarget(a,phys){
   const other=a.side==='ally'?'foe':'ally';
@@ -1954,13 +2199,20 @@ function resolveAction(u,act){
   if(act.cmd==='attack'&&act.target){
     attacked=true; markAct(u,'attack');
     addLog(`${u.name} のこうげき`,'l-sys');
-    doAttack(u,act.target);
+    // 《三首》は通常攻撃だけを3連撃に割る。追撃などのコピーには乗らない。
+    if(hasT(u,'mikubi')){
+      fire(u,'mikubi');
+      for(let i=0;i<3;i++){ if(!u.alive)break;
+        const t=(act.target&&act.target.alive)?act.target:pickTarget(u,true);
+        if(!t)break; doAttack(u,t,{power:0.4}); }
+    } else doAttack(u,act.target);
   } else if(act.cmd==='swap'){
     // 隊列変更。手番を1つ使う。攻撃していないので《熟考》は貯まる。
     markAct(u,'swap');
     const t=act.target;
-    if(t&&t.alive&&t.side===u.side){ const from=u.slot; u.slot=t.slot; t.slot=from; }
+    if(t&&t.alive&&t.side===u.side&&!hasT(t,'fudou')){ const from=u.slot; u.slot=t.slot; t.slot=from; t.cnt.nebari=0; }
     else if(act.slot!=null&&!unitAt(u.side,act.slot)) u.slot=act.slot;
+    u.cnt.nebari=0;                     // 動いたら根張りはやり直し
     const toBack=!isFront(u);
     addLog(`${u.name} は${toBack?'後列へ下がった':'前列へ出た'}`+(t?`（${t.name} と交代）`:''),'l-sys');
     // 下がったときだけ息を整える。前に出るのはリスクを取る側なので回復しない。
@@ -1969,6 +2221,7 @@ function resolveAction(u,act){
       const h=Math.max(1,Math.round(u.maxHp*0.20));
       healRaw(u,h); addLog(`${u.name} は息を整えた（HP+${h}）`,'l-heal');
     }
+    emit('swapped',{unit:u,toBack});     // 《追走》が拾う
   } else if(act.cmd==='guard'){
     u.guard=true; markAct(u,'guard');
     // 被ダメ軽減だけでは 1 手番を捨てる価値に見合わないので、MPも戻す
@@ -2069,6 +2322,12 @@ function endTurn(u,info){
     rawDamage(u,d,'毒');
   }
   if(!info.silent) emit('turnEnd',{unit:u,attacked:info.attacked});
+  // 《死の宣告》— 残り1でこの手番を終えたら倒れる。tickBuffs より前に見る。
+  if(u.ail.doom&&u.alive&&u.ail.doom<=1){
+    delete u.ail.doom;
+    addLog(`${u.name} は宣告の時が来た`,'l-debuff');
+    u.hp=0; checkDeath(u,null);
+  }
   tickBuffs(u);
   u.ct=time+10000/stat(u,'spd');
 }
@@ -2233,7 +2492,7 @@ function renderCmd(u){
       // 重複で無効な枠はボタンとして残すが押せない。なぜ使えないかが見えるように。
       const cls=['sp',isArt(s)?'art':'',x.live?'':'dup'].filter(Boolean).join(' ');
       const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${skillTip(s)}`;
-      return `<button class="${cls}" data-sp="${x.id}" data-tip="${tip}" ${(x.live&&canPay(u,cost))?'':'disabled'}><b>${s.name}</b><i>${x.live?(s.scope==='all'?'範囲':'単体'):'重複'}</i><em>${cost}</em></button>`;}).join('')||'<span class="hint">スキルを持っていません</span>'}</div>
+      return `<button class="${cls}" data-sp="${x.id}" data-tip="${tip}" ${(x.live&&canPay(u,cost))?'':'disabled'}><b>${s.name}</b><i>${x.live?scopeLabel(s):'重複'}</i><em>${cost}</em></button>`;}).join('')||'<span class="hint">スキルを持っていません</span>'}</div>
     <div class="hint" id="hint">個性: ${u.traits.filter(t=>t!=='none').map(t=>'<b>'+TRAITS[t].name+'</b>').join(' / ')||'なし'}</div>`;
   const atkBtn=box.querySelector('[data-c="attack"]');
   atkBtn.onclick=()=>chooseTarget(u,OP(),t=>send({cmd:'attack',target:t}),
@@ -2248,9 +2507,11 @@ function renderCmd(u){
   if(swBtn&&!swBtn.disabled) swBtn.onclick=()=>chooseSwap(u,swBtn);
   box.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{
     const sp=SP[b.dataset.sp];
-    if(sp.scope==='all'){
+    if(sp.scope==='all'||sp.multi){
       // 範囲スキルも「押しただけで発動」にはしない。単体と同じく一度止めて説明を出す。
-      const to=['heal','buff','cure','evade'].includes(sp.type)?'味方全体':'敵全体';
+      // multi（黒馬突）は対象を選ばず届く範囲から自動で取るので、こちら側で扱う。
+      const to=sp.multi?`届く範囲の${sp.multi}体`
+        :(['heal','buff','cure','evade'].includes(sp.type)?'味方全体':'敵全体');
       return confirmAction(u,'sp:'+sp.id,()=>send({cmd:'spell',sp}),
         {el:b,title:sp.name,
          desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／<b>${to}</b>／${TYPE_LABEL[sp.type]}　${sp.desc}`});
@@ -2265,7 +2526,8 @@ function renderCmd(u){
 }
 /* いれかえの候補。別列の味方（交代）と、別列の空きスロット（移動）。 */
 function swapOptions(u){
-  const others=aliveOf(u.side).filter(x=>x!==u&&isFront(x)!==isFront(u));
+  // 《不動》は交代相手に選べない
+  const others=aliveOf(u.side).filter(x=>x!==u&&isFront(x)!==isFront(u)&&!hasT(x,'fudou'));
   const empties=(isFront(u)?[3,4,5,6]:[0,1,2]).filter(s=>!unitAt(u.side,s));
   return {others,empties,none:!others.length&&!empties.length};
 }
@@ -2403,7 +2665,7 @@ const spellGroups=()=>{
   return [{label:'なし',items:[{v:'none',name:'— なし —',desc:SP.none.desc}]}]
     .concat(keys.map(label=>({label,
       items:t[label].map(s=>({v:s.id,name:s.name,
-        meta:`${skillKind(s)}・MP${s.mp}・${s.scope==='all'?'範囲':'単体'}`,
+        meta:`${skillKind(s)}・MP${s.mp}・${scopeLabel(s)}`,
         desc:(s.needs?`【${Array.isArray(s.needs)?s.needs.join('か'):s.needs} を持つ職業だけが抽選で覚える】\n`:'')+s.desc}))})));
 };
 /* 職業ピッカー。説明に「引きやすい個性」を並べておくと選ぶ判断がしやすい。 */
@@ -2447,7 +2709,7 @@ function openEditor(u){
   // 対戦中は自分の陣営しか編集できない（相手のユニットは閲覧のみ）
   if(NET.matched && u.side!==MY()){ openViewer(u); return; }
   const spDesc=id=>id&&id!=='none'
-    ? `${skillKind(SP[id])}／MP${SP[id].mp}／${SP[id].scope==='all'?'範囲':'単体'}／${TYPE_LABEL[SP[id].type]}　${SP[id].desc}`
+    ? `${skillKind(SP[id])}／MP${SP[id].mp}／${scopeLabel(SP[id])}／${TYPE_LABEL[SP[id].type]}　${SP[id].desc}`
     : SP.none.desc;
   const st=['atk','def','mat','mdf','spd'].map(k=>`<div class="sc"><u>${SN[k]}</u><b>${Math.round(stat(u,k))}</b></div>`).join('');
   const TSLOT=traitSlots(u), SSLOT=spellSlots(u);   // 重複判定つきの枠
@@ -2665,7 +2927,7 @@ function openViewer(u){
       <div class="sechead">個性</div>
       ${list(u.traits.filter(t=>t!=='none'),t=>`<div class="tdesc"><b>${TRAITS[t].name}</b> — ${TRAITS[t].desc}</div>`)}
       <div class="sechead">スキル</div>
-      ${list(spellsOf(u),id=>`<div class="tdesc"><b>${SP[id].name}</b>（${skillKind(SP[id])}・MP${SP[id].mp}・${SP[id].scope==='all'?'範囲':'単体'}） — ${SP[id].desc}</div>`)}
+      ${list(spellsOf(u),id=>`<div class="tdesc"><b>${SP[id].name}</b>（${skillKind(SP[id])}・MP${SP[id].mp}・${scopeLabel(SP[id])}） — ${SP[id].desc}</div>`)}
       ${eqOn(u)?`<div class="sechead">装備</div>
         ${[['w','武器'],['a','防具']].map(([s,lb])=>{const it=eqItem(u,s);
           return it?`<div class="tdesc"><b>${invName(it)}</b>（${lb}） — ${invDescText(it)}</div>`:'';}).join('')}`:''}
@@ -3692,6 +3954,35 @@ function renderRoster(){
   });
 }
 
+/* --- 名前付きセーブスロット ---
+   自動保存は「作業中の状態」を1枠で上書きし続けるので、**戻る場所にはならない**。
+   壊して試す前に置いておくための、別枠の退避先がこれ。 */
+const SLOT_KEY='kosei-battle-slots-v1';
+const SLOT_MAX=8;
+function loadSlots(){
+  try{ const a=JSON.parse(localStorage.getItem(SLOT_KEY)||'[]'); return Array.isArray(a)?a:[]; }
+  catch(e){ return []; }
+}
+function writeSlots(a){
+  try{ localStorage.setItem(SLOT_KEY,JSON.stringify(a)); return true; }
+  catch(e){ console.warn('スロットを書けません',e); return false; }
+}
+function slotPut(name,id){
+  const a=loadSlots();
+  const rec={id:id||('s'+Date.now()),name:(name||'無題').slice(0,40),at:Date.now(),data:saveData()};
+  const i=a.findIndex(x=>x.id===rec.id);
+  if(i>=0) a[i]=rec;
+  else{
+    if(a.length>=SLOT_MAX){ alert(`スロットは ${SLOT_MAX} 個までです。要らないものを消してください`); return false; }
+    a.push(rec);
+  }
+  if(!writeSlots(a)){ alert('保存できませんでした。容量が足りない可能性があります（古いスロットを消してください）'); return false; }
+  return true;
+}
+const slotStamp=t=>{ const d=new Date(t);
+  const p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
 /* --- データパネル --- */
 function openDataPanel(){
   closePicker();
@@ -3699,15 +3990,24 @@ function openDataPanel(){
     <header><h3>データ</h3><span class="hint">ブラウザに保存／JSONで書き出し・読み込み</span>
       <button class="btn x" id="closeM">閉じる</button></header>
     <div class="mbody">
-      <div class="seghint">編成・職業・個性・スキル・装備・オート行動を保存します。
+      <div class="seghint">保存されるのは<b>編成・職業・個性・スキル・装備・オート行動</b>です。
         戦闘中のHPやバフは保存しません（読み込むと全回復した状態から始まります）。<br>
-        <b>編集や編成を変えるたびに自動保存されます。</b></div>
+        <b>編集や編成を変えるたびに自動保存されます。</b>
+        ただし<b>自動保存は1枠を上書きし続けるので、戻る場所にはなりません。</b>
+        壊して試す前は、下の<b>スロット</b>へ退避してください。</div>
+
+      <div class="sechead">保存スロット（壊す前の退避先）</div>
       <div class="cmds">
-        <button class="btn" id="dSave">今すぐ保存</button>
-        <button class="btn" id="dLoad">保存を読み込む</button>
-        <button class="btn" id="dClear">保存を消す</button>
+        <button class="btn" id="dSlotNew">＋ 今の状態を新しいスロットへ</button>
+      </div>
+      <div id="dSlots" class="rlist" style="max-height:30vh"></div>
+
+      <div class="sechead">作業中のデータ</div>
+      <div class="cmds">
+        <button class="btn" id="dClear">自動保存を消す</button>
         <button class="btn" id="dNew">全部作り直す</button>
       </div>
+
       <div class="sechead">JSON で書き出し・読み込み</div>
       <div class="seghint">下の枠の中身をコピーすれば別の環境へ持っていけます。貼り付けて「読み込む」で復元します。</div>
       <textarea id="dJson" class="jsonbox" spellcheck="false"></textarea>
@@ -3720,12 +4020,59 @@ function openDataPanel(){
   const msg=(t,bad)=>{ const e=$('#dMsg'); if(e) e.innerHTML=bad?`<span style="color:var(--foe)">${t}</span>`:t; };
   $('#closeM').onclick=closeEditor;
   document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask'))closeEditor(); };
-  $('#dSave').onclick=()=>{ const ok=saveLocal();
-    msg(ok?'保存しました':'保存できませんでした（ブラウザの設定を確認してください）',!ok); };
-  $('#dLoad').onclick=()=>{ const d=loadLocal();
-    if(!d){ msg('保存がありません',true); return; }
-    try{ applySave(d); msg('読み込みました'); }catch(e){ msg('読み込めません: '+e.message,true); } };
-  $('#dClear').onclick=()=>{ try{ localStorage.removeItem(SAVE_KEY); msg('保存を消しました'); }catch(e){ msg('消せません',true);} };
+  /* スロット一覧。読込・上書き・改名・削除。 */
+  const renderSlots=()=>{
+    const host=$('#dSlots'); if(!host)return;
+    const a=loadSlots().slice().sort((x,y)=>y.at-x.at);
+    host.innerHTML=a.map(s=>{
+      const n=(s.data&&s.data.units)?s.data.units.length:0;
+      const iv=(s.data&&s.data.inv)?s.data.inv.length:0;
+      return `<div class="rrow" data-sid="${s.id}">
+        <span class="rpos">保存</span>
+        <span class="rmain"><b>${s.name}</b><i>${slotStamp(s.at)}</i><br>
+          <span class="rsub">ユニット ${n} 体　／　装備 ${iv} 個</span></span>
+        <span class="rbtn">
+          <button data-a="load">読込</button>
+          <button data-a="over">上書き</button>
+          <button data-a="ren">名前</button>
+          <button data-a="del">削除</button>
+        </span></div>`;}).join('')
+      ||`<div class="tdesc">スロットがありません。<b>壊して試す前に1つ作っておくと戻れます。</b></div>`;
+    host.querySelectorAll('.rrow').forEach(row=>{
+      const id=row.dataset.sid;
+      const rec=loadSlots().find(x=>x.id===id); if(!rec)return;
+      row.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+        const a2=b.dataset.a;
+        if(a2==='load'){
+          if(!confirm(`「${rec.name}」を読み込みます。今の状態は失われます（先に別のスロットへ退避できます）。よろしいですか？`))return;
+          try{ applySave(rec.data); saveLocal(); msg(`「${rec.name}」を読み込みました`); }
+          catch(e){ msg('読み込めません: '+e.message,true); }
+          renderSlots(); return;
+        }
+        if(a2==='over'){
+          if(!confirm(`「${rec.name}」を今の状態で上書きします。よろしいですか？`))return;
+          if(slotPut(rec.name,rec.id)) msg(`「${rec.name}」を上書きしました`);
+        }
+        if(a2==='ren'){
+          const nm=prompt('新しい名前',rec.name); if(nm==null)return;
+          const all=loadSlots(); const t=all.find(x=>x.id===id); if(t){ t.name=nm.slice(0,40)||'無題'; writeSlots(all); }
+        }
+        if(a2==='del'){
+          if(!confirm(`「${rec.name}」を削除します。元に戻せません。よろしいですか？`))return;
+          writeSlots(loadSlots().filter(x=>x.id!==id)); msg('削除しました');
+        }
+        renderSlots();
+      });
+    });
+  };
+  $('#dSlotNew').onclick=()=>{
+    const nm=prompt('スロットの名前','退避 '+slotStamp(Date.now()));
+    if(nm==null)return;
+    if(slotPut(nm)){ msg('スロットへ保存しました'); renderSlots(); }
+  };
+  renderSlots();
+  $('#dClear').onclick=()=>{ if(!confirm('自動保存を消します。スロットは消えません。よろしいですか？'))return;
+    try{ localStorage.removeItem(SAVE_KEY); msg('自動保存を消しました'); }catch(e){ msg('消せません',true);} };
   $('#dNew').onclick=()=>{ if(!confirm('今の編成を捨てて作り直します。よろしいですか'))return;
     abortLoop(); closeEditor(); setup(); saveLocal(); render(); renderLog(); loop(); };
   $('#dExport').onclick=()=>{ $('#dJson').value=JSON.stringify(saveData()); msg('書き出しました。枠の中身をコピーしてください'); };
