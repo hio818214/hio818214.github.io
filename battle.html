@@ -44,6 +44,13 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .seg{display:flex;border:1px solid var(--line2);border-radius:3px;overflow:hidden}
 .seg button{background:transparent;border:0;padding:6px 9px;font-size:11px;cursor:pointer;color:var(--muted)}
 .seg button.on{background:var(--line2);color:var(--text)}
+/* パネル内の切り替え（編成のタブ・陣営）。.seg と同じ見た目で、幅だけ広め */
+.esteps{display:flex;border:1px solid var(--line2);border-radius:3px;overflow:hidden;align-self:flex-start}
+.esteps button{background:transparent;border:0;padding:7px 18px;font-size:12px;cursor:pointer;
+  color:var(--muted);font-family:inherit;transition:.12s}
+.esteps button:hover{color:var(--gold)}
+.esteps button.on{background:var(--line2);color:var(--text);font-weight:700}
+.esteps+.esteps{margin-top:-4px}
 
 .order{display:flex;align-items:center;gap:6px;overflow-x:auto;padding:6px 0}
 .order .lbl{font-size:10px;letter-spacing:.2em;color:var(--muted);flex:0 0 auto;padding-right:4px}
@@ -92,6 +99,13 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .netchip.on{border-color:var(--ally);color:var(--ally)}
 .netchip.wait{border-color:var(--gold);color:var(--gold)}
 .netchip.err{border-color:var(--foe);color:var(--foe)}
+/* 自動集計の勝率チップ。押すと集計パネルが開く */
+#simChip{cursor:pointer}
+#simChip.w{border-color:var(--ally);color:var(--ally)}
+#simChip.l{border-color:var(--foe);color:var(--foe)}
+#simChip.mid{border-color:var(--line2);color:var(--text)}
+#simChip.run{border-color:var(--gold);color:var(--gold)}
+#simChip.off{opacity:.5}
 .netform{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center}
 .netform label{font-size:11px;color:var(--muted);white-space:nowrap}
 .netform input{background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:2px;
@@ -110,6 +124,13 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .schip{font-size:9px;padding:1px 4px;border-radius:2px;background:#1b2740;border:1px solid #35507a;color:#9dc2ea;line-height:1.5}
 .schip.art{background:#30251b;border-color:#7a5a35;color:#e0b98a}
 .tchip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
+.schip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
+/* 重複して無効になった枠。消さずに「引きが無駄になった」ことを見せる */
+.tchip.dup,.schip.dup{opacity:.35;border-style:dashed;text-decoration:line-through}
+.pk.dup{opacity:.5;border-style:dashed;text-decoration:line-through}
+.sp.dup{opacity:.35;border-style:dashed}
+.duptag{color:var(--foe);font-size:10px;margin-left:4px}
+.rnone{opacity:.5}
 .echip{font-size:8.5px;padding:1px 4px;border-radius:2px;background:#262231;border:1px solid #3d3750;
   color:#a29ab4;line-height:1.5}
 .eqrow{margin-top:-1px;opacity:.9}
@@ -391,7 +412,7 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
       <span class="numctl">人数 自分<select id="nAlly"></select> 相手<select id="nFoe"></select></span>
       <div class="seg" id="speedSeg"></div>
       <button class="btn" id="autoBtn">自動戦闘 OFF</button>
-      <button class="btn" id="stepBtn">一時停止</button>
+      <button class="btn on" id="stepBtn">一時停止 ON</button>
       <span class="numctl">リセット
         <button class="btn sm" id="reAlly">味方</button>
         <button class="btn sm" id="reFoe">敵</button>
@@ -401,6 +422,7 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
       <button class="btn on" id="eqBtn">装備 ON</button>
       <button class="btn" id="rosterBtn">編成</button>
       <button class="btn" id="simBtn">集計</button>
+      <span class="netchip" id="simChip" title="ビルドを変えると自動で集計し直します。押すと結果を開きます">勝率 —</span>
       <button class="btn" id="dataBtn">データ</button>
       <button class="btn" id="netBtn">対戦</button>
       <span class="netchip" id="netChip">ソロ</span>
@@ -421,17 +443,34 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
   </div>
 
   <p class="legend"><b>職業</b>は人間職8種と魔物12種。<b>編成では職業・種族が重複します</b>（同じ職が並ぶこともあります）。
-  <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ヴェノム</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存・必中）と<b>特技</b>（攻撃力依存・命中判定あり）が同じ3枠を奪い合います。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
+  <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ドーセ</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存・必中）と<b>特技</b>（攻撃力依存・命中判定あり）が同じ3枠を奪い合います。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
+  <b>タグ特効</b> — 《人斬り》《射落とし》《不死狩り》《獣狩り》《石砕き》は、相手の<b>職業タグ</b>を見て与ダメージを上げます。
+  倍率はタグの珍しさで変えてあり、<b>人型（20職中13職）は+30%、獣・無機（各2職）は+60%</b>です。
+  相手の顔ぶれによって価値が変わる唯一の要素なので、<b>編成は自分だけでなく相手も見る</b>ことになります。<br>
+  <b>いきなり系</b> — 《先駆け》《号令》《睨み》《瘴気》《備え》《目利き》《軍資》は<b>戦闘開始時に1回だけ</b>動きます。
+  仕切り直すまで二度と発動しないので、<b>編成を決めた時点で盤面が一段動いた状態から始まります</b>。<br>
   <b>リセット</b>は3つ。<b>味方</b>／<b>敵</b>は片側だけ編成を引き直し、<b>全回復</b>は編成を保ったままHP・MP・状態を戻して再戦します。
   <b>打切</b>の手数を超えると戦闘を打ち切り、<b>与えた総ダメージ</b>で判定します（残HP判定だと守りを固めた判定勝ちが成立するため）。
-  <b>集計</b>は編成を固定したまま指定回数を一気に回し、勝率と個性の発動回数を出します。<br>
-  <b>装備</b>は人間職だけが持てます（武器1・防具1）。基本はステータス補正ですが、まれに<b>個性が1つ付きます</b>（緑のチップ）。
-  魔物は装備できないので、<b>装備 ON/OFF</b> で切り替えて勝率を比べてください。
-  <b>編成</b>では1陣営50人まで抱えられ、出撃7人を選べます。控えのユニットは盤面の点線枠からも呼び出せます。
+  <b>集計</b>は編成を固定したまま指定回数を一気に回し、勝率と個性の発動回数を出します。
+  <b>ビルドを変えると裏で自動集計が走り</b>、上部のチップに味方勝率が出ます（回数とON/OFFは集計パネル）。<br>
+  <b>魔法の名前</b>は造語の規則で組んであります。<b>語尾で系統</b>（<b>ヤ</b>＝燃やし／攻撃、<b>チ</b>＝治し／回復、<b>ゲ</b>＝上げ／強化、<b>サ</b>＝下げ／弱体、<b>セ</b>＝させ／状態異常）、
+  <b>語根で対象</b>（ホ炎・ワ腕力・マ守り・ハ速さ・ヨ避け・キ傷・ヤ病・ド毒・ネ眠り）、頭に付く <b>ミナ</b>＝全体、<b>ダ</b>＝大。
+  たとえば<b>ミナマーサ</b>は「皆＋守り＋下げ」で敵全体の防御力ダウンです。種族専用魔法だけは規則の外の固有名詞です（<b>ハガクレ</b>）。特技は漢字・ひらがなで表します。<br>
+  <b>装備</b>は人間職だけが持てます（武器1・防具1）。基本はステータス補正ですが、
+  <b>武器にはまれにスキル</b>、<b>防具にはまれに個性</b>が付きます（どちらも緑のチップ）。
+  これは本人の3枠とは<b>別枠</b>なので、最大で個性4・スキル4になります。魔物は装備できないぶん人間職が有利です。
+  <b>既に持っているものが付いた場合は後ろ側が無効</b>になり、取り消し線で表示されます（同じ個性・スキルは2回効きません）。
+  <b>装備 ON/OFF</b> で切り替えて勝率を比べてください。<br>
+  <b>編成</b>は2つのタブに分かれています。<b>ユニット</b>は1陣営50人まで抱えられ、出撃7人を選べます（控えは盤面の点線枠からも呼び出せます）。
+  <b>装備</b>は全体で100個までの所持品です。<b>生成</b>すると16種から1種が選ばれ、
+  <b>付与スキル／付与個性もその場で確定</b>します（あとから引き直せません）。
+  誰かが装備しているものは一覧に持ち主が出て、<b>削除できません</b>。
+  ユニットの編集画面では、<b>所持している未装備のものだけ</b>が候補に並びます。
+  付与スキルを着け外しすると<b>オート行動も自動で増減</b>します（回復系は先頭、それ以外は末尾に入ります）。
   <b>データ</b>は編成をブラウザに保存します（編集のたびに自動保存）。JSONで書き出して別の環境へ持っていくこともできます。<br>
   <b>隊列</b> — <b>通常攻撃と単体特技は、前列に生存者がいる間は前列しか狙えません</b>（前列が空・全滅なら後列へ）。
   魔法と範囲攻撃は素通しなので、固めた前列は範囲で崩します。例外は2つ、<b>《挑発》</b>持ちは後列でも狙われ、<b>弓兵（射手）</b>は列を無視して後列を撃てます。
-  コマンドの<b>いれかえ</b>で別列の味方と交代（または空き枠へ移動）でき、<b>後列へ下がったときだけ最大HPの10%を回復</b>します。手番は1つ消費します。</p>
+  コマンドの<b>いれかえ</b>で別列の味方と交代（または空き枠へ移動）でき、<b>後列へ下がったときだけ最大HPの20%を回復</b>します。手番は1つ消費します。</p>
 </div>
 
 <div id="modalHost"></div>
@@ -449,7 +488,7 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
    hooks: mod / turnStart / turnEnd / outgoing / incoming /
           damaged / dealt / healed / missed / lethal / death /
           kill / buffApplied / allyHit / allySkill / actionEnd /
-          aggro / crit / eva
+          ailApplied / battleStart / aggro / crit / eva
    ========================================================= */
 const R=n=>Math.random()*n, RI=n=>Math.floor(Math.random()*n);
 const pick=a=>a[RI(a.length)], clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -476,6 +515,23 @@ function procPop(u,name){
   el.appendChild(d); setTimeout(()=>d.remove(),900);
 }
 
+/* タグ特効（キラー系）を1つの型から作る。
+   タグは職業の tags（人型・不死・獣・飛行・無機…）をそのまま使う。
+   ★ 倍率は「そのタグの珍しさ」で決めている ★
+   人型は20職中13職に付いているのでほぼ無条件＝倍率は低い。
+   獣・無機は2職しかいないので刺さる相手が限られる＝倍率は高い。
+   これを揃えてしまうと「人斬りだけ強い」になる。 */
+const clsTagsOf=u=>{ const c=CLS[u.clsId]; return (c&&c.tags)||[]; };
+const hasTag=(u,t)=>clsTagsOf(u).includes(t);
+function killer(id,name,tag,mul){
+  return {name,cat:'特効',
+    desc:`「${tag}」タグを持つ相手への与ダメージ+${Math.round((mul-1)*100)}%。物理でも魔法でも乗る。`,
+    outgoing(s,c){ if(c.attacker!==s||!c.target||!hasTag(c.target,tag))return;
+      c.dmg*=mul; c.tags.push(name); fire(s,id); }};
+}
+/* 「いきなり系」の型。戦闘開始時に1回だけ動く。
+   emit('battleStart') は戦闘ごとに1度しか飛ばないので、ここで掛けたバフは
+   仕切り直すまで二度と乗らない（＝編成の意思が盤面に出る）。 */
 const TRAITS = {
 /* ---------- バフ・デバフの受け渡し ---------- */
 share:{name:'共有',cat:'受け渡し',desc:'自分がバフを得た時、味方全体に同じバフを60%の値で配る（連鎖は1段まで）。',
@@ -575,7 +631,7 @@ tsuishou:{name:'追唱',cat:'連携',desc:'味方が攻撃魔法を唱えた時�
     if(c.spell.type!=='atk'||isArt(c.spell))return;     // 追「唱」なので特技には乗らない
     if(s.cnt.tsuishouUsed)return;
     // 消費はコピー元に比例させる。mpCost を通すので《増幅》の1.5倍も《消費軽減》の3/4もここに乗る。
-    // 固定4MPだとインフェルノ(24)を1/6の値段で写せてしまい、強い魔法ほど得という歪みが出る。
+    // 固定4MPだとミナホーヤ(24)を1/6の値段で写せてしまい、強い魔法ほど得という歪みが出る。
     const cost=tsuishouCost(s,c.spell);
     if(s.mp<cost)return;
     s.cnt.tsuishouUsed=1; s.mp-=cost;
@@ -644,10 +700,10 @@ seijou:{name:'清浄',cat:'状態',desc:'バフ・デバフ・状態異常が1�
   mod(s,k){ if(s.buffs.length||s.ail.poison)return 1; s.fired.seijou=2; return 1.10;}},
 seimei:{name:'生命転用',cat:'資源',desc:'MPが足りない時、不足分の2倍のHPを支払って魔法を唱えられる。'},
 kouun:{name:'強運',cat:'確率',desc:'会心率+18%、回避率+8%。', crit(){return 0.18;}, eva(){return 0.08;}},
-karuwaza:{name:'軽業',cat:'確率',desc:'回避率+14%。「ブラー」や素早さの差と足し合わさり、上限50%まで伸びる。',
+karuwaza:{name:'軽業',cat:'確率',desc:'回避率+14%。「ヨーゲ」や素早さの差と足し合わさり、上限50%まで伸びる。',
   eva(){return 0.14;}},
 mustHit:{name:'必中',cat:'確率',desc:'通常攻撃と特技が外れなくなる。相手の回避が高いほど効く。'
-  +'ただし「攻撃1回回避」（ダンシングリーフ）は貫けない。'},
+  +'ただし「攻撃1回回避」（ハガクレ）は貫けない。'},
 yonetsu:{name:'余熱',cat:'弱',desc:'攻撃が命中する度に次の攻撃+4%（5回まで累積）。外すと0に戻る。',
   dealt(s,c){ if(c.attacker!==s)return; s.cnt.yonetsu=Math.min(5,(s.cnt.yonetsu||0)+1);},
   outgoing(s,c){ if(c.attacker!==s||!s.cnt.yonetsu)return; c.dmg*=1+0.04*s.cnt.yonetsu;
@@ -699,10 +755,57 @@ chitai:{name:'遅滞',cat:'対敵',desc:'被弾した時、攻撃者の行動順
     proc(s,'chitai',`${c.attacker.name}の行動を遅らせた`);}},
 nino:{name:'二の太刀',cat:'習熟',desc:'行動の直後にもう一度行動できる。ただし再行動のあと自分に休みが付くので、手数は増えない。'},
 
+/* ---------- タグ特効 ---------- */
+hitokiri: killer('hitokiri','人斬り','人型',1.30),   // 13/20職。ほぼ無条件なので控えめ
+iotoshi:  killer('iotoshi','射落とし','飛行',1.45),  //  5/20職
+fujigari: killer('fujigari','不死狩り','不死',1.50), //  4/20職
+kemonogari:killer('kemonogari','獣狩り','獣',1.60),  //  2/20職
+ishikudaki:killer('ishikudaki','石砕き','無機',1.60),//  2/20職
+
+/* ---------- いきなり（戦闘開始時） ---------- */
+sakigake:{name:'先駆け',cat:'開幕',desc:'戦闘開始時、自分の攻撃力+40%（3ターン）。',
+  battleStart(s){ if(!s.alive)return; proc(s,'sakigake','開幕から攻めに出る');
+    addBuff(s,{label:'先駆け',stat:'atk',value:0.40,turns:3,kind:'buff'},s);}},
+gourei:{name:'号令',cat:'開幕',desc:'戦闘開始時、味方全体の素早さ+20%（3ターン）。',
+  battleStart(s){ if(!s.alive)return; proc(s,'gourei','味方全体に号令');
+    allies(s).forEach(t=>{ if(t.alive) addBuff(t,{label:'号令',stat:'spd',value:0.20,turns:3,kind:'buff',noSpread:true},s); });}},
+nirami:{name:'睨み',cat:'開幕',desc:'戦闘開始時、敵全体の攻撃力-15%（3ターン）。',
+  battleStart(s){ if(!s.alive)return; proc(s,'nirami','敵全体を睨みつけた');
+    foes(s).forEach(t=>{ if(t.alive) addBuff(t,{label:'睨み',stat:'atk',value:-0.15,turns:3,kind:'debuff'},s); });}},
+shouki:{name:'瘴気',cat:'開幕',desc:'戦闘開始時、敵全体を毒状態にする（4ターン）。',
+  battleStart(s){ if(!s.alive)return; proc(s,'shouki','戦場に瘴気を撒いた');
+    foes(s).forEach(t=>{ if(t.alive) addAil(t,'poison',4,s); });}},
+sonae:{name:'備え',cat:'開幕',desc:'戦闘開始時、自分に「攻撃を1回だけ回避する」状態を付ける。',
+  battleStart(s){ if(!s.alive)return; s.evade=(s.evade||0)+1;
+    proc(s,'sonae','初撃をかわす構え');}},
+mekiki:{name:'目利き',cat:'開幕',desc:'戦闘開始時、敵で最も攻撃力が高い1体の攻撃力-30%（3ターン）。',
+  battleStart(s){ if(!s.alive)return; const e=foes(s).filter(x=>x.alive); if(!e.length)return;
+    const t=e.reduce((a,b)=>stat(b,'atk')>stat(a,'atk')?b:a);
+    proc(s,'mekiki',`${t.name}を最大の脅威と見た`);
+    addBuff(t,{label:'目利き',stat:'atk',value:-0.30,turns:3,kind:'debuff'},s);}},
+gunshi:{name:'軍資',cat:'開幕',desc:'戦闘開始時、味方全体のMPを最大値の15%ぶん回復する。',
+  battleStart(s){ if(!s.alive)return; let n=0;
+    allies(s).forEach(t=>{ if(!t.alive)return; const g=Math.max(1,Math.round(t.maxMp*0.15));
+      gainMp(t,g); n++; });
+    if(n) proc(s,'gunshi',`味方${n}人にMPを配った`);}},
+
+/* ---------- 持続の操作 ---------- */
+tazuna:{name:'手綱',cat:'持続',desc:'自分にバフ・デバフが掛かった時、自分のバフを1ターン延長し、デバフを1ターン縮める。状態異常には効かない。',
+  buffApplied(s,c){ if(c.unit!==s||!s.alive)return;
+    let up=0,dn=0;
+    // 今まさに掛かったものも対象。デバフは掛かった瞬間に1ターン削られる。
+    s.buffs.forEach(b=>{ if(b.kind==='buff'){ b.turns++; up++; } else { b.turns--; dn++; } });
+    const before=s.buffs.length;
+    s.buffs=s.buffs.filter(b=>b.turns>0);
+    if(!up&&!dn)return;
+    const gone=before-s.buffs.length;
+    proc(s,'tazuna',`強化${up}件を延長・弱体${dn}件を短縮`+(gone?`（${gone}件が消滅）`:''));}},
+
 none:{name:'—',cat:'なし',desc:'個性なし（空き枠）。素の性能を確かめたい時に使います。'},
 };
 const TRAIT_IDS=Object.keys(TRAITS).filter(id=>id!=='none');
 const hasT=(u,id)=>u.traits.includes(id)||(typeof eqTraits==='function'&&eqTraits(u).includes(id));
+/* ※ allTraits / traitSlots は 2.5 装備 で定義。個性のフック呼び出しは必ずそちらを通す。 */
 
 /* =========================================================
    2. スキル（魔法と特技）
@@ -716,39 +819,45 @@ const hasT=(u,id)=>u.traits.includes(id)||(typeof eqTraits==='function'&&eqTrait
            配列ならどれか 1 つ満たせばよい。`擬態` タグ持ち（ミミック）は全部無視する。
            ※ 編集画面のピッカーは検証用なので needs を無視して全部選べる。
    ========================================================= */
+/* 魔法の名前は造語の規則で組んである。
+       [ミナ（全体）／ダ（大）] ＋ 語根 ＋ ー ＋ 語尾
+   語尾 … ヤ=燃やし（攻撃） チ=治し（回復） ゲ=上げ（強化） サ=下げ（弱体） セ=させ（状態異常）
+   語根 … ホ炎 ワ腕力 マ守り ハ速さ ヨ避け キ傷 ヤ病 ド毒 ネ眠り
+   例）ミナマーサ ＝ 皆＋守り＋下げ ＝ 敵全体の防御力ダウン。
+   種族専用の魔法だけは規則の外に置き、固有名詞にする（ハガクレ）。 */
 const SPELLS=[
  /* ---------- 魔法（魔力依存・必中） ---------- */
- {id:'fire',   name:'ファイア',    kind:'magic',type:'atk',   scope:'one', mp:8,  power:1.7,
+ {id:'fire',   name:'ホーヤ',      kind:'magic',type:'atk',   scope:'one', mp:8,  power:1.7,
   desc:'単体に魔力×1.7の魔法ダメージ。魔防で軽減される。'},
- {id:'inferno',name:'インフェルノ',kind:'magic',type:'atk',   scope:'all', mp:24, power:1.0,
+ {id:'inferno',name:'ミナホーヤ',  kind:'magic',type:'atk',   scope:'all', mp:24, power:1.0,
   desc:'敵全体に魔力×1.0の魔法ダメージ。敵が多いほど総ダメージが伸びる。'},
- {id:'blast',  name:'ブラスト',    kind:'magic',type:'atk',   scope:'one', mp:16, power:2.8,
+ {id:'blast',  name:'ダホーヤ',    kind:'magic',type:'atk',   scope:'one', mp:16, power:2.8,
   desc:'単体に魔力×2.8の大魔法ダメージ。単体火力の最上位。'},
- {id:'heal',   name:'ヒール',      kind:'magic',type:'heal',  scope:'one', mp:8,  power:1.6,
+ {id:'heal',   name:'キーチ',      kind:'magic',type:'heal',  scope:'one', mp:8,  power:1.6,
   desc:'単体のHPを魔力×1.6ぶん回復。最大HP超過分は「余剰」の変換対象。'},
- {id:'mheal',  name:'エリアヒール',kind:'magic',type:'heal',  scope:'all', mp:56, power:0.9,
+ {id:'mheal',  name:'ミナキーチ',  kind:'magic',type:'heal',  scope:'all', mp:56, power:0.9,
   desc:'味方全体のHPを魔力×0.9ぶん回復。消費が重く、連発はできない。'},
- {id:'cure',   name:'リフレッシュ',kind:'magic',type:'cure',  scope:'one', mp:12,
+ {id:'cure',   name:'ヤーチ',      kind:'magic',type:'cure',  scope:'one', mp:12,
   desc:'味方単体の状態異常をすべて解除する。毒・眠り・休みのどれでも治る。'},
- {id:'rally',  name:'ラリー',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
+ {id:'rally',  name:'ワーゲ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
   desc:'味方単体の攻撃力+35%（3ターン）。「共有」「共鳴」「奪取」の起点になる。'},
- {id:'haste',  name:'ヘイスト',    kind:'magic',type:'buff',  scope:'one', mp:8,  stat:'spd',value:0.35, turns:3,
+ {id:'haste',  name:'ハーゲ',      kind:'magic',type:'buff',  scope:'one', mp:8,  stat:'spd',value:0.35, turns:3,
   desc:'味方単体の素早さ+35%（3ターン）。行動順が繰り上がる。'},
- {id:'guardup',name:'プロテクト',  kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'def',value:0.40, turns:3,
+ {id:'guardup',name:'マーゲ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'def',value:0.40, turns:3,
   desc:'味方単体の防御力+40%（3ターン）。「肩代わり」役を延命させる。'},
- {id:'blur',   name:'ブラー',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
+ {id:'blur',   name:'ヨーゲ',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
   desc:'味方単体の回避率+22%（3ターン）。素早さの差や《軽業》と足し合わさる。《必中》には無効。'},
- {id:'weaken', name:'ウィーク',    kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
+ {id:'weaken', name:'ワーサ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
   desc:'敵単体の攻撃力-30%（3ターン）。「反射」持ちに撃つと跳ね返る。'},
- {id:'breach', name:'ブレイク',    kind:'magic',type:'debuff',scope:'all', mp:18, stat:'def',value:-0.28,turns:3,
+ {id:'breach', name:'ミナマーサ',  kind:'magic',type:'debuff',scope:'all', mp:18, stat:'def',value:-0.28,turns:3,
   desc:'敵全体の防御力-28%（3ターン）。物理アタッカーの前準備。'},
- {id:'slow',   name:'スロウ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
+ {id:'slow',   name:'ハーサ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
   desc:'敵単体の素早さ-30%（3ターン）。行動順を後ろへ落とす。'},
- {id:'venom',  name:'ヴェノム',    kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
+ {id:'venom',  name:'ドーセ',      kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
   desc:'敵単体を毒状態に（4ターン）。毎手番終了時に最大HPの5%を失う。「毒血」の起点。'},
- {id:'sleep',  name:'スリープ',    kind:'magic',type:'ail',   scope:'one', mp:10, ail:'sleep',
+ {id:'sleep',  name:'ネーセ',      kind:'magic',type:'ail',   scope:'one', mp:10, ail:'sleep',
   desc:'敵単体を眠らせる。次の手番を失い、その間は被ダメージ2倍・個性が働かない。殴れば起きる。'},
- {id:'leafdance',name:'ダンシングリーフ',kind:'magic',type:'evade',scope:'one',mp:10,needs:'mandra',
+ {id:'leafdance',name:'ハガクレ',  kind:'magic',type:'evade',scope:'one',mp:10,needs:'mandra',
   desc:'味方単体に「攻撃を1回だけ回避する」状態を付与する。マンドラゴラ専用。'},
 
  /* ---------- 特技（攻撃力依存・命中判定あり） ---------- */
@@ -777,7 +886,7 @@ const SP=Object.fromEntries(SPELLS.map(s=>[s.id,s]));
 SP.none={id:'none',name:'—',type:'none',desc:'スキルなし（空き枠）。'};
 const SPELL_IDS=SPELLS.map(s=>s.id);
 const TYPE_LABEL={atk:'攻撃',heal:'回復',cure:'状態回復',buff:'強化',debuff:'弱体',ail:'状態異常',evade:'回避付与'};
-const spellsOf=u=>u.spells.filter(id=>id&&id!=='none');
+const spellsOf=u=>allSpells(u).filter(id=>id&&id!=='none');
 const isArt=sp=>sp&&sp.kind==='art';
 const skillKind=sp=>isArt(sp)?'特技':'魔法';
 const skillCat=sp=>isArt(sp)?'特技':TYPE_LABEL[sp.type];
@@ -797,11 +906,22 @@ function skillAllowed(sp,cls){
    2.5 装備
 
    人間職だけが装備できる。武器1・防具1。
-   効果は基本ステータスの倍率だけだが、**まれに個性が1つ付く**。
+   効果は基本ステータスの倍率が基本だが、それぞれ別枠の付与がある。
 
-   ★ 装備由来の個性は 1 ユニットにつき最大 1 つ ★
-   武器と防具の両方に付けられるようにすると、実質 5 個性になって
-   既存のバランスが崩れる。付く位置（武器か防具か）は見た目だけの情報。
+   ★ 武器 → まれに「スキル」が 1 つ ／ 防具 → まれに「個性」が 1 つ ★
+   どちらも本人の3枠とは**別枠**で、合計で個性4・スキル4になる。
+   魔物は装備できないので人間職が有利になるが、これは意図した格差。
+   魔物側は素の数値と専用スキルで釣り合わせる。
+
+   重複したものは**後ろ側が無効**になる（3枠に既にある個性が装備でも付いた等）。
+   無効な枠は消さずに灰色で残す。「引きが無駄になった」ことが見えないと、
+   装備を引き直す判断ができないため。
+
+   ★ 装備は「所持品」として実体を持つ ★
+   EQUIPS は種類の定義でしかない。実際に着けるのは INV に入っている**個体**で、
+   個体ごとに付与スキル／付与個性が生成時に確定する。同じ「鉄の剣」でも
+   付与が違う別物になるので、種類IDではなく個体ID（iid）で参照する。
+   ユニットは u.equip = {w:iid|null, a:iid|null} を持つだけ。
    ========================================================= */
 let EQUIP_ON=true;              // 装備を使うかどうか（集計で比較するためのスイッチ）
 const EQUIPS=[
@@ -826,33 +946,126 @@ const EQUIPS=[
 ];
 const EQ=Object.fromEntries(EQUIPS.map(e=>[e.id,e]));
 EQ.none={id:'none',n:'— なし —',desc:'装備なし。'};
-const WEAPONS=EQUIPS.filter(e=>e.slot==='w').map(e=>e.id);
-const ARMORS =EQUIPS.filter(e=>e.slot==='a').map(e=>e.id);
-const EQ_TRAIT_CHANCE=0.35;     // 装備に個性が付く確率
+const EQ_TRAIT_CHANCE=0.35;     // 防具に個性が付く確率
+const EQ_SPELL_CHANCE=0.35;     // 武器にスキルが付く確率
+
+/* --- 所持装備（INV） ---
+   iid … 個体ID。u.equip はこれを指す。
+   武器の付与スキルは、その武器を誰が持つか分からないので職業縛り（needs）のあるものは避ける。
+   ただし剣は「剣所持」の特技を引ける。剣を作った意味がここに出る。 */
+const INV_MAX=100;
+let INV=[], iidc=0;
+const invOf=iid=>iid==null?null:INV.find(x=>x.iid===iid)||null;
+const invDef=it=>it?EQ[it.id]||null:null;
+const invSlot=slot=>INV.filter(x=>x.slot===slot);
+
+function rollEqSpellFor(def){
+  const sword=/剣/.test(def.n);
+  const pool=SPELL_IDS.filter(id=>{
+    const sp=SP[id];
+    if(!sp.needs) return true;
+    const need=Array.isArray(sp.needs)?sp.needs:[sp.needs];
+    return sword&&need.includes('剣所持');
+  });
+  return pool.length?pick(pool):null;
+}
+/* slot を渡すと武器／防具を指定して作る（生成ボタンは指定なし＝16種から1種）。 */
+function invCreate(slot){
+  const def=pick(slot?EQUIPS.filter(e=>e.slot===slot):EQUIPS);
+  const it={iid:++iidc,id:def.id,slot:def.slot,spell:null,trait:null};
+  // 付与は生成時に確定する。あとから引き直せると「良い個体を探す」意味が消えるため。
+  if(def.slot==='w'){ if(R(1)<EQ_SPELL_CHANCE) it.spell=rollEqSpellFor(def); }
+  else             { if(R(1)<EQ_TRAIT_CHANCE) it.trait=pick(TRAIT_IDS); }
+  INV.push(it);
+  return it;
+}
+/* 誰が着けているか。削除の可否と一覧表示に使う。 */
+function equippedBy(iid){
+  if(iid==null)return null;
+  return [...U,...BENCH].find(u=>u.equip&&(u.equip.w===iid||u.equip.a===iid))||null;
+}
+function invDelete(iid){
+  if(equippedBy(iid))return false;
+  INV=INV.filter(x=>x.iid!==iid);
+  return true;
+}
 
 const canEquip=u=>u.clsKind==='human';
+const emptyEquip=()=>({w:null,a:null});
+/* 生成直後のユニットには、所持品から空いているものを当てる。
+   在庫が無ければ新しく作る（初期化時はここで在庫が育つ）。 */
 function rollEquip(u){
   if(!canEquip(u)) return null;
-  const e={w:pick(WEAPONS),a:pick(ARMORS),trait:null,on:'w'};
-  if(R(1)<EQ_TRAIT_CHANCE){
-    e.trait=pick(TRAIT_IDS);
-    e.on=R(1)<0.5?'w':'a';
-  }
+  const e=emptyEquip();
+  ['w','a'].forEach(s=>{
+    let free=invSlot(s).filter(x=>!equippedBy(x.iid));
+    if(!free.length&&INV.length<INV_MAX) free=[invCreate(s)];
+    if(free.length) e[s]=pick(free).iid;
+  });
   return e;
 }
 /* 装備の一覧（表示用）と、ステータス倍率・付与個性 */
 function eqOn(u){ return EQUIP_ON&&u.equip&&canEquip(u)?u.equip:null; }
+const eqItem=(u,slot)=>{ const e=eqOn(u); return e?invOf(e[slot]):null; };
 function eqMult(u,k){
   const e=eqOn(u); if(!e)return 1;
   let m=1;
-  [e.w,e.a].forEach(id=>{ const d=EQ[id]; if(d&&d.stats&&d.stats[k]) m*=1+d.stats[k]; });
+  ['w','a'].forEach(s=>{ const d=invDef(invOf(e[s])); if(d&&d.stats&&d.stats[k]) m*=1+d.stats[k]; });
   return m;
 }
-const eqTraits=u=>{ const e=eqOn(u); return e&&e.trait?[e.trait]:[]; };
-/* 個性を引くときは必ずこれを通す。本人の3枠＋装備の1枠。 */
-function allTraits(u){ const e=eqTraits(u); return e.length?u.traits.concat(e):u.traits; }
-const eqLabel=(u,slot)=>{ const e=u.equip; if(!e)return '— なし —';
-  const d=EQ[e[slot]]; return d?d.n:'— なし —'; };
+const eqSpellRaw=u=>{ const it=eqItem(u,'w'); return (it&&it.spell)||'none'; };
+const eqTraitRaw=u=>{ const it=eqItem(u,'a'); return (it&&it.trait)||null; };
+
+/* --- 重複の判定 ---
+   同じ個性・スキルを2つ持っても2回は効かない。先に出てくる方だけを有効にする。
+   無効になった枠も「持ってはいる」ので消さず、live:false を付けて灰色で描く。 */
+function liveFlags(ids){
+  const seen={},out=[];
+  ids.forEach(id=>{ if(!id||id==='none'){ out.push(false); return; }
+    out.push(!seen[id]); seen[id]=1; });
+  return out;
+}
+/* 個性の枠。本人3枠 ＋ 防具の1枠。 */
+function traitSlots(u){
+  const t=eqTraitRaw(u);
+  const list=u.traits.map(id=>({id,src:'base'}));
+  if(t) list.push({id:t,src:'eq'});
+  const live=liveFlags(list.map(x=>x.id));
+  list.forEach((x,i)=>x.live=live[i]);
+  return list;
+}
+/* 個性を引くときは必ずこれを通す。重複を落とした「実際に効く個性」だけが返る。 */
+const allTraits=u=>traitSlots(u).filter(x=>x.live).map(x=>x.id);
+const eqTraits=u=>traitSlots(u).filter(x=>x.src==='eq'&&x.live).map(x=>x.id);
+
+/* スキルの枠。本人3枠 ＋ 武器の1枠（index 3）。
+   ガンビットが sp0〜sp3 で位置を指すので、無効枠も 'none' として位置を保つ。 */
+function spellSlots(u){
+  const list=[0,1,2].map(i=>({id:u.spells[i]||'none',src:'base',i}));
+  list.push({id:eqSpellRaw(u),src:'eq',i:3});
+  const live=liveFlags(list.map(x=>x.id));
+  list.forEach((x,k)=>x.live=live[k]);
+  return list;
+}
+const allSpells=u=>spellSlots(u).map(x=>x.live?x.id:'none');
+
+/* 個体の表示名。付与があれば併記する（同じ種類でも中身が違うため） */
+const invBonusText=it=>!it?'':(it.spell?`スキル《${SP[it.spell]?SP[it.spell].name:it.spell}》`
+  :it.trait?`個性《${TRAITS[it.trait]?TRAITS[it.trait].name:it.trait}》`:'');
+function invName(it){
+  const d=invDef(it); if(!d)return '— なし —';
+  const b=invBonusText(it);
+  return d.n+(b?` ＋${b}`:'');
+}
+function invDescText(it){
+  const d=invDef(it); if(!d)return EQ.none.desc;
+  const sp=it.spell&&SP[it.spell], tr=it.trait&&TRAITS[it.trait];
+  const b=sp?`　付与スキル: ${sp.name} — ${sp.desc}`
+        :tr?`　付与個性: 《${tr.name}》${tr.desc}`
+        :'　付与はありません。';
+  return `${eqStatText(d)}　${d.desc}${b}`;
+}
+const eqLabel=(u,slot)=>invName(eqItem(u,slot));
 
 /* =========================================================
    3. ユニット生成
@@ -865,7 +1078,7 @@ const eqLabel=(u,slot)=>{ const e=u.equip; if(!e)return '— なし —';
    何倍出やすいか」。指定の無いものはすべて重み 1 で候補に残る。
 
    だから ヴァンパイアは吸血を持ちやすいが、持たない個体も出る。
-   スライムはヴェノムを覚えやすいが、覚えない個体も出る。
+   スライムはドーセを覚えやすいが、覚えない個体も出る。
    「らしさ」は確率で表現していて、決め打ちはしていない。
 
    spN は魔法を何枠埋めるか。物理で殴るだけの魔物は 0〜1 にしてある。 */
@@ -874,105 +1087,105 @@ const CLASSES=[
  {id:'sw',n:'剣士',   c:'SW',kind:'human',hp:520,mp:30,atk:78,def:56,mat:28,mdf:36,spd:52,
   tags:['人型','剣所持'],
   desc:'攻守のバランス型。前線で殴り続ける基準となる職。',
-  bias:{tsuigeki:14,kajiba:10,haisui:8,revenge:6,kanjuku:5},
+  bias:{tsuigeki:14,kajiba:10,sakigake:10,haisui:8,fujigari:6,ishikudaki:6,revenge:6,kanjuku:5},
   spN:2, spBias:{zenryoku:16,hayabusa:12,fire:8,rally:8}},
  {id:'kn',n:'重騎士', c:'KN',kind:'human',hp:690,mp:24,atk:62,def:82,mat:20,mdf:48,spd:36,
   tags:['人型','剣所持'],
   desc:'HPと防御が人間職で最高。素早さは最低。味方をかばって立ち続ける壁。',
-  bias:{cover:18,chouhatsu:14,mitigate:10,thorns:7,fukutsu:6},
+  bias:{cover:18,chouhatsu:14,ishikudaki:12,mitigate:10,nirami:10,thorns:7,fukutsu:6},
   spN:2, spBias:{guardup:16,zenryoku:10,weaken:6}},
  {id:'mg',n:'魔導士', c:'MG',kind:'human',hp:380,mp:78,atk:34,def:34,mat:88,mdf:62,spd:48,
   tags:['人型'],
   desc:'魔力が人間職で最高。紙装甲だが範囲魔法の総火力が抜けている。',
-  bias:{tsuishou:16,jukkou:12,yonetsu:10,charge:6,seimei:5},
+  bias:{tsuishou:16,jukkou:12,yonetsu:10,charge:6,tazuna:5,seimei:5},
   spN:3, spBias:{inferno:16,blast:14,fire:12,sleep:6}},
  {id:'pr',n:'僧侶',   c:'PR',kind:'human',hp:420,mp:74,atk:38,def:44,mat:66,mdf:70,spd:44,
   tags:['人型'],
   desc:'回復と魔防の要。魔防は全職中で最高。',
-  bias:{surplus:16,seijou:14,regen:10,share:8,mitodoke:5},
+  bias:{fujigari:18,surplus:16,seijou:14,regen:10,gunshi:10,share:8,mitodoke:5},
   spN:3, spBias:{heal:20,mheal:14,cure:14,guardup:6}},
  {id:'rg',n:'斥候',   c:'RG',kind:'human',hp:400,mp:36,atk:70,def:42,mat:34,mdf:40,spd:78,
   tags:['人型','剣所持'],
   desc:'素早さが人間職で最高。先手を取って弱体を撒く。',
-  bias:{shissou:16,karuwaza:14,kouun:10,timid:9,kasoku:8,tsuitou:6},
+  bias:{shissou:16,karuwaza:14,kouun:10,sonae:10,kemonogari:10,timid:9,kasoku:8,mekiki:6,tsuitou:6},
   spN:2, spBias:{hayabusa:14,blur:12,samidare:10,weaken:8,slow:8,venom:6}},
  {id:'ar',n:'弓兵',   c:'AR',kind:'human',hp:430,mp:40,atk:74,def:44,mat:40,mdf:42,spd:62,
   tags:['人型','射手'],
   desc:'後列から高い攻撃を通す。速さと火力の両立型。',
-  bias:{atooi:16,mustHit:14,kanjuku:12,tsuitou:10,shokei:7,jukkou:5},
+  bias:{iotoshi:18,atooi:16,mustHit:14,mekiki:12,kanjuku:12,tsuitou:10,kemonogari:8,shokei:7,jukkou:5},
   spN:2, spBias:{taiatari:10,fire:10,slow:12}},
  {id:'hx',n:'呪術師', c:'HX',kind:'human',hp:390,mp:70,atk:36,def:36,mat:80,mdf:60,spd:50,
   tags:['人型'],
   desc:'毒と呪いで削る魔法職。継続ダメージが本体。',
-  bias:{juso:16,dokuchi:14,ishi:9,recoil:6,tsuishou:5},
+  bias:{juso:16,shouki:16,dokuchi:14,ishi:9,recoil:6,tsuishou:5},
   spN:3, spBias:{venom:18,sleep:12,breach:10,inferno:8}},
  {id:'cm',n:'指揮官', c:'CM',kind:'human',hp:480,mp:50,atk:52,def:52,mat:52,mdf:52,spd:50,
   tags:['人型','剣所持'], fixed:['share'],
   desc:'本人の数値はすべて平凡。ただし必ず《共有》を持ち、素質系の個性を引きやすい。'
       +'自分に掛かったバフを味方全体へ配るのが仕事。',
-  bias:{kyoujin:14,eichi:14,makekkai:10,idaten:10,resonate:10,mitodoke:6},
+  bias:{gourei:20,tazuna:14,kyoujin:14,eichi:14,makekkai:10,idaten:10,resonate:10,gunshi:8,mitodoke:6},
   spN:2, spBias:{rally:18,guardup:14,haste:12}},
 
  /* ---------- 魔物（敵の既定） ---------- */
  {id:'vampire',n:'ヴァンパイア',c:'VP',kind:'monster',hp:500,mp:60,atk:74,def:48,mat:70,mdf:54,spd:64,
   tags:['人型','不死','飛行'],
   desc:'与えたダメージを糧に立ち直る。吸血を持ちやすい。',
-  bias:{drain:24,juso:9,tensei:8,shokei:6,kouun:5},
+  bias:{drain:24,hitokiri:20,juso:9,tensei:8,shokei:6,kouun:5},
   spN:2, spBias:{tsumesaki:12,weaken:10,fire:8,heal:6}},
  {id:'slime',n:'スライム',      c:'SL',kind:'monster',hp:620,mp:52,atk:52,def:60,mat:58,mdf:44,spd:30,
   tags:['粘体'],
-  desc:'鈍いが硬く、毒を撒く。ヴェノムと毒血を持ちやすい。',
-  bias:{dokuchi:24,mitigate:12,fukutsu:8,thorns:6},
+  desc:'鈍いが硬く、毒を撒く。ドーセと毒血を持ちやすい。',
+  bias:{dokuchi:24,mitigate:12,shouki:10,fukutsu:8,thorns:6},
   spN:2, spBias:{venom:30,taiatari:10,slow:6}},
  {id:'skeleton',n:'スケルトン', c:'SK',kind:'monster',hp:430,mp:26,atk:66,def:52,mat:24,mdf:30,spd:56,
   tags:['人型','不死','剣所持'],
   desc:'倒れても立ち上がる。不屈と転生を持ちやすい。',
-  bias:{fukutsu:22,tensei:14,shuunen:10,haisui:6},
+  bias:{fukutsu:22,tensei:14,shuunen:10,hitokiri:8,haisui:6},
   spN:1, spBias:{zenryoku:14,hicchuu:8,weaken:4}},
  {id:'goblin',n:'ゴブリン',     c:'GB',kind:'monster',hp:380,mp:20,atk:60,def:40,mat:20,mdf:26,spd:66,
   tags:['人型','剣所持'],
   desc:'単体では弱いが群れる。隣接と追撃を持ちやすい。',
-  bias:{rinsetsu:22,tsuigeki:12,timid:9,share:6},
+  bias:{rinsetsu:22,tsuigeki:12,timid:9,sakigake:7,share:6},
   spN:1, spBias:{hayabusa:12,taiatari:10}},
  {id:'wyvern',n:'ワイバーン',   c:'WY',kind:'monster',hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
   tags:['獣','飛行'],
   desc:'最速級の飛竜。疾走と加速で手数を稼ぐ。',
-  bias:{shissou:22,kasoku:14,tsuigeki:10,iatsu:6},
+  bias:{shissou:22,kasoku:14,sakigake:12,tsuigeki:10,hitokiri:8,iatsu:6},
   spN:2, spBias:{kamitsuki:16,tsumesaki:12,fire:8}},
  {id:'lich',n:'リッチ',         c:'LC',kind:'monster',hp:400,mp:92,atk:30,def:36,mat:92,mdf:70,spd:46,
   tags:['人型','不死'],
   desc:'魔力が全体で最高。呪詛と遺志で死後も削る。',
-  bias:{juso:22,ishi:14,tsuishou:10,seimei:7},
+  bias:{juso:22,ishi:14,tsuishou:10,mekiki:8,seimei:7},
   spN:3, spBias:{inferno:18,blast:14,venom:10,sleep:8}},
  {id:'gargoyle',n:'ガーゴイル', c:'GG',kind:'monster',hp:660,mp:24,atk:58,def:86,mat:22,mdf:52,spd:32,
   tags:['無機','飛行'],
   desc:'防御が全体で最高の石像。軽減と倍化で攻撃を跳ね返す。',
-  bias:{mitigate:22,thorns:16,chouhatsu:10,cover:7},
+  bias:{mitigate:22,thorns:16,nirami:12,chouhatsu:10,cover:7},
   spN:1, spBias:{guardup:14,tsumesaki:10,taiatari:8}},
  {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
   tags:['獣','四足'],
   desc:'追い詰めるほど強くなる猟犬。追撃と処刑を持ちやすい。',
-  bias:{tsuigeki:20,kajiba:14,shokei:12,haisui:8},
+  bias:{tsuigeki:20,kajiba:14,shokei:12,hitokiri:10,sakigake:8,haisui:8},
   spN:2, spBias:{kamitsuki:18,tsumesaki:14,taiatari:8}},
  {id:'harpy',n:'ハーピィ',      c:'HP',kind:'monster',hp:360,mp:36,atk:62,def:34,mat:44,mdf:40,spd:86,
   tags:['人型','飛行'],
   desc:'最速。脆いが先手を取って掻き乱す。眠りの霧を使う唯一の種族。',
-  bias:{shissou:22,karuwaza:18,kasoku:12,timid:12,kouun:6},
+  bias:{shissou:22,karuwaza:18,kasoku:12,timid:12,sonae:10,kouun:6},
   spN:2, spBias:{kiri:16,blur:12,tsumesaki:10,slow:8}},
  {id:'mandra',n:'マンドラゴラ', c:'MD',kind:'monster',hp:470,mp:66,atk:34,def:46,mat:74,mdf:64,spd:24,
   tags:['植物'],
   desc:'最も遅い。動かないが毒と呪いを撒き続ける。専用スキルを3つ持つ。',
-  bias:{dokuchi:20,juso:14,regen:10,recoil:6},
+  bias:{dokuchi:20,shouki:18,juso:14,regen:10,recoil:6},
   spN:3, spBias:{sakebu:16,otakebi:12,leafdance:12,venom:14}},
  {id:'dullahan',n:'デュラハン', c:'DH',kind:'monster',hp:600,mp:40,atk:80,def:66,mat:34,mdf:48,spd:54,
   tags:['人型','不死','四足','剣所持'],
   desc:'首無しの騎士。威圧と処刑で確実に落としにくる。',
-  bias:{iatsu:22,shokei:14,mustHit:12,cover:9,shuunen:8},
+  bias:{iatsu:22,shokei:14,hitokiri:14,mustHit:12,nirami:10,cover:9,shuunen:8},
   spN:2, spBias:{zenryoku:16,hicchuu:12,weaken:8}},
  {id:'mimic',n:'ミミック',      c:'MM',kind:'monster',hp:520,mp:48,atk:68,def:58,mat:52,mdf:44,spd:40,
   tags:['無機','擬態'],
   desc:'何が出るか分からない。奪取と気分屋を持ちやすく、スキルは完全にランダム。剣も持たないのに剣技を使い、他種族の専用スキルまで出る。',
-  bias:{steal:20,kibunya:16,kouun:12,tekiou:8},
+  bias:{steal:20,kibunya:16,kouun:12,tekiou:8,ishikudaki:6},
   spN:2},
 ];
 const CLS=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
@@ -1028,7 +1241,9 @@ function rollSpells(cls){
   return [...pickWeighted(pool,cls.spBias,n),'none','none','none'].slice(0,3);
 }
 
-let U=[],BENCH=[],time=0,turnNo=0,running=false,auto=false,paused=false,speedF=1,uidc=0,logs=[],current=null;
+/* paused は起動時 true。設定を終える前に勝手に戦闘が進まないようにするため、
+   「止まっている」が既定で、進めたい時に明示的に解除する。 */
+let U=[],BENCH=[],time=0,turnNo=0,running=false,auto=false,paused=true,speedF=1,uidc=0,logs=[],current=null;
 
 /* 集計・判定まわり
    SIM 中は描画・ログ・演出をすべて止め、同じエンジンを同期的に回す。 */
@@ -1043,9 +1258,19 @@ let OWN={};                     // 個性の延べ所持数（集計モード用
    背水や強靭のように常に効いているものは、発動回数では測れない。
    これを分けないと「所持されているのに未発動」の一覧が常時型で埋まってしまう。 */
 const PROC_EVENTS=['turnStart','turnEnd','outgoing','incoming','damaged','dealt','healed',
-  'missed','lethal','death','kill','buffApplied','allySkill','allyHit','actionEnd','ailApplied'];
+  'missed','lethal','death','kill','buffApplied','allySkill','allyHit','actionEnd','ailApplied',
+  'battleStart'];
 const isPassiveTrait=id=>!PROC_EVENTS.some(ev=>TRAITS[id]&&TRAITS[id][ev]);
-function newBattleState(){ time=0; turnNo=0; DMG={ally:0,foe:0}; battleResult=null; current=null; }
+/* 「いきなり系」は戦闘ごとに1度だけ。loop() は配置変更やパネルを閉じた時にも
+   呼ばれるので、ここで持っている旗で二重発動を防ぐ。 */
+let battleStarted=false;
+function newBattleState(){ time=0; turnNo=0; DMG={ally:0,foe:0}; battleResult=null; current=null;
+  battleStarted=false; }
+function openingHooks(){
+  if(battleStarted)return;
+  battleStarted=true;
+  emit('battleStart',{});
+}
 const judgeByDamage=()=>DMG.ally===DMG.foe?'draw':(DMG.ally>DMG.foe?'ally':'foe');
 
 /* ネット対戦の状態。ソロ時は role=null で、すべて従来どおりに動く。
@@ -1161,7 +1386,7 @@ function toggleSlot(side,slot){
   // 空きスロットを押したら控えから選ばせる。控えが空なら新規に作る。
   const pool=BENCH.filter(x=>x.side===side);
   if(!pool.length){ deployTo(newUnit(side,slot),slot); return; }
-  openRoster(side,slot);
+  openRoster(side,slot,'unit');
 }
 function setCount(side,n){
   if(NET.matched){ addLog('対戦中は人数を変更できません','l-sys'); syncCountUI(); return; }
@@ -1356,7 +1581,7 @@ function applyDamage(ctx){
   runOn(ctx.attacker,'dealt',ctx);
   if(t.hp<=0) checkDeath(t,ctx.attacker);
 }
-/* バフによる回避（ブラー）。stat() は atk〜spd しか見ないので、ここで別に拾う。 */
+/* バフによる回避（ヨーゲ）。stat() は atk〜spd しか見ないので、ここで別に拾う。 */
 const evaBuff=u=>u.buffs.reduce((s,b)=>s+(b.stat==='eva'?b.value:0),0);
 function hitCheck(a,t){
   if(asleep(t)) return true;                 // 眠っている相手には必ず当たる
@@ -1368,7 +1593,7 @@ function hitCheck(a,t){
   if(roll<ev&&hasT(a,'mustHit')){ proc(a,'mustHit','外れる攻撃を通した'); return true; }
   return roll>=ev;
 }
-/* ダンシングリーフの「攻撃1回回避」。物理でも魔法でも1回ぶん受け流す。 */
+/* ハガクレの「攻撃1回回避」。物理でも魔法でも1回ぶん受け流す。 */
 function dodged(a,t){
   if(!t.evade)return false;
   t.evade--; pop(t,'かわした','miss');
@@ -1508,11 +1733,15 @@ const CONDMAP=Object.fromEntries(CONDS.map(c=>[c.id,c]));
 const CNTS=[{v:1,l:'1体以上'},{v:2,l:'2体以上'},{v:3,l:'3体以上'},{v:'all',l:'全員'}];
 const cntLabel=v=>(CNTS.find(c=>c.v===v)||CNTS[0]).l;
 const ACTS=[{id:'attack',label:'たたかう'},{id:'guard',label:'ぼうぎょ'},
-            {id:'sp0',label:'魔法1'},{id:'sp1',label:'魔法2'},{id:'sp2',label:'魔法3'},
+            {id:'sp0',label:'スキル1'},{id:'sp1',label:'スキル2'},{id:'sp2',label:'スキル3'},
+            {id:'sp3',label:'スキル4（武器）'},
             {id:'none',label:'（この行を無効）'}];
-const actLabel=(u,id)=>id.startsWith('sp')
-  ? `魔法${+id[2]+1}：${u.spells[+id[2]]&&u.spells[+id[2]]!=='none'?SP[u.spells[+id[2]]].name:'未設定'}`
-  : (ACTS.find(a=>a.id===id)||{}).label||id;
+const actLabel=(u,id)=>{
+  if(!id.startsWith('sp')) return (ACTS.find(a=>a.id===id)||{}).label||id;
+  const i=+id[2], sid=allSpells(u)[i];
+  const lb=i===3?'スキル4（武器）':'スキル'+(i+1);
+  return `${lb}：${sid&&sid!=='none'?SP[sid].name:'未設定'}`;
+};
 
 /* 個性から生えるオート行動。
    スキルだけ見て組み立てると「通常攻撃で初めて意味が出る個性」が永久に使われない。
@@ -1525,25 +1754,58 @@ function traitGambits(u){
   if(hasT(u,'steal')) g.push({subj:'foe',cond:'has_buff',cnt:1,act:'attack'});
   return g;
 }
+/* スキル1つに対する既定の行。装備でスキルが増えた時もここを使い回す。 */
+function rowForSpell(sp,act){
+  if(!sp)return null;
+  switch(sp.type){
+    case 'heal':   return {subj:'ally',cond:'hp_le50',cnt:sp.scope==='all'?2:1,act};
+    case 'cure':   return {subj:'ally',cond:'has_ail',cnt:1,act};
+    case 'atk':    return sp.scope==='all'?{subj:'foe',cond:'always',cnt:3,act}
+                                          :{subj:'foe',cond:'hp_le50',cnt:1,act};
+    case 'ail':    return {subj:'foe', cond:'no_ail', cnt:1,act};
+    case 'evade':  return {subj:'self',cond:'hp_le75',cnt:1,act};
+    case 'buff':   return {subj:'self',cond:'no_buff',cnt:1,act};
+    case 'debuff': return {subj:'foe', cond:'no_deb', cnt:1,act};
+  }
+  return null;
+}
 function defaultGambits(u){
   const g=[];
-  const slot=(t,sc)=>{ const i=u.spells.findIndex(id=>id!=='none'&&SP[id].type===t&&(!sc||SP[id].scope===sc));
+  const sps=allSpells(u);      // 本人3枠＋武器1枠。重複で無効な枠は 'none' で返る
+  const slot=(t,sc)=>{ const i=sps.findIndex(id=>id!=='none'&&SP[id].type===t&&(!sc||SP[id].scope===sc));
     return i<0?null:'sp'+i; };
-  const mheal=slot('heal','all'), heal=slot('heal','one');
-  const aoe=slot('atk','all'), atk=slot('atk','one');
-  const buff=slot('buff'), cure=slot('cure'), evade=slot('evade');
-  const ail=slot('ail'), deb=slot('debuff');
-  if(mheal) g.push({subj:'ally',cond:'hp_le50',cnt:2,act:mheal});
-  if(heal)  g.push({subj:'ally',cond:'hp_le50',cnt:1,act:heal});
-  if(cure)  g.push({subj:'ally',cond:'has_ail',cnt:1,act:cure});
+  const add=act=>{ if(!act)return; const r=rowForSpell(SP[sps[+act[2]]],act); if(r)g.push(r); };
+  add(slot('heal','all')); add(slot('heal','one')); add(slot('cure'));
   g.push(...traitGambits(u));      // 個性が要求する行動を、スキルより先に置く
-  if(aoe)   g.push({subj:'foe', cond:'always', cnt:3,act:aoe});
-  if(ail)   g.push({subj:'foe', cond:'no_ail', cnt:1,act:ail});
-  if(evade) g.push({subj:'self',cond:'hp_le75',cnt:1,act:evade});
-  if(buff)  g.push({subj:'self',cond:'no_buff',cnt:1,act:buff});
-  if(deb)   g.push({subj:'foe', cond:'no_deb', cnt:1,act:deb});
-  if(atk)   g.push({subj:'foe', cond:'hp_le50',cnt:1,act:atk});
+  add(slot('atk','all')); add(slot('ail')); add(slot('evade'));
+  add(slot('buff')); add(slot('debuff')); add(slot('atk','one'));
   return g;   // 末尾の「たたかう」は暗黙の既定行動なので入れない
+}
+
+/* 装備の着脱でオート行動を追従させる。
+   全部作り直すと手で組んだ行が消えるので、**増えた行を足し、消えた行を抜く**だけにする。
+   足す位置は、回復・状態回復なら先頭（下に置くと手遅れになる）、それ以外は末尾。
+   既存の行を押しのけないので、手で組んだ優先順位を壊さない。 */
+const eqSnapshot=u=>({spell:eqSpellRaw(u),trait:eqTraitRaw(u)});
+function resyncGambits(u,before){
+  const now=eqSnapshot(u);
+  if(before.spell!==now.spell){
+    u.gambits=u.gambits.filter(g=>g.act!=='sp3');          // 前の付与スキルの行を外す
+    if(now.spell!=='none'){
+      const sp=SP[now.spell], r=rowForSpell(sp,'sp3');
+      if(r){ if(sp.type==='heal'||sp.type==='cure') u.gambits.unshift(r); else u.gambits.push(r); }
+    }
+  }
+  if(before.trait!==now.trait){
+    // 個性由来の行（今は《奪取》のみ）を張り直す
+    const isTR=g=>g.subj==='foe'&&g.cond==='has_buff'&&g.act==='attack';
+    u.gambits=u.gambits.filter(g=>!isTR(g));
+    const want=traitGambits(u);
+    if(want.length){
+      const i=u.gambits.findIndex(g=>g.subj!=='ally');     // 回復行の直後へ
+      u.gambits.splice(i<0?u.gambits.length:i,0,...want);
+    }
+  }
 }
 function poolFor(u,subj){
   if(subj==='self') return u.alive?[u]:[];
@@ -1574,7 +1836,7 @@ function evalGambit(u,row){
     if(!cand.length)return null;
     return {cmd:'attack',target:weightedPick(cand)};
   }
-  const id=u.spells[+row.act[2]]; if(!id||id==='none')return null;
+  const id=allSpells(u)[+row.act[2]]; if(!id||id==='none')return null;
   const sp=SP[id]; if(!canPay(u,mpCost(u,sp)))return null;
   const wantAlly=['heal','buff','cure','evade'].includes(sp.type);
   if(sp.scope==='all') return {cmd:'spell',sp};
@@ -1676,7 +1938,8 @@ function resolveAction(u,act){
     addLog(`${u.name} は${toBack?'後列へ下がった':'前列へ出た'}`+(t?`（${t.name} と交代）`:''),'l-sys');
     // 下がったときだけ息を整える。前に出るのはリスクを取る側なので回復しない。
     if(toBack&&u.alive){
-      const h=Math.max(1,Math.round(u.maxHp*0.10));
+      // 手番を1つ捨てる代償に見合わせるため、10%→20%へ引き上げ
+      const h=Math.max(1,Math.round(u.maxHp*0.20));
       healRaw(u,h); addLog(`${u.name} は息を整えた（HP+${h}）`,'l-heal');
     }
   } else if(act.cmd==='guard'){
@@ -1714,6 +1977,10 @@ function logGambit(u,act){
           :'↳ オート 既定（たたかう）','l-sys');
 }
 let loopGen=0;
+/* HOLD … 自動集計が盤面を借りている間の停止。paused（利用者の一時停止）とは別物。
+   loopParked … ループが「ターンの切れ目で止まっている」ことの表明。
+   自動集計は盤面を共有するので、ここが立つまで待ってから走り出す。 */
+let HOLD=false, loopParked=false;
 /* 進行中のループを確実に止める。手動コマンド待ちで固まらないよう解決もする。 */
 function abortLoop(){
   loopGen++; running=false; selecting=null;
@@ -1723,9 +1990,12 @@ function abortLoop(){
 async function loop(){
   const gen=++loopGen;
   running=true;
+  openingHooks();                // いきなり系。仕切り直すまで1回だけ飛ぶ
   while(running&&gen===loopGen){
     if(endCheck())break;
-    while(paused){ await sleep(120); if(!running||gen!==loopGen)return; }
+    while(paused||HOLD){ loopParked=true; await sleep(120);
+      if(!running||gen!==loopGen){ loopParked=false; return; } }
+    loopParked=false;
     const u=nextActor(); if(!u)break;
     time=u.ct; turnNo++;
     U.forEach(x=>{ for(const k in x.fired) if(--x.fired[k]<=0) delete x.fired[k]; });
@@ -1846,19 +2116,24 @@ function render(){ if(SIM)return; renderField(); renderOrder(); if(!resolveCmd) 
 function unitHTML(u){
   const cls=[ 'u', hpR(u)<0.3?'low':'', u.alive?'':'dead', current===u?'acting':'',
     (selecting&&selecting.valid(u))?'selectable':'' ].filter(Boolean).join(' ');
-  const act=u.traits.filter(t=>t!=='none');
-  const et=eqTraits(u);
-  const traits=(act.length||et.length)
-    ? act.map(t=>`<span class="tchip${u.fired[t]?' fire':''}" data-tip="《${TRAITS[t].name}》${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')
-      +et.map(t=>`<span class="tchip eq${u.fired[t]?' fire':''}" data-tip="《${TRAITS[t].name}》[装備由来] ${TRAITS[t].desc}">${TRAITS[t].name}</span>`).join('')
+  // 個性と装備個性を1列に。重複で無効になった枠は取り消し線で残す。
+  const ts=traitSlots(u).filter(x=>x.id&&x.id!=='none');
+  const traits=ts.length
+    ? ts.map(x=>{ const t=TRAITS[x.id];
+        const cls=['tchip',x.src==='eq'?'eq':'',x.live?'':'dup',(x.live&&u.fired[x.id])?'fire':''].filter(Boolean).join(' ');
+        const tip=`《${t.name}》${x.src==='eq'?'[防具由来] ':''}${x.live?'':'【重複のため無効】'}${t.desc}`;
+        return `<span class="${cls}" data-tip="${tip}">${t.name}</span>`;}).join('')
     : '<span class="tchip off">個性なし</span>';
   const eq=eqOn(u)
-    ? `<div class="traits eqrow">${[['w','⚔'],['a','🛡']].map(([s,ic])=>{ const d=EQ[u.equip[s]];
-        return d&&d.id!=='none'?`<span class="echip" data-tip="【${d.n}】${d.desc}">${ic}${d.n}</span>`:'';}).join('')}</div>`
+    ? `<div class="traits eqrow">${[['w','⚔'],['a','🛡']].map(([s,ic])=>{ const it=eqItem(u,s); const d=invDef(it);
+        return d?`<span class="echip" data-tip="【${invName(it)}】${invDescText(it)}">${ic}${d.n}</span>`:'';}).join('')}</div>`
     : '';
-  const sp=spellsOf(u);
-  const spells=sp.length
-    ? sp.map(id=>`<span class="schip${isArt(SP[id])?' art':''}" data-tip="${skillTip(SP[id])}">${SP[id].name}</span>`).join('')
+  const ss=spellSlots(u).filter(x=>x.id&&x.id!=='none');
+  const spells=ss.length
+    ? ss.map(x=>{ const s=SP[x.id];
+        const cls=['schip',isArt(s)?'art':'',x.src==='eq'?'eq':'',x.live?'':'dup'].filter(Boolean).join(' ');
+        const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${skillTip(s)}`;
+        return `<span class="${cls}" data-tip="${tip}">${s.name}</span>`;}).join('')
     : '<span class="schip off">スキルなし</span>';
   const states=[...u.buffs.map(b=>`<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}·${b.turns}</span>`),
     ...Object.keys(u.ail).map(k=>`<span class="st ail">${AIL_LABEL[k]||k}${AIL_TIMED[k]?'·'+u.ail[k]:''}</span>`),
@@ -1925,9 +2200,12 @@ function renderCmd(u){
   }
   box.innerHTML=`<div class="who">${u.name}<span>${u.clsName}</span></div>
     <div class="cmds"><button class="cmd" data-c="attack">たたかう</button><button class="cmd" data-c="guard">ぼうぎょ</button><button class="cmd" data-c="swap"${swapOptions(u).none?' disabled':''}>いれかえ</button></div>
-    <div class="spells">${spellsOf(u).map(id=>{const s=SP[id];
+    <div class="spells">${spellSlots(u).filter(x=>x.id!=='none').map(x=>{const s=SP[x.id];
       const cost=mpCost(u,s);
-      return `<button class="sp${isArt(s)?' art':''}" data-sp="${id}" data-tip="${skillTip(s)}" ${canPay(u,cost)?'':'disabled'}><b>${s.name}</b><i>${s.scope==='all'?'範囲':'単体'}</i><em>${cost}</em></button>`;}).join('')||'<span class="hint">スキルを持っていません</span>'}</div>
+      // 重複で無効な枠はボタンとして残すが押せない。なぜ使えないかが見えるように。
+      const cls=['sp',isArt(s)?'art':'',x.live?'':'dup'].filter(Boolean).join(' ');
+      const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${skillTip(s)}`;
+      return `<button class="${cls}" data-sp="${x.id}" data-tip="${tip}" ${(x.live&&canPay(u,cost))?'':'disabled'}><b>${s.name}</b><i>${x.live?(s.scope==='all'?'範囲':'単体'):'重複'}</i><em>${cost}</em></button>`;}).join('')||'<span class="hint">スキルを持っていません</span>'}</div>
     <div class="hint" id="hint">個性: ${u.traits.filter(t=>t!=='none').map(t=>'<b>'+TRAITS[t].name+'</b>').join(' / ')||'なし'}</div>`;
   const atkBtn=box.querySelector('[data-c="attack"]');
   atkBtn.onclick=()=>chooseTarget(u,OP(),t=>send({cmd:'attack',target:t}),
@@ -1971,7 +2249,7 @@ function chooseSwap(u,btn){
     h.className='hint armhint';
     h.innerHTML=`<b class="armname">いれかえ</b>`
       +`<span class="armdesc">${isFront(u)?'後列':'前列'}へ移ります。手番を1つ使います。`
-      +`後列へ下がったときだけ最大HPの10%を回復します。</span>`
+      +`後列へ下がったときだけ最大HPの20%を回復します。</span>`
       +`<span class="armpick">交代する味方、または空いている枠を<b>選んでください</b></span>`
       +`<button class="cancelsel" id="cancelSel">やめる</button>`;
     const c=$('#cancelSel');
@@ -2084,11 +2362,18 @@ const classGroups=()=>['human','monster'].map(kind=>({label:KIND_LABEL[kind],
 /* 装備ピッカー。効果を meta に出して、一覧のまま比較できるようにする。 */
 const eqStatText=e=>Object.entries(e.stats||{})
   .map(([k,v])=>`${k==='hp'?'最大HP':k==='mp'?'最大MP':SN[k]}${v>0?'+':''}${Math.round(v*100)}%`).join(' ');
-const equipGroups=slot=>[
-  {label:'なし',items:[{v:'none',name:'— なし —',desc:'装備しない。'}]},
-  {label:slot==='w'?'武器':'防具',
-   items:EQUIPS.filter(e=>e.slot===slot).map(e=>({v:e.id,name:e.n,meta:eqStatText(e),desc:e.desc}))}
-];
+/* 所持している装備だけを候補に出す。他の人が着けているものは出さない。
+   武器スロットには武器だけ、防具スロットには防具だけ。 */
+const equipGroups=(slot,u)=>{
+  const mine=u&&u.equip?u.equip[slot]:null;
+  const list=invSlot(slot).filter(it=>it.iid===mine||!equippedBy(it.iid));
+  return [
+    {label:'なし',items:[{v:'none',name:'— なし —',desc:'装備しない。'}]},
+    {label:(slot==='w'?'武器':'防具')+`（所持 ${list.length}）`,
+     items:list.map(it=>({v:String(it.iid),name:invName(it),
+       meta:eqStatText(invDef(it))+(it.iid===mine?'　装備中':''),desc:invDescText(it)}))}
+  ];
+};
 
 /* =========================================================
    11. 個性エディタ
@@ -2101,6 +2386,8 @@ function openEditor(u){
     ? `${skillKind(SP[id])}／MP${SP[id].mp}／${SP[id].scope==='all'?'範囲':'単体'}／${TYPE_LABEL[SP[id].type]}　${SP[id].desc}`
     : SP.none.desc;
   const st=['atk','def','mat','mdf','spd'].map(k=>`<div class="sc"><u>${SN[k]}</u><b>${Math.round(stat(u,k))}</b></div>`).join('');
+  const TSLOT=traitSlots(u), SSLOT=spellSlots(u);   // 重複判定つきの枠
+  const eqT=TSLOT.find(x=>x.src==='eq'), eqS=SSLOT.find(x=>x.src==='eq');
   $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
     <header><h3>${u.name}</h3><span class="hint">${u.clsName} / ${u.side==='ally'?'味方':'敵'} / ${isFront(u)?'前列':'後列'} slot${u.slot}</span>
       <button class="btn x" id="closeM">閉じる</button></header>
@@ -2118,9 +2405,10 @@ function openEditor(u){
         <div class="sc"><u>MP</u><b>${u.mp}/${u.maxMp}</b></div>${st}
       </div>
       <div class="sechead">個性</div>
-      ${[0,1,2].map(i=>{ const id=u.traits[i]||'none';
+      ${[0,1,2].map(i=>{ const id=u.traits[i]||'none'; const dup=id!=='none'&&!TSLOT[i].live;
         return `<div class="slot"><label>個性${i+1}</label>
-          <button class="pk${id==='none'?' pk-none':''}" data-tslot="${i}" data-pkid="t${i}">${id==='none'?'— なし —':TRAITS[id].name}</button></div>
+          <button class="pk${id==='none'?' pk-none':''}${dup?' dup':''}" data-tslot="${i}" data-pkid="t${i}">${id==='none'?'— なし —':TRAITS[id].name}</button>
+          ${dup?'<span class="duptag">重複のため無効</span>':''}</div>
         <div class="tdesc" data-d="${i}">${TRAITS[id].desc}</div>`;}).join('')}
       <div class="cmds">
         <button class="btn" id="randT">職業の傾向で引き直す</button>
@@ -2130,22 +2418,27 @@ function openEditor(u){
 
       <div class="sechead">装備${canEquip(u)?'':'（人間職のみ・この職業は装備できません）'}</div>
       ${canEquip(u)?`
-        ${[['w','武器'],['a','防具']].map(([s,lb])=>{ const id=(u.equip&&u.equip[s])||'none';
+        ${[['w','武器'],['a','防具']].map(([s,lb])=>{ const it=eqItem(u,s);
+          const dup=s==='w'?(eqS&&eqS.id!=='none'&&!eqS.live):(eqT&&!eqT.live);
           return `<div class="slot"><label>${lb}</label>
-            <button class="pk${id==='none'?' pk-none':''}" data-eq="${s}" data-pkid="e${s}">${EQ[id]?EQ[id].n:'— なし —'}</button></div>
-          <div class="tdesc" data-ed="${s}">${EQ[id]&&EQ[id].stats?eqStatText(EQ[id])+'　'+EQ[id].desc:EQ.none.desc}</div>`;}).join('')}
-        <div class="slot"><label>付与個性</label>
-          <button class="pk${(u.equip&&u.equip.trait)?'':' pk-none'}" data-eqt="1" data-pkid="eqt">${(u.equip&&u.equip.trait)?TRAITS[u.equip.trait].name:'— なし —'}</button></div>
-        <div class="tdesc" data-eqd="1">${(u.equip&&u.equip.trait)?TRAITS[u.equip.trait].desc:'装備に個性は付いていません。'}</div>
-        <div class="seghint">装備由来の個性は<b>1ユニットにつき1つまで</b>です。武器と防具の両方に付けると実質5個性になり、既存のバランスが崩れるためです。</div>
-        <div class="cmds"><button class="btn" id="rollEq">装備を引き直す</button>
-          <button class="btn" id="clrEq">装備を外す</button></div>`
+            <button class="pk${it?'':' pk-none'}${dup?' dup':''}" data-eq="${s}" data-pkid="e${s}">${invName(it)}</button>
+            ${dup?'<span class="duptag">付与が重複のため無効</span>':''}</div>
+          <div class="tdesc" data-ed="${s}">${invDescText(it)}</div>`;}).join('')}
+        <div class="seghint"><b>候補に出るのは「編成 → 装備」で所持しているものだけ</b>です。他の人が着けているものは出ません。
+          武器にはスキル、防具には個性が<b>生成時に確定で</b>付いていることがあり、どちらも本人の3枠とは<b>別枠</b>です
+          （最大で個性4・スキル4）。魔物は装備できないぶん人間職が有利ですが、これは意図した差です。<br>
+          <b>既に持っているものが付いた場合は後ろ側が無効</b>になり、取り消し線で表示されます。
+          付与スキルの着脱に合わせて<b>オート行動も自動で増減</b>します。</div>
+        <div class="cmds"><button class="btn" id="rollEq">所持品から着け直す</button>
+          <button class="btn" id="clrEq">装備を外す</button>
+          <button class="btn" id="toInv">装備の一覧へ</button></div>`
         :'<div class="tdesc">魔物は装備できません。</div>'}
 
       <div class="sechead">スキル（魔法＝魔力依存・必中／特技＝攻撃力依存・命中判定あり）</div>
-      ${[0,1,2].map(i=>{ const id=u.spells[i]||'none';
+      ${[0,1,2].map(i=>{ const id=u.spells[i]||'none'; const dup=id!=='none'&&!SSLOT[i].live;
         return `<div class="slot"><label>スキル${i+1}</label>
-          <button class="pk${id==='none'?' pk-none':''}" data-sslot="${i}" data-pkid="s${i}">${id==='none'?'— なし —':SP[id].name}</button></div>
+          <button class="pk${id==='none'?' pk-none':''}${dup?' dup':''}" data-sslot="${i}" data-pkid="s${i}">${id==='none'?'— なし —':SP[id].name}</button>
+          ${dup?'<span class="duptag">重複のため無効</span>':''}</div>
         <div class="tdesc" data-sd="${i}">${spDesc(id)}</div>`;}).join('')}
       <div class="cmds">
         <button class="btn" id="randS">職業の傾向で引き直す</button>
@@ -2192,26 +2485,24 @@ function openEditor(u){
       renderGambits(u); render(); netBuild(u);
     });
   });
-  /* 装備の付け替え。ステータスに直接効くので、変えたら最大HP/MPを取り直す。 */
+  /* 装備の付け替え。ステータスに直接効くので、変えたら最大HP/MPを取り直す。
+     付与スキル・付与個性が変わるので、オート行動もここで追従させる。 */
+  const applyEquip=(fn)=>{
+    const before=eqSnapshot(u);
+    fn();
+    u.cnt={}; refreshVitals(u); resyncGambits(u,before);
+    saveLocal(); render(); netBuild(u); openEditor(u);
+  };
   M.querySelectorAll('[data-eq]').forEach(b=>b.onclick=()=>{
     const s=b.dataset.eq;
-    openPicker(b,equipGroups(s),(u.equip&&u.equip[s])||'none',v=>{
-      u.equip=u.equip||{w:'none',a:'none',trait:null,on:'w'};
-      u.equip[s]=v; refreshVitals(u); render(); netBuild(u); openEditor(u);
+    const cur=(u.equip&&u.equip[s]!=null)?String(u.equip[s]):'none';
+    openPicker(b,equipGroups(s,u),cur,v=>{
+      applyEquip(()=>{ u.equip=u.equip||emptyEquip(); u.equip[s]=v==='none'?null:+v; });
     });
   });
-  const eqtBtn=M.querySelector('[data-eqt]');
-  if(eqtBtn) eqtBtn.onclick=()=>{
-    openPicker(eqtBtn,traitGroups(),(u.equip&&u.equip.trait)||'none',v=>{
-      u.equip=u.equip||{w:'none',a:'none',trait:null,on:'w'};
-      u.equip.trait=v==='none'?null:v;
-      u.cnt={}; refreshVitals(u); render(); netBuild(u); openEditor(u);
-    });
-  };
-  if($('#rollEq')) $('#rollEq').onclick=()=>{ u.equip=rollEquip(u); u.cnt={}; refreshVitals(u);
-    render(); netBuild(u); openEditor(u); };
-  if($('#clrEq')) $('#clrEq').onclick=()=>{ u.equip={w:'none',a:'none',trait:null,on:'w'};
-    u.cnt={}; refreshVitals(u); render(); netBuild(u); openEditor(u); };
+  if($('#rollEq')) $('#rollEq').onclick=()=>applyEquip(()=>{ u.equip=rollEquip(u); });
+  if($('#clrEq'))  $('#clrEq').onclick =()=>applyEquip(()=>{ u.equip=emptyEquip(); });
+  if($('#toInv'))  $('#toInv').onclick =()=>{ saveLocal(); openRoster(u.side,null,'inv'); };
 
   // 職業の付け替え。HP/MP は割合を保つので、戦闘中に変えても即死しない。
   M.querySelector('[data-cls]').onclick=e=>{
@@ -2312,9 +2603,8 @@ function openViewer(u){
       <div class="sechead">スキル</div>
       ${list(spellsOf(u),id=>`<div class="tdesc"><b>${SP[id].name}</b>（${skillKind(SP[id])}・MP${SP[id].mp}・${SP[id].scope==='all'?'範囲':'単体'}） — ${SP[id].desc}</div>`)}
       ${eqOn(u)?`<div class="sechead">装備</div>
-        ${[['w','武器'],['a','防具']].map(([s,lb])=>{const d=EQ[u.equip[s]];
-          return d&&d.id!=='none'?`<div class="tdesc"><b>${d.n}</b>（${lb}） — ${eqStatText(d)}　${d.desc}</div>`:'';}).join('')}
-        ${u.equip.trait?`<div class="tdesc"><b>付与個性: ${TRAITS[u.equip.trait].name}</b> — ${TRAITS[u.equip.trait].desc}</div>`:''}`:''}
+        ${[['w','武器'],['a','防具']].map(([s,lb])=>{const it=eqItem(u,s);
+          return it?`<div class="tdesc"><b>${invName(it)}</b>（${lb}） — ${invDescText(it)}</div>`:'';}).join('')}`:''}
       <div class="seghint">対戦中は相手のユニットを編集できません。</div>
     </div></div></div>`;
   $('#closeM').onclick=closeEditor;
@@ -2339,8 +2629,14 @@ $('#speedSeg').onclick=e=>{ const b=e.target.closest('button'); if(!b)return;
 $('#autoBtn').onclick=()=>{ auto=!auto;
   $('#autoBtn').classList.toggle('on',auto); $('#autoBtn').textContent='自動戦闘 '+(auto?'ON':'OFF');
   if(auto&&resolveCmd&&current) send(aiAction(current)); };
-$('#stepBtn').onclick=()=>{ paused=!paused;
-  $('#stepBtn').textContent=paused?'再開':'一時停止'; $('#stepBtn').classList.toggle('on',paused); };
+/* 表示は「押した時どうなるか」ではなく「今どうなっているか」。
+   自動戦闘・装備と同じく、名詞＋ON/OFF で、光っていれば ON。 */
+function syncStepBtn(){
+  const b=$('#stepBtn'); if(!b)return;
+  b.textContent='一時停止 '+(paused?'ON':'OFF'); b.classList.toggle('on',paused);
+}
+$('#stepBtn').onclick=()=>{ paused=!paused; syncStepBtn();
+  addLog(paused?'一時停止しました':'戦闘を再開します','l-sys'); };
 $('#tlIn').onchange=e=>{
   const v=parseInt(e.target.value,10);
   turnLimit=(v>0&&v<=100000)?v:300;
@@ -2389,6 +2685,7 @@ function simOneBattle(limit){
   newBattleState();
   U.forEach(u=>{ u.name=u.name0||u.name; resetUnit(u);
     allTraits(u).forEach(id=>{ if(id!=='none') OWN[id]=(OWN[id]||0)+1; }); });
+  openingHooks();                // 集計でも「いきなり系」を同じように1回だけ通す
   while(turnNo<limit){
     const u=nextActor(); if(!u)break;
     time=u.ct; turnNo++;
@@ -2417,8 +2714,9 @@ function simOneBattle(limit){
 }
 
 let SIMRUN=null;
+let LASTSIM=null;              // 最後に完了した集計結果（自動・手動どちらでも）
 function runSim(times,limit){
-  if(SIMRUN||matchBlocked())return;
+  if(SIMRUN||AUTO.run||matchBlocked())return;
   abortLoop(); closePicker();
   const names=U.map(u=>u.name0||u.name);
   const st={n:0,times,limit,win:0,lose:0,draw:0,turns:0,aliveA:0,aliveF:0,dmgA:0,dmgF:0,
@@ -2442,34 +2740,146 @@ function runSim(times,limit){
     if(st.n<st.times){ setTimeout(step,0); return; }
     SIM=false; SIMRUN=null;
     st.ms=(performance&&performance.now?performance.now():Date.now())-st.t0;
+    st.proc=PROC; st.own=OWN; st.auto=false; st.sig=AUTO.sig; LASTSIM=st;
     // 盤面を初期状態に戻す（対戦は再開せず、パネルを閉じたときに動き出す）
     newBattleState();
     U.forEach((u,i)=>{ u.name=names[i]; resetUnit(u); });
-    logs=[]; render(); renderLog(); renderSimResult(st);
+    logs=[]; render(); renderLog(); renderSimResult(st); renderSimChip();
   };
   setTimeout(step,0);
 }
 
 function renderSimProgress(st){
+  renderSimChip();
   const o=$('#simOut'); if(!o)return;
   const pct=st.n/st.times*100;
   o.innerHTML=`<div class="simprog"><span style="width:${pct}%"></span></div>
     <div class="hint">${st.n} / ${st.times} 戦　—　味方 ${st.win} 勝 ／ 敵 ${st.lose} 勝 ／ 引き分け ${st.draw}</div>`;
 }
+
+/* =========================================================
+   12.6 自動集計
+
+   ビルドを変えたら裏で集計を回し、味方勝率だけを常に上に出す。
+   「変えた → 勝率がどう動いたか」をパネルを開かずに追えるようにするため。
+
+   盤面（U）は進行中の戦闘と共有している。同時に回すと壊れるので、
+   HOLD を立ててループがターンの切れ目で止まるのを待ち、
+   戦闘状態を退避 → 集計 → 書き戻す、という順で借りる。
+   ビルドが変わったかどうかは serSave（保存と同じ形）の文字列を見張って判定する。
+   render() から呼ぶと集計中（SIM=true で render が素通り）に検知できないので、
+   描画とは切り離した定期監視にしている。
+   ========================================================= */
+let AUTO={sig:null,timer:null,run:null,busy:false,gen:0,on:true,n:100};
+const nowMs=()=>(performance&&performance.now?performance.now():Date.now());
+
+function buildSig(){
+  try{ return JSON.stringify([U.map(serSave),EQUIP_ON,turnLimit]); }catch(e){ return null; }
+}
+function renderSimChip(){
+  const el=$('#simChip'); if(!el)return;
+  const set=(c,t)=>{ el.className='netchip '+c; el.textContent=t; };
+  if(SIMRUN) return set('run',`集計中 ${Math.round(SIMRUN.n/SIMRUN.times*100)}%`);
+  if(AUTO.run) return set('run',`自動集計 ${Math.round(AUTO.run.n/AUTO.run.times*100)}%`);
+  if(!AUTO.on) return set('off','自動集計 OFF');
+  if(!LASTSIM||LASTSIM.sig!==AUTO.sig) return set('run','集計待ち');
+  const r=LASTSIM.win/Math.max(1,LASTSIM.win+LASTSIM.lose)*100;
+  set(r>=60?'w':(r<=40?'l':'mid'),`味方勝率 ${r.toFixed(1)}%`);
+}
+/* ビルドの変化を見張る。変わったら走っている集計を捨てて回し直す。 */
+function watchBuild(){
+  if(LOADING||NET.matched)return;
+  const sig=buildSig(); if(sig===null||sig===AUTO.sig)return;
+  AUTO.sig=sig;
+  AUTO.gen++;                     // 走行中の自動集計はこれで無効になる
+  clearTimeout(AUTO.timer);
+  if(AUTO.on) AUTO.timer=setTimeout(runAutoSim,600);   // 連続操作が落ち着くまで待つ
+  renderSimChip();
+}
+setInterval(watchBuild,400);
+
+/* 戦闘状態の退避と書き戻し。
+   個性・スキル・装備・オート行動は集計で変わらないので、可変分だけを写す。 */
+function snapBattle(){
+  const cp=o=>{const r={};for(const k in o){const v=o[k];r[k]=(v&&typeof v==='object')?{...v}:v;}return r;};
+  return {time,turnNo,dmg:{...DMG},result:battleResult,started:battleStarted,
+    cur:current?current.id:null,logs:logs.slice(),
+    units:[...U,...BENCH].map(u=>({u,hp:u.hp,mp:u.mp,evade:u.evade,alive:u.alive,ct:u.ct,
+      guard:u.guard,lastAct:u.lastAct,name:u.name,
+      buffs:(u.buffs||[]).map(b=>({...b})),ail:cp(u.ail||{}),cnt:{...u.cnt},fired:{...u.fired}}))};
+}
+function restoreBattle(s){
+  time=s.time; turnNo=s.turnNo; DMG={...s.dmg}; battleResult=s.result; logs=s.logs;
+  battleStarted=s.started;
+  s.units.forEach(o=>{ const u=o.u;
+    u.hp=o.hp; u.mp=o.mp; u.evade=o.evade; u.alive=o.alive; u.ct=o.ct;
+    u.guard=o.guard; u.lastAct=o.lastAct; u.name=o.name;
+    u.buffs=o.buffs; u.ail=o.ail; u.cnt=o.cnt; u.fired=o.fired; });
+  current=s.cur!=null?[...U,...BENCH].find(x=>x.id===s.cur)||null:null;
+}
+
+async function runAutoSim(){
+  if(!AUTO.on||NET.matched)return;
+  // 手動集計などで塞がっている間は出直す。ここで黙って諦めると
+  // チップだけ古い勝率のまま残ってしまう。
+  // AUTO.busy … ループの停止待ちをしている間はまだ AUTO.run が立たないので、
+  // ここを守らないと二重に走り出せてしまう（タイマーと手動ONが重なるなど）。
+  if(SIM||SIMRUN||AUTO.run||AUTO.busy||LOADING){ clearTimeout(AUTO.timer); AUTO.timer=setTimeout(runAutoSim,800); return; }
+  if(!U.some(u=>u.side==='ally')||!U.some(u=>u.side==='foe')){ renderSimChip(); return; }
+  const gen=AUTO.gen, sig=AUTO.sig;
+  // ループがターンの切れ目で止まるのを待つ。手動コマンド待ちなどで止まらなければ出直す。
+  AUTO.busy=true; HOLD=true;
+  for(let i=0;running&&!loopParked;i++){
+    if(i>40||gen!==AUTO.gen){ HOLD=false; AUTO.busy=false;
+      if(gen===AUTO.gen) AUTO.timer=setTimeout(runAutoSim,1000); return; }
+    await sleep(60);
+  }
+  const snap=snapBattle(), keepP=PROC, keepO=OWN;
+  const st={n:0,times:AUTO.n,limit:turnLimit,win:0,lose:0,draw:0,turns:0,
+            aliveA:0,aliveF:0,dmgA:0,dmgF:0,t0:nowMs(),auto:true,sig};
+  PROC={}; OWN={}; SIM=true; AUTO.run=st;
+  const finish=(ok)=>{
+    SIM=false; AUTO.run=null; AUTO.busy=false; PROC=keepP; OWN=keepO;
+    restoreBattle(snap); HOLD=false;
+    if(ok){ LASTSIM=st; if($('#simOut')&&!SIMRUN) renderSimResult(st); }
+    renderSimChip(); render(); renderLog();
+  };
+  const step=()=>{
+    if(gen!==AUTO.gen||!AUTO.on){ finish(false); return; }   // ビルドがまた変わった
+    try{
+      const batch=Math.min(8,st.times-st.n);
+      for(let i=0;i<batch;i++){
+        const r=simOneBattle(st.limit);
+        if(r.result==='ally')st.win++; else if(r.result==='foe')st.lose++; else st.draw++;
+        st.turns+=r.turns; st.aliveA+=r.aliveA; st.aliveF+=r.aliveF;
+        st.dmgA+=r.dmgA; st.dmgF+=r.dmgF; st.n++;
+      }
+    }catch(e){ console.error('自動集計で例外',e); finish(false); return; }
+    renderSimChip();
+    if(st.n<st.times){ setTimeout(step,0); return; }
+    st.ms=nowMs()-st.t0; st.proc=PROC; st.own=OWN;
+    finish(true);
+  };
+  setTimeout(step,0);
+}
+$('#simChip').onclick=()=>openSimPanel();
 function renderSimResult(st){
-  const o=$('#simOut'); if(!o)return;
+  const o=$('#simOut'); if(!o||!st)return;
+  // 発動回数は結果に同梱して持ち歩く。自動集計と手動集計が交互に走っても混ざらない。
+  const PR=st.proc||{}, OW=st.own||{};
   const pc=v=>(v/st.times*100);
   const rate=(st.win/Math.max(1,st.win+st.lose)*100).toFixed(1);
   const nm=id=>TRAITS[id]?TRAITS[id].name:id;
-  const owned=TRAIT_IDS.filter(id=>OWN[id]);          // この試行で誰かが持っていた個性
-  const procs=Object.entries(PROC).sort((a,b)=>b[1]-a[1]);
+  const owned=TRAIT_IDS.filter(id=>OW[id]);          // この試行で誰かが持っていた個性
+  const procs=Object.entries(PR).sort((a,b)=>b[1]-a[1]);
   const top=procs.slice(0,16).map(([id,n])=>
-    `<span><b>${nm(id)}</b> <i>${(n/st.times).toFixed(1)}</i>/戦 <em>持${(OWN[id]/st.times).toFixed(1)}</em></span>`).join('');
+    `<span><b>${nm(id)}</b> <i>${(n/st.times).toFixed(1)}</i>/戦 <em>持${(OW[id]/st.times).toFixed(1)}</em></span>`).join('');
   // 「持っていたのに一度も効かなかった」個性だけが調整の手がかりになる。
-  const dead=owned.filter(id=>!PROC[id]&&!isPassiveTrait(id));
+  const dead=owned.filter(id=>!PR[id]&&!isPassiveTrait(id));
   const passive=owned.filter(id=>isPassiveTrait(id));
-  const unowned=TRAIT_IDS.filter(id=>!OWN[id]);
+  const unowned=TRAIT_IDS.filter(id=>!OW[id]);
   o.innerHTML=`
+    <div class="seghint" style="margin-bottom:6px">${st.auto?'ビルド変更で自動集計した結果':'「実行」で回した結果'}（${st.times} 戦 / 打切 ${st.limit} ターン）</div>`+`
     <div class="simbar">
       ${st.win?`<span class="w" style="flex:${st.win}">味方 ${st.win}</span>`:''}
       ${st.draw?`<span class="d" style="flex:${st.draw}">分 ${st.draw}</span>`:''}
@@ -2492,7 +2902,7 @@ function renderSimResult(st){
     </div>
     <div class="seghint">
       <b>常時型 ${passive.length} 種</b>（ステータスを常に補正するだけなので発動回数では測れない）：
-      ${passive.map(id=>`${nm(id)}${(OWN[id]/st.times).toFixed(1)}`).join('・')||'なし'}<br>
+      ${passive.map(id=>`${nm(id)}${(OW[id]/st.times).toFixed(1)}`).join('・')||'なし'}<br>
       これらは「持っている編成」と「持っていない編成」の勝率を比べて評価してください。<br><br>
       <b>今回誰も持たなかった個性 ${unowned.length} 種</b>（判断材料にはなりません）：
       ${unowned.length>24?unowned.slice(0,24).map(nm).join('・')+' ほか':unowned.map(nm).join('・')||'なし'}
@@ -2506,29 +2916,48 @@ function openSimPanel(){
       <button class="btn x" id="closeM">閉じる</button></header>
     <div class="mbody">
       <div class="netform">
-        <label>試行回数</label><input id="simN" value="100">
+        <label>試行回数</label><input id="simN" value="${lastManualN}">
         <label>打ち切りターン</label><input id="simL" value="${turnLimit}">
+        <label>自動集計の回数</label><input id="simAN" value="${AUTO.n}">
         <div class="seghint">
           描画とログを止めて一気に回します。<b>変わるのは戦闘中の乱数だけ</b>で、編成・職業・個性・スキル・オート行動はそのままです。<br>
           決着しなかった場合は<b>与えた総ダメージ</b>で判定します（毒・反動・倍化とオーバーキル分は数えません）。<br>
           結果の「持っていたのに効かなかった個性」だけが調整の手がかりです。<b>この編成に出ていない個性は判断できません</b>ので、
-          気になる個性は編集画面で持たせてから回してください。
+          気になる個性は編集画面で持たせてから回してください。<br><br>
+          <b>自動集計</b>は、個性・スキル・装備・職業・編成・オート行動・打切ターンのどれかを変えると
+          裏で走り、上の勝率チップを書き換えます。進行中の戦闘は退避して元に戻すので、戦闘は中断されません。
+          回数を増やすほど数字は安定しますが、変更のたびに待たされます。
         </div>
       </div>
-      <div class="cmds"><button class="btn" id="simGo">実行</button></div>
+      <div class="cmds">
+        <button class="btn" id="simGo">実行</button>
+        <button class="btn${AUTO.on?' on':''}" id="simAuto">自動集計 ${AUTO.on?'ON':'OFF'}</button>
+      </div>
       <div id="simOut"></div>
     </div></div></div>`;
-  const close=()=>{ closeEditor(); if(!running&&!SIMRUN){ render(); renderLog(); loop(); } };
+  if(LASTSIM) renderSimResult(LASTSIM);
+  else $('#simOut').innerHTML='<div class="seghint">まだ結果がありません。「実行」を押すか、ビルドを変えると自動で集計します。</div>';
+  const close=()=>{ closeEditor(); if(!running&&!SIMRUN&&!AUTO.run){ render(); renderLog(); loop(); } };
   $('#closeM').onclick=close;
   document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask')) close(); };
+  $('#simAuto').onclick=()=>{
+    AUTO.on=!AUTO.on;
+    $('#simAuto').classList.toggle('on',AUTO.on);
+    $('#simAuto').textContent='自動集計 '+(AUTO.on?'ON':'OFF');
+    saveLocal(); renderSimChip();
+    if(AUTO.on&&(!LASTSIM||LASTSIM.sig!==AUTO.sig)) runAutoSim();
+  };
   $('#simGo').onclick=()=>{
     const n=clamp(parseInt($('#simN').value,10)||100,1,5000);
     const l=clamp(parseInt($('#simL').value,10)||turnLimit,10,100000);
-    $('#simN').value=n; $('#simL').value=l;
+    const an=clamp(parseInt($('#simAN').value,10)||100,10,2000);
+    $('#simN').value=n; $('#simL').value=l; $('#simAN').value=an;
+    lastManualN=n; AUTO.n=an;
     turnLimit=l; $('#tlIn').value=l;
-    runSim(n,l);
+    saveLocal(); runSim(n,l);
   };
 }
+let lastManualN=100;
 $('#simBtn').onclick=openSimPanel;
 
 /* =========================================================
@@ -2554,6 +2983,7 @@ function rosterClone(u){
   if(matchBlocked())return;
   if(rosterOf(u.side).length>=ROSTER_MAX){ alert('これ以上増やせません'); return; }
   const c=JSON.parse(JSON.stringify(serSave(u)));
+  c.equip=null;          // 装備は個体なので複製しない。複製元と取り合いになる
   const n=buildUnit(c);
   n.name=n.name0=(u.side==='ally'?freshAllyName():monsterName(CLS[u.clsId],'foe'));
   BENCH.push(n); n.alive=false;
@@ -2580,14 +3010,30 @@ function buildUnit(o){
     buffs:[],ail:{},cnt:{},fired:{},evade:0,
     alive:true,ct:0,guard:false,lastAct:null,
     foeBoost:!!o.foeBoost,varia:o.varia||0.9+R(0.2),
-    equip:o.equip?JSON.parse(JSON.stringify(o.equip)):null};
+    equip:normEquip(o.equip)};
   applyClass(u,cls);
   if(!u.gambits.length) u.gambits=defaultGambits(u);
   resetUnit(u);
   return u;
 }
+/* 旧形式（u.equip が種類IDと付与を直接持っていた）の読み替え。
+   その場で所持品の個体を作って、参照だけを残す。 */
+function normEquip(e){
+  if(!e) return null;
+  if(typeof e.w==='string'||typeof e.a==='string'){
+    const mk=(sid,slot)=>{ const def=EQ[sid];
+      if(!def||def.id==='none'||def.slot!==slot) return null;
+      const it={iid:++iidc,id:def.id,slot,spell:null,trait:null};
+      if(slot==='w') it.spell=e.spell||null; else it.trait=e.trait||null;
+      INV.push(it); return it.iid; };
+    return {w:mk(e.w,'w'), a:mk(e.a,'a')};
+  }
+  return {w:e.w==null?null:+e.w, a:e.a==null?null:+e.a};
+}
 function saveData(){
-  return {v:1,turnLimit,equipOn:EQUIP_ON,units:[...U,...BENCH].map(serSave)};
+  return {v:2,turnLimit,equipOn:EQUIP_ON,autoSim:AUTO.on,autoSimN:AUTO.n,
+    inv:INV.map(it=>({iid:it.iid,id:it.id,slot:it.slot,spell:it.spell,trait:it.trait})),
+    units:[...U,...BENCH].map(serSave)};
 }
 function applySave(d){
   if(!d||!Array.isArray(d.units)||!d.units.length) throw new Error('ユニットが入っていません');
@@ -2595,8 +3041,17 @@ function applySave(d){
   try{
     abortLoop(); closeEditor();
     U=[];BENCH=[];uidc=0;logs=[];newBattleState();
+    INV=[]; iidc=0;
     turnLimit=d.turnLimit||300; if($('#tlIn')) $('#tlIn').value=turnLimit;
     EQUIP_ON=d.equipOn!==false; syncEquipBtn();
+    AUTO.on=d.autoSim!==false; AUTO.n=clamp(parseInt(d.autoSimN,10)||100,10,2000);
+    // 所持装備を先に戻す。ユニットは iid で参照するだけなので順序が大事。
+    if(Array.isArray(d.inv)) d.inv.forEach(o=>{
+      const def=EQ[o.id]; if(!def||!def.slot)return;
+      const iid=+o.iid||(iidc+1);
+      INV.push({iid,id:o.id,slot:def.slot,spell:o.spell||null,trait:o.trait||null});
+      iidc=Math.max(iidc,iid);
+    });
     d.units.forEach(o=>{ const u=buildUnit(o);
       if(o.dep&&!unitAt(u.side,u.slot)) U.push(u); else { u.alive=false; BENCH.push(u); } });
     if(!U.length) throw new Error('出撃しているユニットがありません');
@@ -2619,7 +3074,7 @@ function unitLine(u){
   const tr=u.traits.filter(t=>t!=='none').map(t=>TRAITS[t].name).join('・')||'個性なし';
   const et=eqTraits(u).map(t=>TRAITS[t].name);
   const sp=spellsOf(u).map(id=>SP[id].name).join('・')||'スキルなし';
-  const eq=eqOn(u)?[EQ[u.equip.w],EQ[u.equip.a]].filter(d=>d&&d.id!=='none').map(d=>d.n).join('・'):'';
+  const eq=eqOn(u)?['w','a'].map(s=>invDef(eqItem(u,s))).filter(Boolean).map(d=>d.n).join('・'):'';
   return `<div class="rrow${dep?' dep':''}" data-uid="${u.id}">
     <span class="rpos">${dep?'出'+(u.slot+1):'控'}</span>
     <span class="rmain">
@@ -2633,28 +3088,53 @@ function unitLine(u){
       <button data-act="del">削除</button>
     </span></div>`;
 }
-function openRoster(side,targetSlot){
+let rosterTab='unit';           // 'unit' … ユニット ／ 'inv' … 装備
+function openRoster(side,targetSlot,tab){
   if(matchBlocked())return;
   closePicker();
   rosterSide=side||rosterSide; rosterTarget=targetSlot==null?null:targetSlot;
+  if(tab) rosterTab=tab;
+  const isInv=rosterTab==='inv';
   $('#modalHost').innerHTML=`<div class="mask"><div class="modal wide">
-    <header><h3>編成</h3><span class="hint">出撃は最大7人。控えと合わせて1陣営 ${ROSTER_MAX} 人まで</span>
+    <header><h3>編成</h3><span class="hint">${isInv?`装備は全体で ${INV_MAX} 個まで。人間職だけが装備できます`
+      :`出撃は最大7人。控えと合わせて1陣営 ${ROSTER_MAX} 人まで`}</span>
       <button class="btn x" id="closeM">閉じる</button></header>
     <div class="mbody">
-      <div class="esteps" id="rSide">
+      <div class="esteps" id="rTab">
+        <button data-t="unit" class="${isInv?'':'on'}">ユニット</button>
+        <button data-t="inv" class="${isInv?'on':''}">装備</button>
+      </div>
+      ${isInv?'':`<div class="esteps" id="rSide">
         <button data-s="ally" class="${rosterSide==='ally'?'on':''}">味方</button>
         <button data-s="foe" class="${rosterSide==='foe'?'on':''}">敵</button>
-      </div>
+      </div>`}
       <div id="rInfo" class="seghint"></div>
       <div class="cmds">
-        <button class="btn" id="rAdd">＋ 新しく作る</button>
-        <button class="btn" id="rFill">空きスロットを控えから埋める</button>
-        <button class="btn" id="rClearOut">全員を控えに戻す</button>
+        ${isInv?`<button class="btn" id="iAdd">＋ 生成（1個）</button>
+          <button class="btn" id="iAdd10">＋ 生成（10個）</button>
+          <button class="btn" id="iDelFree">未装備をすべて削除</button>`
+        :`<button class="btn" id="rAdd">＋ 新しく作る</button>
+          <button class="btn" id="rFill">空きスロットを控えから埋める</button>
+          <button class="btn" id="rClearOut">全員を控えに戻す</button>`}
       </div>
       <div id="rList" class="rlist"></div>
     </div></div></div>`;
   $('#closeM').onclick=()=>{ saveLocal(); closeEditor(); };
   document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask')){ saveLocal(); closeEditor(); } };
+  document.querySelectorAll('#rTab button').forEach(b=>b.onclick=()=>{
+    rosterTab=b.dataset.t; rosterTarget=null; openRoster(rosterSide,null); });
+  if(isInv){
+    const reopen=()=>{ saveLocal(); render(); openRoster(rosterSide,null); };
+    $('#iAdd').onclick=()=>{ invAddN(1); reopen(); };
+    $('#iAdd10').onclick=()=>{ invAddN(10); reopen(); };
+    $('#iDelFree').onclick=()=>{
+      const free=INV.filter(it=>!equippedBy(it.iid));
+      if(!free.length){ alert('未装備の装備はありません'); return; }
+      if(!confirm(`未装備の ${free.length} 個を削除します。よろしいですか？`))return;
+      INV=INV.filter(it=>!!equippedBy(it.iid)); reopen(); };
+    renderInv();
+    return;
+  }
   document.querySelectorAll('#rSide button').forEach(b=>b.onclick=()=>{
     rosterSide=b.dataset.s; rosterTarget=null; openRoster(rosterSide,null); });
   $('#rAdd').onclick=()=>{ rosterAdd(rosterSide); openRoster(rosterSide,rosterTarget); };
@@ -2665,6 +3145,40 @@ function openRoster(side,targetSlot){
     U.filter(x=>x.side===rosterSide).slice().forEach(bench);
     saveLocal(); syncCountUI(); render(); openRoster(rosterSide,null); };
   renderRoster();
+}
+function invAddN(n){
+  let made=0;
+  for(let i=0;i<n;i++){ if(INV.length>=INV_MAX)break; invCreate(); made++; }
+  if(made<n) alert(`装備は ${INV_MAX} 個までです（${made}個だけ作りました）`);
+}
+/* 装備一覧。装備中のものは誰が着けているかを出し、削除を封じる。 */
+function renderInv(){
+  const list=$('#rList'); if(!list)return;
+  const w=invSlot('w').length, a=invSlot('a').length;
+  const used=INV.filter(it=>equippedBy(it.iid)).length;
+  $('#rInfo').innerHTML=`所持 ${INV.length} / ${INV_MAX}　（武器 ${w}・防具 ${a}）　装備中 ${used}　未装備 ${INV.length-used}<br>
+    <b>生成すると16種から1種が選ばれ、付与スキル／付与個性もその場で確定します。</b>あとから引き直すことはできません。
+    <b>装備中のものは削除できません</b>（先に持ち主の編集画面で外してください）。`;
+  const rows=INV.slice().sort((x,y)=> (x.slot===y.slot?0:(x.slot==='w'?-1:1)) || x.iid-y.iid );
+  list.innerHTML=rows.map(it=>{
+    const d=invDef(it), by=equippedBy(it.iid);
+    const b=invBonusText(it)?`<em>${invBonusText(it)}</em>`:'<span class="rnone">付与なし</span>';
+    return `<div class="rrow${by?' dep':''}" data-iid="${it.iid}">
+      <span class="rpos">${it.slot==='w'?'武器':'防具'}</span>
+      <span class="rmain">
+        <b>${d?d.n:'?'}</b><i>${d?eqStatText(d):''}</i><br>
+        <span class="rsub">${b}${by?`　／　<b>${by.name}</b> が装備中`:'　／　未装備'}</span>
+      </span>
+      <span class="rbtn">
+        <button data-act="del"${by?' disabled title="装備中は削除できません"':''}>削除</button>
+      </span></div>`;}).join('')||'<div class="tdesc">装備をまだ持っていません。「生成」で作ってください。</div>';
+  list.querySelectorAll('.rrow').forEach(row=>{
+    const iid=+row.dataset.iid;
+    const b=row.querySelector('[data-act="del"]');
+    if(b&&!b.disabled) b.onclick=()=>{
+      if(!invDelete(iid)){ alert('装備中のため削除できません'); return; }
+      saveLocal(); render(); renderInv(); };
+  });
 }
 function renderRoster(){
   const list=$('#rList'); if(!list)return;
@@ -3107,12 +3621,17 @@ fetch('/api/state').then(r=>r.json()).then(s=>{
    保存があればそれを使う。壊れていたら黙って新規生成に落とす。 */
 (function boot(){
   applyMobile();
+  syncStepBtn();
+  /* 起動直後は一時停止 ON。編成・個性を決め終えてから解除してもらう。 */
+  const hint=()=>addLog('一時停止 ON で始まります。編成を決めたら解除してください','l-sys');
   const d=loadLocal();
   if(d){
-    try{ applySave(d); addLog('前回の編成を読み込みました','l-sys'); syncEquipBtn(); return; }
+    try{ applySave(d); addLog('前回の編成を読み込みました','l-sys'); hint(); syncEquipBtn();
+      watchBuild(); return; }
     catch(e){ console.warn('保存が読めないので作り直します',e); }
   }
-  setup(); syncEquipBtn(); render(); renderLog(); loop(); saveLocal();
+  setup(); syncEquipBtn(); render(); renderLog(); hint(); loop(); saveLocal();
+  watchBuild();          // 起動直後の編成でも勝率を1回出しておく
 })();
 </script>
 </body>
