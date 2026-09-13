@@ -170,7 +170,10 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 @keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .u.lunge-l{transform:translateX(-10px)} .u.lunge-r{transform:translateX(10px)}
 .uh{display:flex;align-items:center;gap:5px}
-.pip{width:17px;height:17px;flex:0 0 auto;border-radius:2px;display:grid;place-items:center;font-size:9px;font-weight:700;font-family:var(--mono)}
+/* 職業チップ。人間職だけに出す（魔物は名前が種族そのものなので要らない）。
+   日本語2〜3文字が入るので固定幅はやめ、内容に合わせて伸ばす。 */
+.pip{flex:0 0 auto;border-radius:2px;padding:1px 4px;font-size:9px;font-weight:700;
+  line-height:1.5;white-space:nowrap}
 .side.ally .pip{background:var(--ally-dim);color:var(--ally)}
 .side.foe .pip{background:var(--foe-dim);color:var(--foe)}
 .un{font-size:11.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -374,7 +377,7 @@ body.mobile .mrow{display:flex;flex-direction:column;gap:2px;margin-bottom:4px}
 body.mobile .mrl{font-size:8px;letter-spacing:.18em;color:#5f586f;padding-left:2px}
 body.mobile .mcards{display:flex;gap:4px;align-items:stretch}
 body.mobile .u{flex:1 1 0;min-width:0;padding:4px 4px 5px;gap:2px}
-body.mobile .pip{width:14px;height:14px;font-size:7.5px}
+body.mobile .pip{font-size:7.5px;padding:0 3px}
 body.mobile .un{font-size:9.5px}
 body.mobile .uc{font-size:8px}
 body.mobile .nums{font-size:7.5px}
@@ -470,7 +473,7 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
   </div>
 
   <p class="legend"><b>職業</b>は人間職8種と魔物12種。<b>編成では職業・種族が重複します</b>（同じ職が並ぶこともあります）。
-  <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ドーセ</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存・必中）と<b>特技</b>（攻撃力依存・命中判定あり）が同じ3枠を奪い合います。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
+  <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ドヨド</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存・必中）と<b>特技</b>（攻撃力依存・命中判定あり）が同じ3枠を奪い合います。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
   <b>タグ特効</b> — 《人斬り》《射落とし》《不死狩り》《獣狩り》《石砕き》は、相手の<b>職業タグ</b>を見て与ダメージを上げます。
   倍率はタグの珍しさで変えてあり、<b>人型（20職中13職）は+30%、獣・無機（各2職）は+60%</b>です。
   相手の顔ぶれによって価値が変わる唯一の要素なので、<b>編成は自分だけでなく相手も見る</b>ことになります。<br>
@@ -480,9 +483,12 @@ body.mobile .pksearch{min-height:46px;font-size:14px}
   <b>打切</b>の手数を超えると戦闘を打ち切り、<b>与えた総ダメージ</b>で判定します（残HP判定だと守りを固めた判定勝ちが成立するため）。
   <b>集計</b>は編成を固定したまま指定回数を一気に回し、勝率と個性の発動回数を出します。
   <b>ビルドを変えると裏で自動集計が走り</b>、上部のチップに味方勝率が出ます（回数とON/OFFは集計パネル）。<br>
-  <b>魔法の名前</b>は造語の規則で組んであります。<b>語尾で系統</b>（<b>ヤ</b>＝燃やし／攻撃、<b>チ</b>＝治し／回復、<b>ゲ</b>＝上げ／強化、<b>サ</b>＝下げ／弱体、<b>セ</b>＝させ／状態異常）、
-  <b>語根で対象</b>（ホ炎・ワ腕力・マ守り・ハ速さ・ヨ避け・キ傷・ヤ病・ド毒・ネ眠り）、頭に付く <b>ミナ</b>＝全体、<b>ダ</b>＝大。
-  たとえば<b>ミナマーサ</b>は「皆＋守り＋下げ」で敵全体の防御力ダウンです。種族専用魔法だけは規則の外の固有名詞です（<b>ハガクレ</b>）。特技は漢字・ひらがなで表します。<br>
+  <b>魔法の名前</b>は造語の規則で組んであります。<b>語尾が系統</b>で、動詞の連用形なのでそのまま読めます
+  ——<b>ヤキ</b>（焼き＝攻撃）・<b>イヤ</b>（癒＝回復）・<b>マシ</b>（増し＝強化）・<b>ソギ</b>（削ぎ＝弱体）・<b>ヨド</b>（淀み＝状態異常）。
+  <b>語根が対象</b>（ホ炎・ワ腕力・ボ防御・ハ速さ・ヨ回避・キ傷・ド毒・ネ眠り）、頭に付く <b>ミナ</b>＝全体、<b>ダ</b>＝大。
+  同じ母音が続くときは長音にまとめます（キ＋イヤ→<b>キーヤ</b>）。
+  たとえば<b>ミナボソギ</b>は「皆＋防御＋削ぎ」で敵全体の防御力ダウンです。
+  種族専用魔法だけは規則の外の固有名詞です（<b>ハガクレ・クレナイ・ホロビ・ネムリバナ</b>）。特技は漢字・ひらがなで表します。<br>
   <b>装備</b>は人間職だけが持てます（武器1・防具1）。基本はステータス補正ですが、
   <b>武器にはまれにスキル</b>、<b>防具にはまれに個性</b>が付きます（どちらも緑のチップ）。
   これは本人の3枠とは<b>別枠</b>なので、最大で個性4・スキル4になります。魔物は装備できないぶん人間職が有利です。
@@ -562,6 +568,21 @@ function killer(id,name,tag,mul){
 /* 「いきなり系」の型。戦闘開始時に1回だけ動く。
    emit('battleStart') は戦闘ごとに1度しか飛ばないので、ここで掛けたバフは
    仕切り直すまで二度と乗らない（＝編成の意思が盤面に出る）。 */
+
+/* 素質（強靭・叡智・魔結界・韋駄天）の型。
+   ★ 常時の掛け算ではなく、戦闘開始時に自分へ掛かる「永続バフ」として持つ ★
+   こうすると《共有》《共鳴》が拾えるようになり、素質を配るビルドが成立する。
+   perm  … ターン経過で減らない。《手綱》も《奪取》も触らない
+   stack … 同じ素質が複数人から配られたら足し算で積む（最大値で上書きしない）
+   最大HP/MPだけはバフで表現できないので、今までどおり vital の常時補正のまま。 */
+function talent(id,name,stat,value,desc,vital){
+  const t={name,cat:'素質',desc,
+    battleStart(s){ if(!s.alive)return;
+      addBuff(s,{label:name,stat,value,turns:1,kind:'buff',perm:true,stack:true},s);
+      fire(s,id);}};
+  if(vital) t.vital=vital;
+  return t;
+}
 const TRAITS = {
 /* ---------- バフ・デバフの受け渡し ---------- */
 share:{name:'共有',cat:'受け渡し',desc:'自分がバフを得た時、味方全体に同じバフを60%の値で配る（連鎖は1段まで）。',
@@ -578,11 +599,11 @@ reflect:{name:'反射',cat:'受け渡し',desc:'自分がデバフを受けた�
     if(!c.source||c.source.side===s.side||!c.source.alive)return;
     proc(s,'reflect',`${c.buff.label}を${c.source.name}へ反射`);
     addBuff(c.source,{...c.buff,gen:1,src:'反射'},s);}},
-steal:{name:'奪取',cat:'受け渡し',desc:'自分の通常攻撃が命中した時、その相手が持っているバフをすべて奪い取る。特技・魔法では働かない。',
+steal:{name:'奪取',cat:'受け渡し',desc:'自分の通常攻撃が命中した時、その相手が持っているバフをすべて奪い取る。素質は生まれつきなので奪えない。特技・魔法では働かない。',
   dealt(s,c){ if(c.attacker!==s||!c.normal||!s.alive)return;
-    const t=c.target, got=t.buffs.filter(b=>b.kind==='buff');
+    const t=c.target, got=t.buffs.filter(b=>b.kind==='buff'&&!b.perm);
     if(!got.length)return;
-    t.buffs=t.buffs.filter(b=>b.kind!=='buff');
+    t.buffs=t.buffs.filter(b=>b.kind!=='buff'||b.perm);
     proc(s,'steal',`${t.name}から ${got.map(b=>b.label).join('・')} を奪取`);
     got.forEach(b=>addBuff(s,{...b,gen:1,src:'奪取'},s));}},
 cover:{name:'肩代わり',cat:'受け渡し',desc:'同列で隣接する味方への被弾を、自分が代わりに受ける（自分のHPが30%以上の時）。',
@@ -661,7 +682,7 @@ tsuishou:{name:'追唱',cat:'連携',desc:'味方が攻撃魔法を唱えた時�
     if(c.spell.type!=='atk'||isArt(c.spell))return;     // 追「唱」なので特技には乗らない
     if(s.cnt.tsuishouUsed)return;
     // 消費はコピー元に比例させる。mpCost を通すので《増幅》の1.5倍も《消費軽減》の3/4もここに乗る。
-    // 固定4MPだとミナホーヤ(24)を1/6の値段で写せてしまい、強い魔法ほど得という歪みが出る。
+    // 固定4MPだとミナホヤキ(24)を1/6の値段で写せてしまい、強い魔法ほど得という歪みが出る。
     const cost=tsuishouCost(s,c.spell);
     if(s.mp<cost)return;
     s.cnt.tsuishouUsed=1; s.mp-=cost;
@@ -726,11 +747,11 @@ kasoku:{name:'加速',cat:'習熟',desc:'自分の手番終了時、最も出番
 /* ---------- 状態・資源・確率・弱い個性 ---------- */
 dokuchi:{name:'毒血',cat:'状態',desc:'自分が毒状態の間、攻撃力+45%。毒ダメージも半減する。',
   mod(s,k){ if(!s.ail.poison)return 1; if(k==='atk'||k==='mat'){s.fired.dokuchi=2;return 1.45;} return 1;}},
-seijou:{name:'清浄',cat:'状態',desc:'バフ・デバフ・状態異常が1つも無い間、全能力+10%。',
-  mod(s,k){ if(s.buffs.length||s.ail.poison)return 1; s.fired.seijou=2; return 1.10;}},
+seijou:{name:'清浄',cat:'状態',desc:'バフ・デバフ・状態異常が1つも無い間、全能力+10%。素質は生まれつきなので数に入らない。',
+  mod(s,k){ if(s.buffs.some(b=>!b.perm)||s.ail.poison)return 1; s.fired.seijou=2; return 1.10;}},
 seimei:{name:'生命転用',cat:'資源',desc:'MPが足りない時、不足分の2倍のHPを支払って魔法を唱えられる。'},
 kouun:{name:'強運',cat:'確率',desc:'会心率+18%、回避率+8%。', crit(){return 0.18;}, eva(){return 0.08;}},
-karuwaza:{name:'軽業',cat:'確率',desc:'回避率+14%。「ヨーゲ」や素早さの差と足し合わさり、上限50%まで伸びる。',
+karuwaza:{name:'軽業',cat:'確率',desc:'回避率+14%。「ヨマシ」や素早さの差と足し合わさり、上限50%まで伸びる。',
   eva(){return 0.14;}},
 mustHit:{name:'必中',cat:'確率',desc:'通常攻撃と特技が外れなくなる。相手の回避が高いほど効く。'
   +'ただし「攻撃1回回避」（ハガクレ）は貫けない。'},
@@ -746,14 +767,15 @@ kibunya:{name:'気分屋',cat:'弱',desc:'自分の手番開始時、ランダ�
     proc(s,'kibunya',`${SN[st]}${up?'+':''}${Math.round(v*100)}%`);}},
 /* ---------- 素質（基礎パラメータの底上げ） ----------
    役割の狭いものほど数値を厚くしてある。素早さは「手番そのものが増える」ので抑えめ。 */
-kyoujin:{name:'強靭',cat:'素質',desc:'最大HP+40%、防御+40%。',
-  vital:{hp:1.4}, mod(s,k){ if(k!=='def')return 1; s.fired.kyoujin=2; return 1.4;}},
-eichi:{name:'叡智',cat:'素質',desc:'最大MP+60%、魔力+40%。MPは魔法を使わない職には無価値なので厚め。',
-  vital:{mp:1.6}, mod(s,k){ if(k!=='mat')return 1; s.fired.eichi=2; return 1.4;}},
-makekkai:{name:'魔結界',cat:'素質',desc:'魔防+60%。物理型の相手には効かないぶん厚くしてある。',
-  mod(s,k){ if(k!=='mdf')return 1; s.fired.makekkai=2; return 1.6;}},
-idaten:{name:'韋駄天',cat:'素質',desc:'素早さ+30%。手番が増えるという意味なので、他の素質より控えめ。',
-  mod(s,k){ if(k!=='spd')return 1; s.fired.idaten=2; return 1.3;}},
+kyoujin: talent('kyoujin','強靭','def',0.40,
+  '最大HP+40%。さらに戦闘開始時、防御+40%の永続バフが自分に乗る（《共有》で配れる）。',{hp:1.4}),
+eichi:   talent('eichi','叡智','mat',0.40,
+  '最大MP+60%。さらに戦闘開始時、魔力+40%の永続バフが自分に乗る（《共有》で配れる）。'
+  +'MPは魔法を使わない職には無価値なので厚め。',{mp:1.6}),
+makekkai:talent('makekkai','魔結界','mdf',0.60,
+  '戦闘開始時、魔防+60%の永続バフが自分に乗る（《共有》で配れる）。物理型の相手には効かないぶん厚くしてある。'),
+idaten:  talent('idaten','韋駄天','spd',0.30,
+  '戦闘開始時、素早さ+30%の永続バフが自分に乗る（《共有》で配れる）。手番が増えるという意味なので、他の素質より控えめ。'),
 
 /* ---------- 資源（MPまわり） ---------- */
 mashield:{name:'魔盾',cat:'資源',desc:'HPが減る時、MPがあればMPで肩代わりする。毒や反動にも効く。《生命転用》とちょうど逆向き。'},
@@ -825,9 +847,11 @@ tazuna:{name:'手綱',cat:'持続',desc:'自分にバフ・デバフが掛かっ
   buffApplied(s,c){ if(c.unit!==s||!s.alive)return;
     let up=0,dn=0;
     // 今まさに掛かったものも対象。デバフは掛かった瞬間に1ターン削られる。
-    s.buffs.forEach(b=>{ if(b.kind==='buff'){ b.turns++; up++; } else { b.turns--; dn++; } });
+    // perm（素質）は時間の概念が無いので触らない。
+    s.buffs.forEach(b=>{ if(b.perm)return;
+      if(b.kind==='buff'){ b.turns++; up++; } else { b.turns--; dn++; } });
     const before=s.buffs.length;
-    s.buffs=s.buffs.filter(b=>b.turns>0);
+    s.buffs=s.buffs.filter(b=>b.perm||b.turns>0);
     if(!up&&!dn)return;
     const gone=before-s.buffs.length;
     proc(s,'tazuna',`強化${up}件を延長・弱体${dn}件を短縮`+(gone?`（${gone}件が消滅）`:''));}},
@@ -983,42 +1007,49 @@ function traitAllowed(t,cls){
            ※ 編集画面のピッカーは検証用なので needs を無視して全部選べる。
    ========================================================= */
 /* 魔法の名前は造語の規則で組んである。
-       [ミナ（全体）／ダ（大）] ＋ 語根 ＋ ー ＋ 語尾
-   語尾 … ヤ=燃やし（攻撃） チ=治し（回復） ゲ=上げ（強化） サ=下げ（弱体） セ=させ（状態異常）
-   語根 … ホ炎 ワ腕力 マ守り ハ速さ ヨ避け キ傷 ヤ病 ド毒 ネ眠り
-   例）ミナマーサ ＝ 皆＋守り＋下げ ＝ 敵全体の防御力ダウン。
-   種族専用の魔法だけは規則の外に置き、固有名詞にする（ハガクレ）。 */
+       [ミナ（全体）／ダ（大）] ＋ 語根 ＋ 語尾
+
+   ★ 語尾は「動詞の連用形」にしてある ★
+   記号ではなく意味を持たせることで、覚えなくても読める。
+   とくに マシ（増し）と ソギ（削ぎ）は、強化と弱体を取り違えようがない。
+     ヤキ = 焼き（攻撃） イヤ = 癒（回復） マシ = 増し（強化）
+     ソギ = 削ぎ（弱体） ヨド = 淀み（状態異常）
+   語根 … ホ炎 ワ腕力 ボ防御 ハ速さ ヨ回避 キ傷 ド毒 ネ眠り（マは魔力用に空けてある）
+
+   同じ母音が続いたら長音にまとめる。キ＋イヤ → キーヤ。
+   例）ミナボソギ ＝ 皆＋防御＋削ぎ ＝ 敵全体の防御力ダウン。
+   種族専用の魔法だけは規則の外に置き、固有名詞にする（ハガクレ・クレナイ・ホロビ・ネムリバナ）。 */
 const SPELLS=[
  /* ---------- 魔法（魔力依存・必中） ---------- */
- {id:'fire',   name:'ホーヤ',      kind:'magic',type:'atk',   scope:'one', mp:8,  power:1.7,
+ {id:'fire',   name:'ホヤキ',      kind:'magic',type:'atk',   scope:'one', mp:8,  power:1.7,
   desc:'単体に魔力×1.7の魔法ダメージ。魔防で軽減される。'},
- {id:'inferno',name:'ミナホーヤ',  kind:'magic',type:'atk',   scope:'all', mp:24, power:1.0,
+ {id:'inferno',name:'ミナホヤキ',  kind:'magic',type:'atk',   scope:'all', mp:24, power:1.0,
   desc:'敵全体に魔力×1.0の魔法ダメージ。敵が多いほど総ダメージが伸びる。'},
- {id:'blast',  name:'ダホーヤ',    kind:'magic',type:'atk',   scope:'one', mp:16, power:2.8,
+ {id:'blast',  name:'ダホヤキ',    kind:'magic',type:'atk',   scope:'one', mp:16, power:2.8,
   desc:'単体に魔力×2.8の大魔法ダメージ。単体火力の最上位。'},
- {id:'heal',   name:'キーチ',      kind:'magic',type:'heal',  scope:'one', mp:8,  power:1.6,
+ {id:'heal',   name:'キーヤ',      kind:'magic',type:'heal',  scope:'one', mp:8,  power:1.6,
   desc:'単体のHPを魔力×1.6ぶん回復。最大HP超過分は「余剰」の変換対象。'},
- {id:'mheal',  name:'ミナキーチ',  kind:'magic',type:'heal',  scope:'all', mp:56, power:0.9,
+ {id:'mheal',  name:'ミナキーヤ',  kind:'magic',type:'heal',  scope:'all', mp:56, power:0.9,
   desc:'味方全体のHPを魔力×0.9ぶん回復。消費が重く、連発はできない。'},
- {id:'cure',   name:'ヤーチ',      kind:'magic',type:'cure',  scope:'one', mp:12,
+ {id:'cure',   name:'ヨドイヤ',    kind:'magic',type:'cure',  scope:'one', mp:12,
   desc:'味方単体の状態異常をすべて解除する。毒・眠り・休みのどれでも治る。'},
- {id:'rally',  name:'ワーゲ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
+ {id:'rally',  name:'ワマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
   desc:'味方単体の攻撃力+35%（3ターン）。「共有」「共鳴」「奪取」の起点になる。'},
- {id:'haste',  name:'ハーゲ',      kind:'magic',type:'buff',  scope:'one', mp:8,  stat:'spd',value:0.35, turns:3,
+ {id:'haste',  name:'ハマシ',      kind:'magic',type:'buff',  scope:'one', mp:8,  stat:'spd',value:0.35, turns:3,
   desc:'味方単体の素早さ+35%（3ターン）。行動順が繰り上がる。'},
- {id:'guardup',name:'マーゲ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'def',value:0.40, turns:3,
+ {id:'guardup',name:'ボマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'def',value:0.40, turns:3,
   desc:'味方単体の防御力+40%（3ターン）。「肩代わり」役を延命させる。'},
- {id:'blur',   name:'ヨーゲ',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
+ {id:'blur',   name:'ヨマシ',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
   desc:'味方単体の回避率+22%（3ターン）。素早さの差や《軽業》と足し合わさる。《必中》には無効。'},
- {id:'weaken', name:'ワーサ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
+ {id:'weaken', name:'ワソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
   desc:'敵単体の攻撃力-30%（3ターン）。「反射」持ちに撃つと跳ね返る。'},
- {id:'breach', name:'ミナマーサ',  kind:'magic',type:'debuff',scope:'all', mp:18, stat:'def',value:-0.28,turns:3,
+ {id:'breach', name:'ミナボソギ',  kind:'magic',type:'debuff',scope:'all', mp:18, stat:'def',value:-0.28,turns:3,
   desc:'敵全体の防御力-28%（3ターン）。物理アタッカーの前準備。'},
- {id:'slow',   name:'ハーサ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
+ {id:'slow',   name:'ハソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
   desc:'敵単体の素早さ-30%（3ターン）。行動順を後ろへ落とす。'},
- {id:'venom',  name:'ドーセ',      kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
+ {id:'venom',  name:'ドヨド',      kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
   desc:'敵単体を毒状態に（4ターン）。毎手番終了時に最大HPの5%を失う。「毒血」の起点。'},
- {id:'sleep',  name:'ネーセ',      kind:'magic',type:'ail',   scope:'one', mp:10, ail:'sleep',
+ {id:'sleep',  name:'ネヨド',      kind:'magic',type:'ail',   scope:'one', mp:10, ail:'sleep',
   desc:'敵単体を眠らせる。次の手番を失い、その間は被ダメージ2倍・個性が働かない。殴れば起きる。'},
  {id:'leafdance',name:'ハガクレ',  kind:'magic',type:'evade',scope:'one',mp:10,needs:'mandra',
   desc:'味方単体に「攻撃を1回だけ回避する」状態を付与する。マンドラゴラ専用。'},
@@ -1285,7 +1316,7 @@ const eqLabel=(u,slot)=>invName(eqItem(u,slot));
    何倍出やすいか」。指定の無いものはすべて重み 1 で候補に残る。
 
    だから ヴァンパイアは吸血を持ちやすいが、持たない個体も出る。
-   スライムはドーセを覚えやすいが、覚えない個体も出る。
+   スライムはドヨドを覚えやすいが、覚えない個体も出る。
    「らしさ」は確率で表現していて、決め打ちはしていない。
 
    spN は魔法を何枠埋めるか。物理で殴るだけの魔物は 0〜1 にしてある。 */
@@ -1341,7 +1372,7 @@ const CLASSES=[
   spN:2, spBias:{chisusuri:18,kurenai:14,tsumesaki:12,weaken:8,fire:6}},
  {id:'slime',n:'スライム',      c:'SL',kind:'monster',hp:620,mp:52,atk:52,def:60,mat:58,mdf:44,spd:30,
   tags:['粘体'],
-  desc:'鈍いが硬く、毒を撒く。ドーセと毒血を持ちやすい。',
+  desc:'鈍いが硬く、毒を撒く。ドヨドと毒血を持ちやすい。',
   bias:{dokuchi:24,futeikei:20,yokai:18,mitigate:12,shouki:10,fukutsu:8,thorns:6},
   spN:2, spBias:{venom:26,nomikomu:18,numeri:14,taiatari:8}},
  {id:'skeleton',n:'スケルトン', c:'SK',kind:'monster',hp:430,mp:26,atk:66,def:52,mat:24,mdf:30,spd:56,
@@ -1549,10 +1580,26 @@ function randTraits(cls){ return rollTraits(cls); }
 function randSpells(cls){ return cls?rollSpells(cls):pickWeighted(SPELL_IDS,null,3); }
 const clsOf=u=>CLS[u.clsId]||null;
 
-/* 魔物の名前。同じ種族が並んだら Ⅱ Ⅲ… を付けて区別する。 */
-function monsterName(cls,side){
-  const same=[...U,...BENCH].filter(x=>x.side===side&&x.clsId===cls.id).length;
+/* 魔物の名前。同じ種族が並んだら Ⅱ Ⅲ… を付けて区別する。
+   except … 数に入れないユニット（自分自身を除いて数えたい時に使う）。 */
+function monsterName(cls,side,except){
+  const same=[...U,...BENCH].filter(x=>x!==except&&x.side===side&&x.clsId===cls.id).length;
   return cls.n+(ROMAN[same]?' '+ROMAN[same]:'');
+}
+/* 職業を変えたら名前も付け直す。
+   魔物は名前＝種族なので、変えないと「職業ハーピィ／名前スライム」になってしまう。
+   人間職へ移る時は空いている人名を引く。 */
+function renameForClass(u,cls,wasKind){
+  if(cls.kind!=='human'){
+    // 魔物は名前がそのまま種族名。必ず付け直す
+    u.name=u.name0=monsterName(cls,u.side,u);
+    return;
+  }
+  // 人間職どうしの変更では改名しない（ライカが僧侶になっても名前は変わらない）
+  if(wasKind==='human')return;
+  const used=new Set([...U,...BENCH].filter(x=>x!==u&&x.side===u.side).map(x=>x.name0||x.name));
+  const free=ANAMES.filter(n=>!used.has(n));
+  u.name=u.name0=free.length?pick(free):ANAMES[RI(ANAMES.length)]+'・'+(used.size+1);
 }
 function newUnit(side,slot){
   const cls=side==='ally'?pick(HUMANS):pick(MONSTERS);
@@ -1666,8 +1713,16 @@ function addBuff(u,b,src){
   if(!u.alive)return; b={gen:0,...b};
   const ex=u.buffs.find(x=>x.label===b.label&&x.stat===b.stat);
   if(ex){ ex.turns=Math.max(ex.turns,b.turns);
-          if(Math.abs(b.value)>Math.abs(ex.value)) ex.value=b.value;
-          ex.gen=Math.max(ex.gen||0,b.gen||0);   // 上書き時も世代を引き継ぐ
+          // stack 同士なら足して積む（素質を複数人から配られる場合）。
+          // 通常のバフは今までどおり「強い方で上書き」で、重ね掛けでは増えない。
+          if(b.stack&&ex.stack) ex.value+=b.value;
+          else if(Math.abs(b.value)>Math.abs(ex.value)) ex.value=b.value;
+          ex.perm=ex.perm||b.perm;
+          /* 世代は基本引き継ぐ（共有↔共鳴の無限連鎖を止めるため）。
+             ただし stack の元（＝本人の素質、gen 0）が後から乗った時だけは 0 に戻す。
+             こうしないと「先に他人から配られた人は、自分の素質を配れない」ことになる。
+             gen 0 が生まれるのは素質の発動1回だけなので、連鎖は人数ぶんで必ず止まる。 */
+          ex.gen=(b.stack&&!b.gen)?0:Math.max(ex.gen||0,b.gen||0);
           b=ex; }
   else u.buffs.push(b);
   addLog(`${u.name} に ${b.label}(${SN[b.stat]||''}${b.value>0?'+':''}${Math.round(b.value*100)}%)${b.src?' ['+b.src+']':''}`,
@@ -1716,7 +1771,9 @@ function consumeRest(u){
   return null;
 }
 function tickBuffs(u){
-  u.buffs.forEach(b=>b.turns--); u.buffs=u.buffs.filter(b=>b.turns>0);
+  // perm（素質）は時間で減らない
+  u.buffs.forEach(b=>{ if(!b.perm) b.turns--; });
+  u.buffs=u.buffs.filter(b=>b.perm||b.turns>0);
   for(const k in u.ail){ if(!AIL_TIMED[k])continue; u.ail[k]--; if(u.ail[k]<=0) delete u.ail[k]; }
 }
 
@@ -1806,7 +1863,7 @@ function applyDamage(ctx){
   runOn(ctx.attacker,'dealt',ctx);
   if(t.hp<=0) checkDeath(t,ctx.attacker);
 }
-/* バフによる回避（ヨーゲ）。stat() は atk〜spd しか見ないので、ここで別に拾う。 */
+/* バフによる回避（ヨマシ）。stat() は atk〜spd しか見ないので、ここで別に拾う。 */
 const evaBuff=u=>u.buffs.reduce((s,b)=>s+(b.stat==='eva'?b.value:0),0);
 /* 命中率デバフ（羽撃き）。攻撃側に乗り、相手の回避を押し上げる形で効かせる。
    魔法は必中なのでここを通らない＝特技と通常攻撃にだけ効く。 */
@@ -1976,10 +2033,12 @@ const CONDS=[
  {id:'resting',  label:'休み中',               test:t=>!!t.ail.rest},
  {id:'has_ail',  label:'状態異常にかかっている',test:t=>Object.keys(t.ail).length>0},
  {id:'no_ail',   label:'状態異常がない',        test:t=>Object.keys(t.ail).length===0},
- {id:'has_buff', label:'強化されている',       test:t=>t.buffs.some(b=>b.value>0)},
- {id:'no_buff',  label:'強化がない',           test:t=>!t.buffs.some(b=>b.value>0)},
- {id:'has_deb',  label:'弱体化している',       test:t=>t.buffs.some(b=>b.value<0)},
- {id:'no_deb',   label:'弱体化がない',         test:t=>!t.buffs.some(b=>b.value<0)},
+ /* 素質（perm）は生まれつきの数値なので「強化されている」には数えない。
+    数えると全員が常時バフ持ち扱いになり、「強化がない時にバフを撒く」行が永久に成立しなくなる。 */
+ {id:'has_buff', label:'強化されている',       test:t=>t.buffs.some(b=>b.value>0&&!b.perm)},
+ {id:'no_buff',  label:'強化がない',           test:t=>!t.buffs.some(b=>b.value>0&&!b.perm)},
+ {id:'has_deb',  label:'弱体化している',       test:t=>t.buffs.some(b=>b.value<0&&!b.perm)},
+ {id:'no_deb',   label:'弱体化がない',         test:t=>!t.buffs.some(b=>b.value<0&&!b.perm)},
  {id:'front',    label:'前列にいる',           test:t=>isFront(t)},
  {id:'back',     label:'後列にいる',           test:t=>!isFront(t)},
  {id:'alone',    label:'隣に味方がいない',     test:t=>!adjacentAllies(t).length},
@@ -2421,11 +2480,11 @@ function unitHTML(u){
         const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${skillTip(s)}`;
         return `<span class="${cls}" data-tip="${tip}">${s.name}</span>`;}).join('')
     : '<span class="schip off">スキルなし</span>';
-  const states=[...u.buffs.map(b=>`<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}·${b.turns}</span>`),
+  const states=[...u.buffs.map(b=>`<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}${b.perm?'':'·'+b.turns}</span>`),
     ...Object.keys(u.ail).map(k=>`<span class="st ail">${AIL_LABEL[k]||k}${AIL_TIMED[k]?'·'+u.ail[k]:''}</span>`),
     ...(u.evade?[`<span class="st up">回避·${u.evade}</span>`]:[])].join('');
   return `<div class="${cls}" data-u="${u.id}">
-    <div class="uh"><span class="pip">${u.cls}</span><span class="un">${u.name}</span><span class="uc">${u.guard?'防御':''}</span></div>
+    <div class="uh">${u.clsKind==='human'?`<span class="pip">${u.clsName}</span>`:''}<span class="un">${u.name}</span><span class="uc">${u.guard?'防御':''}</span></div>
     <div class="bar hpb"><span style="width:${Math.max(0,hpR(u))*100}%"></span></div>
     <div class="nums"><span>HP ${Math.max(0,u.hp)}/${u.maxHp}</span><span>攻${Math.round(stat(u,'atk'))} 速${Math.round(stat(u,'spd'))}</span></div>
     <div class="bar mpb"><span style="width:${u.mp/u.maxMp*100}%"></span></div>
@@ -2834,10 +2893,12 @@ function openEditor(u){
   M.querySelector('[data-cls]').onclick=e=>{
     openPicker(e.currentTarget,classGroups(),u.clsId,v=>{
       const cls=CLS[v]; if(!cls)return;
+      const was=u.name, wasKind=u.clsKind;
       applyClass(u,cls,{keepRatio:true});
+      renameForClass(u,cls,wasKind);     // 名前も種族に合わせて付け直す
       u.ct=time+10000/stat(u,'spd');     // 素早さが変わるので行動順を引き直す
-      addLog(`${u.name} は ${cls.n} になった`,'l-sys');
-      render(); netBuild(u); openEditor(u);
+      addLog(`${was} は ${cls.n}「${u.name}」になった`,'l-sys');
+      saveLocal(); render(); netBuild(u); openEditor(u);
     });
   };
   const mineOnly=x=>!NET.matched||x.side===MY();
@@ -3007,8 +3068,13 @@ $('#reHeal').onclick=()=>healAll();
    描画・ログ・演出を止めて、同じエンジンを同期的に回す。
    両陣営の編成は固定なので、変わるのは戦闘中の乱数だけ。
    ========================================================= */
+/* 集計の「基準の隊列」。1戦ごとにここへ戻す。
+   これが無いと、いれかえ・吹き飛ばしで動いた隊列が次の戦闘へ持ち越され、
+   「同じ編成を繰り返す」という集計の前提が崩れる。 */
+let SIMPOS=null;
 function simOneBattle(limit){
   newBattleState();
+  if(SIMPOS) posRestore(SIMPOS);
   U.forEach(u=>{ u.name=u.name0||u.name; resetUnit(u);
     allTraits(u).forEach(id=>{ if(id!=='none') OWN[id]=(OWN[id]||0)+1; }); });
   openingHooks();                // 集計でも「いきなり系」を同じように1回だけ通す
@@ -3041,10 +3107,14 @@ function simOneBattle(limit){
 
 let SIMRUN=null;
 let LASTSIM=null;              // 最後に完了した集計結果（自動・手動どちらでも）
+/* 集計は盤面を実際に動かす。名前（転生）と隊列（いれかえ・吹き飛ばす）は
+   戦闘で書き換わるので、回す前に控えて必ず戻す。 */
+const posSnapshot=()=>U.map(u=>({u,name:u.name0||u.name,slot:u.slot}));
+const posRestore=s=>s.forEach(o=>{ o.u.name=o.name; o.u.slot=o.slot; });
 function runSim(times,limit){
   if(SIMRUN||ABL||RND||AUTO.run||matchBlocked())return;
   abortLoop(); closePicker();
-  const names=U.map(u=>u.name0||u.name);
+  const pos=posSnapshot(); SIMPOS=pos;
   const st={n:0,times,limit,win:0,lose:0,draw:0,turns:0,aliveA:0,aliveF:0,dmgA:0,dmgF:0,
             t0:(performance&&performance.now?performance.now():Date.now())};
   PROC={}; OWN={}; SIM=true; SIMRUN=st;
@@ -3064,12 +3134,12 @@ function runSim(times,limit){
     }
     renderSimProgress(st);
     if(st.n<st.times){ setTimeout(step,0); return; }
-    SIM=false; SIMRUN=null;
+    SIM=false; SIMRUN=null; SIMPOS=null;
     st.ms=(performance&&performance.now?performance.now():Date.now())-st.t0;
     st.proc=PROC; st.own=OWN; st.auto=false; st.sig=AUTO.sig; LASTSIM=st;
     // 盤面を初期状態に戻す（対戦は再開せず、パネルを閉じたときに動き出す）
     newBattleState();
-    U.forEach((u,i)=>{ u.name=names[i]; resetUnit(u); });
+    posRestore(pos); U.forEach(resetUnit);
     logs=[]; render(); renderLog(); renderSimResult(st); renderSimChip();
   };
   setTimeout(step,0);
@@ -3114,9 +3184,15 @@ function renderSimChip(){
   const r=LASTSIM.win/Math.max(1,LASTSIM.win+LASTSIM.lose)*100;
   set(r>=60?'w':(r<=40?'l':'mid'),`味方勝率 ${r.toFixed(1)}%`);
 }
-/* ビルドの変化を見張る。変わったら走っている集計を捨てて回し直す。 */
+/* ビルドの変化を見張る。変わったら走っている集計を捨てて回し直す。
+   ★ 集計が走っている間は見張らない ★
+   集計は盤面を実際に動かす。1戦ごとに隊列は戻すが、**戦闘の途中では動いたまま**で、
+   この見張りは 400ms ごとに割り込むので、その瞬間を拾ってしまう。
+   すると「ビルドが変わった」と誤判定して自分が走らせた集計を自分で潰し、
+   進捗が100%手前まで行っては0に戻る、を延々と繰り返す。
+   集計中にビルドを変えても、終わった直後の巡回で拾えるので取りこぼさない。 */
 function watchBuild(){
-  if(LOADING||NET.matched||ABL||RND)return;  // 調査中は自分で個性を抜き差しするので見張らない
+  if(LOADING||NET.matched||SIM||ABL||RND||AUTO.run)return;
   const sig=buildSig(); if(sig===null||sig===AUTO.sig)return;
   AUTO.sig=sig;
   AUTO.gen++;                     // 走行中の自動集計はこれで無効になる
@@ -3133,7 +3209,7 @@ function snapBattle(){
   return {time,turnNo,dmg:{...DMG},result:battleResult,started:battleStarted,
     cur:current?current.id:null,logs:logs.slice(),
     units:[...U,...BENCH].map(u=>({u,hp:u.hp,mp:u.mp,evade:u.evade,alive:u.alive,ct:u.ct,
-      guard:u.guard,lastAct:u.lastAct,name:u.name,
+      guard:u.guard,lastAct:u.lastAct,name:u.name,slot:u.slot,
       buffs:(u.buffs||[]).map(b=>({...b})),ail:cp(u.ail||{}),cnt:{...u.cnt},fired:{...u.fired}}))};
 }
 function restoreBattle(s){
@@ -3142,6 +3218,9 @@ function restoreBattle(s){
   s.units.forEach(o=>{ const u=o.u;
     u.hp=o.hp; u.mp=o.mp; u.evade=o.evade; u.alive=o.alive; u.ct=o.ct;
     u.guard=o.guard; u.lastAct=o.lastAct; u.name=o.name;
+    // slot を戻し忘れると、集計中の「いれかえ」「吹き飛ばす」で動いた隊列が
+    // そのまま盤面に残り、buildSig が変化して自動集計が永久に回り続ける。
+    u.slot=o.slot;
     u.buffs=o.buffs; u.ail=o.ail; u.cnt=o.cnt; u.fired=o.fired; });
   current=s.cur!=null?[...U,...BENCH].find(x=>x.id===s.cur)||null:null;
 }
@@ -3163,11 +3242,12 @@ async function runAutoSim(){
     await sleep(60);
   }
   const snap=snapBattle(), keepP=PROC, keepO=OWN;
+  SIMPOS=posSnapshot();                 // 1戦ごとに隊列をここへ戻す
   const st={n:0,times:AUTO.n,limit:turnLimit,win:0,lose:0,draw:0,turns:0,
             aliveA:0,aliveF:0,dmgA:0,dmgF:0,t0:nowMs(),auto:true,sig};
   PROC={}; OWN={}; SIM=true; AUTO.run=st;
   const finish=(ok)=>{
-    SIM=false; AUTO.run=null; AUTO.busy=false; PROC=keepP; OWN=keepO;
+    SIM=false; AUTO.run=null; AUTO.busy=false; SIMPOS=null; PROC=keepP; OWN=keepO;
     restoreBattle(snap); HOLD=false;
     if(ok){ LASTSIM=st; if($('#simOut')&&!SIMRUN) renderSimResult(st); }
     renderSimChip(); render(); renderLog();
@@ -3273,8 +3353,8 @@ function runCoarse(sets,per){
   const cands=fieldCandidates();
   if(cands.length<2){ alert('候補が少なすぎます'); return; }
   abortLoop(); closePicker();
-  const names=U.map(u=>u.name0||u.name);
-  RND={sets,per,limit:turnLimit,cands,snap:ablSnapshot(),names,
+  const pos=posSnapshot(); SIMPOS=pos;
+  RND={sets,per,limit:turnLimit,cands,snap:ablSnapshot(),pos,
        i:-1,cur:null,rows:[],base:null,baseShare:null,t0:nowMs(),stop:false};
   const keepP=PROC, keepO=OWN;
   SIM=true;
@@ -3301,10 +3381,10 @@ function runCoarse(sets,per){
   };
   const done=(aborted)=>{
     ablRestore(RND.snap);
-    SIM=false; PROC=keepP; OWN=keepO;
+    SIM=false; SIMPOS=null; PROC=keepP; OWN=keepO;
     const st=RND; RND=null;
     newBattleState();
-    U.forEach((u,i)=>{ u.name=names[i]; resetUnit(u); });
+    posRestore(pos); U.forEach(resetUnit);
     logs=[]; render(); renderLog(); renderSimChip();
     renderCoarseResult(st,aborted);
   };
@@ -3427,8 +3507,8 @@ function runAblation(times){
   const cands=fieldCandidates();
   if(!cands.length){ alert('盤に個性・スキルが1つも出ていません'); return; }
   abortLoop(); closePicker();
-  const names=U.map(u=>u.name0||u.name);
-  ABL={times,limit:turnLimit,cands,snap:ablSnapshot(),names,
+  const pos=posSnapshot(); SIMPOS=pos;
+  ABL={times,limit:turnLimit,cands,snap:ablSnapshot(),pos,
        idx:-1,                       // -1 … ベースライン計測中
        cur:null,rows:[],base:null,t0:nowMs(),stop:false};
   const keepP=PROC, keepO=OWN;
@@ -3456,10 +3536,10 @@ function runAblation(times){
   };
   const done=(aborted)=>{
     ablRestore(ABL.snap);
-    SIM=false; PROC=keepP; OWN=keepO;
+    SIM=false; SIMPOS=null; PROC=keepP; OWN=keepO;
     const st=ABL; ABL=null;
     newBattleState();
-    U.forEach((u,i)=>{ u.name=names[i]; resetUnit(u); });
+    posRestore(pos); U.forEach(resetUnit);
     logs=[]; render(); renderLog(); renderSimChip();
     renderAblResult(st,aborted);
   };
