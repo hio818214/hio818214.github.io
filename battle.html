@@ -230,6 +230,14 @@ body.guildmode .gwrap{display:flex;flex-direction:column;gap:14px;
 .k-chain{background:#443422;color:#dba86a}
 .k-horde{background:#432430;color:#e08ba0}
 .k-duel{background:#1f3a30;color:var(--ally)}
+.k-new{background:var(--gold);color:#1a1526}
+.k-done{background:#2c2740;color:var(--muted);font-weight:400}
+/* 初回達成報酬。1度きりなので目立たせる */
+.qfirst{display:inline-block;font-size:11px;color:var(--gold);border-left:2px solid var(--gold);
+  padding-left:8px;margin-top:4px;line-height:1.6}
+.qfirst b{font-weight:700}
+.qfirst.big{display:block;background:#2a2413;border-radius:0 2px 2px 0;padding:8px 11px;font-size:12px}
+.qfirst i{font-style:normal;color:var(--muted);font-size:10.5px;display:block;margin-top:2px}
 .gmust{font-style:normal;background:#5a4415;color:var(--gold);font-size:9.5px;
   border-radius:2px;padding:1px 5px;margin-left:6px;vertical-align:middle}
 .gman{font-style:normal;background:var(--ally-dim);color:var(--ally);font-size:9.5px;
@@ -4669,130 +4677,159 @@ const QUESTS=[
  /* ---------- 難度1：最初の数分 ---------- */
  {id:'q0',name:'ギルド登録の手続き',tier:1,kind:'story',sec:0,gph:0,enemies:[],
   desc:'書類を出して判を押してもらうだけ。戦闘は起きない。',
-  reward:{member:'sw',blank:true}},
+  first:{gold:500,member:'sw',blank:true},
+  reward:{}},
  {id:'q1',name:'ゴブリン退治',tier:1,kind:'short',sec:60,gph:18000,enemies:['goblin'],
   desc:'畑を荒らすゴブリンが1匹。初仕事にはちょうどいい。',
+  first:{gold:1000},
   reward:{memberChance:0.15,memberBias:{sw:16,kn:5}}},
  {id:'q1b',name:'納屋のスライム',tier:1,kind:'short',sec:90,gph:20000,enemies:['slime'],
   desc:'納屋に粘体が住み着いた。硬くて鈍い。**物理は通りにくい。**',
+  first:{gold:1500},
   reward:{equipChance:0.2,memberChance:0.15,memberBias:{mg:14,hx:8}}},
  {id:'q1c',name:'物置の当たり箱',tier:1,kind:'short',sec:150,gph:24000,enemies:['mimic'],
   desc:'宝箱に見えるものが1つ。**中身は宝ではない。**当たれば装備を持ち帰れる。',
+  first:{gold:1000,item:true},
   reward:{equipChance:0.7,memberChance:0.1}},
  {id:'q2',name:'森の見回り',tier:1,kind:'std',sec:180,gph:22000,enemies:['goblin','goblin'],
   desc:'街道沿いの森を見て回る。ゴブリンが群れている。',
+  first:{gold:2500},
   reward:{equipChance:0.35,memberChance:0.2,memberBias:{rg:16,ar:12}}},
  {id:'qt',name:'ゴブリンの連戦訓練',tier:1,kind:'chain',sec:240,gph:27000,
   waves:[['goblin','goblin'],['goblin','goblin'],['goblin','goblin','goblin']],
   desc:'ゴブリンの群れを三度続けて相手にする。**間に回復は挟めない。**'
       +'1戦目で使い切ると3戦目が持たない。',
+  first:{gold:3000,member:true},
   reward:{equipChance:0.4,memberChance:0.25,memberBias:{sw:12,kn:8}}},
  {id:'q1d',name:'夜通しの見張り',tier:1,kind:'idle',sec:1800,gph:11000,
   enemies:['goblin','goblin','harpy'],
   desc:'朝まで街道に張り付く。**時給は悪いが、出したら30分は忘れていい。**',
+  first:{gold:8000,item:true},
   reward:{equipChance:0.4,memberChance:0.3,memberBias:{rg:14,ar:10}}},
 
  /* ---------- 難度2：十数分 ---------- */
  {id:'q2a',name:'廃屋の物音',tier:2,kind:'short',sec:240,gph:26000,
   enemies:['skeleton','goblin'],
   desc:'空き家に骨が出た。**倒しても立ち上がることがある。**',
+  first:{gold:4000},
   reward:{equipChance:0.35,memberChance:0.2,memberBias:{pr:16,sw:8}}},
  {id:'q2b',name:'崖沿いの巣',tier:2,kind:'std',sec:480,gph:30000,
   enemies:['goblin','harpy','harpy'],
   desc:'羽の生えたものが2体。**こちらより速い。**先手を取られる前提で組む。',
+  first:{gold:12000},
   reward:{equipChance:0.4,memberChance:0.25,memberBias:{ar:16,rg:12}}},
  {id:'q3',name:'洞窟の調査',tier:2,kind:'std',sec:600,gph:28000,
   enemies:['goblin','goblin','slime'],
   desc:'奥に何かいるらしい。粘体は物理が通りにくい。',
+  first:{gold:14000,item:true},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{rg:12,mg:12,hx:8},rareChance:0.15}},
  {id:'q2c',name:'沼の毒気',tier:2,kind:'std',sec:900,gph:30000,
   enemies:['slime','slime','mandra','mandra'],
   desc:'毒と眠りが延々と飛んでくる。**速さで押し切るか、状態異常ごと耐えるか。**',
+  first:{gold:22000},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,mg:10},rareChance:0.15}},
  {id:'q2d',name:'ゴブリンの砦',tier:2,kind:'horde',sec:720,gph:32000,
   enemies:['goblin','goblin','goblin','goblin','goblin','goblin'],
   desc:'**6匹が一度に来る。**一体一体は弱いが、《数の利》で膨らむ。範囲が無いと削り切れない。',
+  first:{gold:19000,item:true},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:16,hx:12}}},
  {id:'q2f',name:'三度の追い立て',tier:2,kind:'chain',sec:1080,gph:33000,
   waves:[['goblin','goblin','harpy'],['skeleton','skeleton'],['slime','mandra']],
   desc:'**回復なしで三連戦。**速い相手、硬い相手、毒の相手と順に当たる。'
       +'一つの型では抜けられない。',
+  first:{gold:30000,member:true},
   reward:{equipChance:0.55,memberChance:0.35,memberBias:{sw:10,pr:10,rg:10},rareChance:0.2}},
  {id:'q2e',name:'石畳の見回り',tier:2,kind:'idle',sec:5400,gph:17000,
   enemies:['goblin','goblin','goblin','skeleton'],
   desc:'市街を一巡り。**1時間半かかるが、その間は何も考えなくていい。**',
+  first:{gold:60000,item:true},
   reward:{equipChance:0.6,memberChance:0.4,memberBias:{kn:12,pr:12},rareChance:0.1}},
 
  /* ---------- 難度3：数十分 ---------- */
  {id:'q4',name:'古い墓所',tier:3,kind:'std',sec:1200,gph:42000,
   enemies:['skeleton','skeleton','skeleton'],
   desc:'不死が三体。倒しても立ち上がることがある。',
+  first:{gold:42000,item:true},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,hx:14},rareChance:0.2}},
  {id:'q3b',name:'犬舎の暴走',tier:3,kind:'std',sec:900,gph:46000,
   enemies:['cerberus','cerberus','goblin','goblin'],
   desc:'鎖を切った猟犬が2頭。**追い詰めるほど強くなる。**短期決戦しかない。',
+  first:{gold:35000},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{kn:16,sw:12},rareChance:0.2}},
  {id:'q3a',name:'廃坑の奥',tier:3,kind:'std',sec:1500,gph:44000,
   enemies:['gargoyle','slime','slime','mandra'],
   desc:'石像が道を塞ぎ、後ろから毒が飛ぶ。**前を抜けないと後ろに届かない。**',
+  first:{gold:55000,item:true},
   reward:{equipChance:0.55,memberChance:0.3,memberBias:{mg:16,hx:14},rareChance:0.25}},
  {id:'q3e',name:'屍の行進',tier:3,kind:'horde',sec:1800,gph:45000,
   enemies:['skeleton','skeleton','skeleton','skeleton','skeleton','skeleton','skeleton'],
   desc:'**7体が横一列で来る。**一体ずつは大したことがないが、《怨嗟》で倒すほど残りが育つ。',
+  first:{gold:68000,member:true},
   reward:{equipChance:0.6,memberChance:0.35,memberBias:{pr:20,mg:14},rareChance:0.25}},
  {id:'q3d',name:'四連の門',tier:3,kind:'chain',sec:2400,gph:48000,
   waves:[['goblin','goblin','goblin','goblin'],['skeleton','skeleton','lich'],
          ['gargoyle','gargoyle'],['cerberus','cerberus','harpy']],
   desc:'**回復なしで四連戦。**門ごとに相手の型が変わる。'
       +'MPをどこで使うかがそのまま結果になる。',
+  first:{gold:96000,item:true,member:true,rare:true},
   reward:{equipChance:0.7,memberChance:0.4,memberBias:{kn:12,pr:12,mg:12},rareChance:0.3}},
  {id:'q3c',name:'墓守の夜',tier:3,kind:'idle',sec:10800,gph:25000,
   enemies:['skeleton','skeleton','vampire','lich'],
   desc:'墓地に夜通し詰める。**3時間。**帰ってくる頃には朝になっている。',
+  first:{gold:150000,item:true},
   reward:{equipChance:0.8,memberChance:0.5,memberBias:{pr:18,hx:16},rareChance:0.25}},
 
  /* ---------- 難度4：1〜2時間 ---------- */
  {id:'q5',name:'ハーピィの岩棚',tier:4,kind:'std',sec:2700,gph:55000,
   enemies:['goblin','goblin','harpy','harpy'],
   desc:'速い。先手を取られる前提で組む必要がある。',
+  first:{gold:120000,item:true},
   reward:{equipChance:0.6,memberChance:0.4,memberBias:{ar:18,rg:12},rareChance:0.3}},
  {id:'q4b',name:'石像の広間',tier:4,kind:'std',sec:3000,gph:56000,
   enemies:['gargoyle','gargoyle','gargoyle','lich'],
   desc:'防御が最も高い石像が三体、後ろに術者。**殴るほど返ってくる。**'
       +'物理で削り合うと先にこちらが尽きる。',
+  first:{gold:140000,item:true},
   reward:{equipChance:0.65,memberChance:0.4,memberBias:{mg:20,hx:14},rareChance:0.3}},
  {id:'q4a',name:'竜の通り道',tier:4,kind:'std',sec:3600,gph:58000,
   enemies:['wyvern','wyvern','wyvern'],
   desc:'最速級が三体。**《竜鱗》で大技が通らない。**手数で削るしかない。',
+  first:{gold:175000,item:true},
   reward:{equipChance:0.7,memberChance:0.4,memberBias:{rg:16,ar:16},rareChance:0.35}},
  {id:'q6',name:'巣穴の掃討',tier:4,kind:'horde',sec:7200,gph:62000,
   enemies:['goblin','goblin','goblin','wyvern','wyvern'],
   desc:'数と火力の両方が来る。生半可な編成では帰れない。',
+  first:{gold:370000,item:true,member:true,rare:true},
   reward:{equipChance:0.8,memberChance:0.5,memberBias:{kn:14,sw:10,mg:10},rareChance:0.5}},
  {id:'q4d',name:'五段の試練',tier:4,kind:'chain',sec:5400,gph:68000,
   waves:[['goblin','goblin','goblin'],['skeleton','skeleton','skeleton'],
          ['harpy','harpy','wyvern'],['gargoyle','gargoyle','slime'],
          ['cerberus','cerberus','vampire']],
   desc:'**回復なしで五連戦。**総HPより、MPと状態異常の管理で落ちる。',
+  first:{gold:300000,item:true,member:true,rare:true},
   reward:{equipChance:0.85,memberChance:0.5,memberBias:{pr:16,kn:12,mg:12},rareChance:0.45}},
  {id:'q4c',name:'長夜の哨戒',tier:4,kind:'idle',sec:21600,gph:33000,
   enemies:['wyvern','wyvern','harpy','harpy','lich'],
   desc:'国境を6時間見張る。**時給は半分だが、寝ている間も進む。**',
+  first:{gold:400000,item:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{ar:14,rg:14,kn:10},rareChance:0.4}},
 
  /* ---------- 難度5：数時間 ---------- */
  {id:'q5b',name:'首無しの街道',tier:5,kind:'std',sec:7200,gph:92000,
   enemies:['dullahan','dullahan','skeleton','skeleton','lich'],
   desc:'首無しが二騎。**《宣告》で確実に落としにくる。**押し切られる前に落とす。',
+  first:{gold:550000,item:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{kn:16,pr:16},rareChance:0.5}},
  {id:'q5a',name:'吸血鬼の館',tier:5,kind:'std',sec:9000,gph:88000,
   enemies:['vampire','vampire','skeleton','skeleton','lich'],
   desc:'削っても削っても戻る。**吸血と再生を止める手立てが要る。**',
+  first:{gold:660000,item:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{hx:18,pr:14},rareChance:0.55}},
  {id:'q5d',name:'七つの石像',tier:5,kind:'horde',sec:10800,gph:100000,
   enemies:['gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle'],
   desc:'**石像が7体。**全員が軽減と倍化を持ちうる。'
       +'殴った分だけ返る盤面で、どうやって総量を削るか。',
+  first:{gold:900000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{mg:22,hx:16},rareChance:0.6}},
  {id:'q7',name:'古城の最奥',tier:5,kind:'chain',sec:10800,gph:95000,
   waves:[['skeleton','skeleton','goblin','goblin'],
@@ -4800,11 +4837,13 @@ const QUESTS=[
          ['dullahan','vampire','lich','skeleton']],
   desc:'**回復なしで三連戦。**門番、石像、そして城主。'
       +'最後まで立っていられる編成でないと、奥までは行けない。',
+  first:{gold:850000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.7,memberBias:{kn:12,pr:12,mg:12},rareChance:0.8}},
  {id:'q5c',name:'果ての塔',tier:5,kind:'idle',sec:43200,gph:50000,
   waves:[['gargoyle','gargoyle','gargoyle','lich'],
          ['dullahan','dullahan','vampire','vampire']],
   desc:'塔をひと晩かけて登る。**12時間の二連戦。**時給は落ちるが、置いておけば額は大きい。',
+  first:{gold:1200000,item:true},
   reward:{equipChance:1,memberChance:0.7,memberBias:{kn:14,mg:14,pr:14},rareChance:0.7}},
 
  /* ---------- 難度6：壁。クリア者が出ない前提で置いてある ---------- */
@@ -4812,6 +4851,7 @@ const QUESTS=[
   enemies:['dullahan','dullahan','gargoyle','vampire','vampire','lich','lich'],
   desc:'**7体。前は硬く、後ろは全員が術者。**'
       +'いまの手札で正面から抜けるようには置いていない。',
+  first:{gold:5000000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.8,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
  {id:'q6b',name:'黙示の五夜',tier:6,kind:'chain',sec:43200,gph:170000,
   waves:[['skeleton','skeleton','skeleton','skeleton','skeleton','skeleton','skeleton'],
@@ -4821,6 +4861,7 @@ const QUESTS=[
          ['dullahan','dullahan','dullahan','vampire','lich','lich','lich']],
   desc:'**7体を相手に、回復なしで五連戦。**この依頼の想定解は無い。'
       +'どこまで持つかを測るための壁として置いてある。',
+  first:{gold:30000000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:1,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
  {id:'q6c',name:'終わりなき行軍',tier:6,kind:'idle',sec:172800,gph:85000,
   waves:[['goblin','goblin','goblin','goblin','skeleton','skeleton','skeleton'],
@@ -4828,6 +4869,7 @@ const QUESTS=[
          ['dullahan','dullahan','gargoyle','gargoyle','vampire','lich','lich']],
   desc:'**2日がかりの三連戦。**時給は割に合わないが、出してしまえば忘れていられる。'
       +'帰ってくる頃には、たぶん編成を作り直している。',
+  first:{gold:20000000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:1,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
 
  /* ---------- 決闘（主人公出撃必須・手動戦闘） ----------
@@ -4839,12 +4881,15 @@ const QUESTS=[
   enemies:['sw','kn','ar','pr'],
   desc:'隣町のギルドから名指しの果たし状。**ギルド長（主人公）本人の出撃が条件。**'
       +'この一戦だけは自動で進まず、**あなたが手で指揮を執る。**勝てば向こうの参謀が移ってくる。',
-  reward:{member:'cm',equipChance:0.5}},
+  // 指揮官は初回だけ。何度でも受けられる依頼なので、確定加入は first に置く
+  first:{gold:20000,member:'cm'},
+  reward:{equipChance:0.5}},
  {id:'qd2',name:'果たし状・返礼',tier:5,kind:'duel',sec:900,gph:130000,hero:true,manual:true,
   enemies:['kn','sw','sw','ar','pr','mg','hx'],
   desc:'先の決闘の返礼。向こうは**7人全員**で来る。**主人公の出撃が条件。**'
       +'こちらも手で指揮を執る。オートでは押し切られる。',
   // 指揮官は HUMAN_POOL から外してあるので bias では出ない。ここはレア確定枠で返す
+  first:{gold:200000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:1,rareChance:1}},
 ];
 /* 金額は時給から導く。設計の軸は時給なので、そちらを書いて金額は計算させる。 */
@@ -5006,10 +5051,23 @@ function refreshOffers(){
     if(q.tier<=mx)return true;
     return G.parties.some(p=>p.offerId===o.oid);
   });
+  // クリア済みでも掲示は残る。依頼は何度でも受けられる。
   QUESTS.forEach(q=>{
-    if(G.done[q.id]||q.tier>mx)return;
+    if(q.tier>mx)return;
     if(!G.offers.some(o=>o.qid===q.id)) G.offers.push(makeOffer(q.id));
   });
+}
+const cleared=q=>!!G.done[q.id];
+const clearCount=q=>+G.done[q.id]||0;
+/* 初回報酬の中身を一言で。未クリアの依頼にだけ出す。 */
+function firstText(q){
+  if(!q.first)return '';
+  const f=q.first, a=[];
+  if(f.gold) a.push(`${f.gold.toLocaleString()}G`);
+  if(f.item) a.push('装備1つ');
+  if(f.member) a.push(f.member===true?(f.rare?'レア個性持ちの仲間1人':'仲間1人')
+                                     :`${CLS[f.member]?CLS[f.member].n:f.member} 1人`);
+  return a.join('・');
 }
 const offerOf=oid=>(G.offers||[]).find(o=>o.oid===oid)||null;
 /* 掲示に紐づいた敵を作る。**本流の乱数は汚さない** —
@@ -5204,15 +5262,7 @@ function resolveQuest(p,offer){
     return;
   }
   const r=runQuest(p,offer);
-  const rw=q.reward||{};
-  const pending={gold:0,member:null,item:false,injuries:[]};
-  if(r.ok){
-    pending.gold=q.gold;
-    if(rw.member) pending.member={clsId:rw.member,blank:!!rw.blank};
-    else if(rw.memberChance&&R(1)<rw.memberChance)
-      pending.member={rare:!!(rw.rareChance&&R(1)<rw.rareChance)};
-    if(rw.equipChance&&R(1)<rw.equipChance) pending.item=true;
-  }
+  const pending=rollPending(q,r.ok);
   /* 倒れた者は負傷。**療養の長さは依頼の長さに比例する。**
      2時間の依頼で失敗したら、その仲間は3時間戻ってこない。
      深い依頼ほど失敗の代償が重くなり、浅い依頼では実質ノーリスクになる。 */
@@ -5230,34 +5280,64 @@ function resolveQuest(p,offer){
   p.questId=null; p.offerId=null; p.returnAt=null; p.report=rep;
   G.logs.unshift(rep); if(G.logs.length>40) G.logs.length=40;
 }
+/* --- 報酬の抽選 ---
+   ★ 初回だけのものと、何度でも出るものを分ける ★
+   依頼はクリアしても掲示に残り続けるので、確定加入（指揮官など）を
+   毎回配ると無限に湧いてしまう。確定枠は q.first に置いて初回だけ払う。
+   繰り返しで出るのは確率枠（memberChance / equipChance）だけ。 */
+function rollPending(q,ok){
+  const pending={gold:0,member:null,item:false,injuries:[],first:false,
+    firstMember:null,firstItem:false};
+  if(!ok) return pending;
+  const rw=q.reward||{};
+  pending.gold=q.gold;
+  if(rw.memberChance&&R(1)<rw.memberChance)
+    pending.member={rare:!!(rw.rareChance&&R(1)<rw.rareChance)};
+  if(rw.equipChance&&R(1)<rw.equipChance) pending.item=true;
+  // 初回達成の上乗せ。判定は「封筒を作る時点でまだ未クリアか」
+  if(q.first&&!G.done[q.id]){
+    const f=q.first;
+    pending.first=true;
+    pending.gold+=f.gold||0;
+    if(f.member) pending.firstMember=(f.member===true)?{rare:!!f.rare}
+                                    :{clsId:f.member,blank:!!f.blank};
+    if(f.item) pending.firstItem=true;
+  }
+  return pending;
+}
+/* 仲間を1人入れる。席が無ければ応援金に化ける。 */
+function joinFromPending(rep,q,m){
+  if(G.roster.length>=maxRoster()){
+    const o=overflowMember();
+    rep.gold+=o.gold; rep.gained.push(o.text);
+    return;
+  }
+  const u=m.clsId
+    ? (()=>{ const x=guildUnit(m.clsId,{blank:m.blank}); G.roster.push(x); return x; })()
+    : gainMember(q,m.rare);
+  rep.gained.push(`${memberLabel(u)} が仲間になった。`);
+}
 /* 封筒を開ける。報告画面を出した瞬間に呼ぶので、数字が動くのと結果を見るのが同時になる。 */
 function claimReport(rep){
   if(!rep||rep.claimed)return;
   if(rep.manual&&!rep.fought)return;   // 手動依頼はまだ戦っていない。開ける中身が無い
   rep.claimed=true;
   const q=questOf(rep.questId), pen=rep.pending||{};
+  rep.first=!!pen.first;
   if(pen.gold){ rep.gold=pen.gold; G.gold+=pen.gold; }
-  if(pen.member){
-    // 席が無ければ加入できない。入れ替わりに応援金が残る（報酬額にも足す）
-    if(G.roster.length>=maxRoster()){
-      const o=overflowMember();
-      rep.gold+=o.gold; rep.gained=[o.text];
-    }else{
-      const u=pen.member.clsId
-        ? (()=>{ const x=guildUnit(pen.member.clsId,{blank:pen.member.blank}); G.roster.push(x); return x; })()
-        : gainMember(q,pen.member.rare);
-      rep.gained=[`${memberLabel(u)} が仲間になった。`];
-    }
-  }
-  if(pen.item){ const o=gainItem(); rep.gold+=o.gold; rep.items=[o.text]; }
+  if(pen.firstMember) joinFromPending(rep,q,pen.firstMember);
+  if(pen.member)      joinFromPending(rep,q,pen.member);
+  if(pen.firstItem){ const o=gainItem(); rep.gold+=o.gold; rep.items.push(o.text); }
+  if(pen.item){      const o=gainItem(); rep.gold+=o.gold; rep.items.push(o.text); }
   (pen.injuries||[]).forEach(o=>{ const u=G.roster.find(x=>x.gid===o.gid); if(!u)return;
     u.healAt=now()+o.ms; rep.injured.push(u.name); });
   /* ★ 達成が確定するのはここ ★
-     報告を聞いた時点で初めて依頼が終わり、掲示から消える。
-     解決した瞬間に消すと、報告待ちの依頼が一覧から消えたり戻ったりする。 */
+     ただし**掲示は消さない**。依頼は何度でも受けられる。
+     代わりに掲示を引き直して、次に挑む時の相手を組み直す
+     （同じ掲示のままだと、繰り返すたびに一字一句同じ戦闘になる）。 */
   if(q&&rep.ok){
-    G.done[q.id]=1;
-    G.offers=(G.offers||[]).filter(o=>o.qid!==q.id);
+    G.done[q.id]=(G.done[q.id]||0)+1;
+    G.offers=(G.offers||[]).map(o=>o.qid===q.id?makeOffer(q.id):o);
   }
   saveGuild();
 }
@@ -5266,7 +5346,7 @@ function claimReport(rep){
 function guildData(){
   const ser=it=>({iid:it.iid,id:it.id,slot:it.slot,spell:it.spell,trait:it.trait});
   return {v:4,gold:G.gold,gems:G.gems,rank:G.rank||0,gidc:G.gidc,oidc:G.oidc,name:G.name,hero:G.hero,
-    qf:{st:GQF.st,tier:GQF.tier,kind:GQF.kind.slice()},   // 依頼の絞り込みも持ち越す
+    qf:{st:GQF.st,tier:GQF.tier,kind:GQF.kind.slice(),newOnly:!!GQF.newOnly},  // 絞り込みも持ち越す
     done:G.done,price:G.price,parties:G.parties,logs:G.logs,stockAt:G.stockAt,offers:G.offers,
     roster:G.roster.map(u=>Object.assign(serSave(u),{gid:u.gid,healAt:u.healAt||0,hero:!!u.hero})),
     inv:INV.map(ser),stock:G.stock.map(ser)};
@@ -5294,7 +5374,8 @@ function applyGuild(d){
   const qf=d.qf||{};
   GQF={st:['all','free','busy','rep'].includes(qf.st)?qf.st:'all',
        tier:(qf.tier==='all'||(+qf.tier>=1&&+qf.tier<=maxTierOf(d.rank))) ? (qf.tier||'all') : 'all',
-       kind:Array.isArray(qf.kind)?qf.kind.filter(k=>QKIND[k]):[]};
+       kind:Array.isArray(qf.kind)?qf.kind.filter(k=>QKIND[k]):[],
+       newOnly:!!qf.newOnly};
   const put=(o,arr)=>{ const def=EQ[o.id]; if(!def)return;
     const iid=+o.iid||(iidc+1);
     arr.push({iid,id:o.id,slot:def.slot,spell:o.spell||null,trait:o.trait||null});
@@ -5631,7 +5712,7 @@ function gParty(){
 
 /* 依頼の絞り込み。掲示が30件を超えるので難度と種別で切る。
    画面を出入りしても保つ（毎回やり直すほうが煩わしい）。 */
-let GQF={st:'all',tier:'all',kind:[]};
+let GQF={st:'all',tier:'all',kind:[],newOnly:false};
 let GPICK=null;            // 「選んでから置く」の選択中の gid
 /* 控えの絞り込み。人数が増えると一覧が長くなるので、所属と職業で絞れるようにする。
    画面を出入りしても保つ（毎回やり直すほうが煩わしい）。 */
@@ -5800,11 +5881,14 @@ function gQuest(){
             :rp?`<b class="gwait">${gEsc(rp.name)} ${pend?'が現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}</b>`
               :'<span class="rnone">未受注</span>';
     const el=eligible(q), k=QKIND[q.kind]||QKIND.std;
+    const ft=cleared(q)?'':firstText(q);
     return `<div class="rrow" data-o="${o.oid}">
       <span class="rpos">${fmtDur(q.sec)}</span>
       <span class="rmain"><b>${gEsc(q.name)}<i class="gtag tr">難度${q.tier}</i><i class="gtag ${k.c}">${k.n}</i>${
+        cleared(q)?`<i class="gtag k-done">達成 ${clearCount(q)}</i>`:'<i class="gtag k-new">未クリア</i>'}${
         q.hero?'<i class="gmust">主人公必須</i>':''}${q.manual?'<i class="gman">手動戦闘</i>':''}</b>
         <i>報酬 ${q.gold.toLocaleString()}G${q.sec?`　／　時給 ${goldPerHour(q).toLocaleString()}G`:''}</i><br>
+        ${ft?`<span class="qfirst">初回達成報酬　<b>${ft}</b></span><br>`:''}
         <span class="rsub">${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
         <span class="rsub">${foeSummary(q)}　／　${st}</span></span>
       <span class="rbtn">
@@ -5828,7 +5912,9 @@ function gQuest(){
   const stCount={free:0,busy:0,rep:0};
   all.forEach(x=>{ stCount[statOf(x)]++; });
   const passTK=x=>(GQF.tier==='all'||x.q.tier===+GQF.tier)
-                &&(!GQF.kind.length||GQF.kind.includes(x.q.kind));
+                &&(!GQF.kind.length||GQF.kind.includes(x.q.kind))
+                &&(!GQF.newOnly||!cleared(x.q));
+  const newCount=all.filter(x=>!cleared(x.q)).length;
   /* ★ 報告待ち（手動依頼なら指揮待ち）を最上段へ ★
      押すまで先に進まないので、絞り込みの下に埋もれさせない。 */
   const ORD={rep:0,busy:1,free:2};
@@ -5855,7 +5941,9 @@ function gQuest(){
         <button data-t="all"${GQF.tier==='all'?' class="on"':''}>すべて</button>
         ${tiers.map(t=>`<button data-t="${t}"${GQF.tier==t?' class="on"':''}>難度${t}</button>`).join('')}
       </div>`:''}
-      <div class="fchips">${Object.keys(QKIND).filter(k=>kindCount[k]).map(k=>
+      <div class="fchips">
+        <button class="fchip${GQF.newOnly?' on':''}" id="qNew">未クリアのみ<i>${newCount}</i></button>
+        ${Object.keys(QKIND).filter(k=>kindCount[k]).map(k=>
         `<button class="fchip${GQF.kind.includes(k)?' on':''}" data-qk="${k}">${
           QKIND[k].n}<i>${kindCount[k]}</i></button>`).join('')}
         ${GQF.kind.length?'<button class="fchip clr" id="qkClr">種別の絞り込みを解除</button>':''}</div>
@@ -5873,12 +5961,13 @@ function gQuest(){
     <div class="seghint"><b>敵の個性は依頼が掲示された時点で決まっています。</b>
       結果の予想は<b>実際に戦う相手</b>と何度も戦わせて出しています（変わるのは戦闘中のぶれだけ）。
       とはいえ推定なので、良い見立てでも落とすことはあります。<br>
-      <b>達成した依頼は掲示から消えます。</b>失敗した依頼は残るので、編成を直して挑み直せます。<br>
+      <b>依頼は何度でも受けられます。</b>達成すると次に挑む時の相手が組み直されます。
+      <b class="gok">初回達成報酬</b>は1度きりで、未クリアの依頼にだけ表示されます。<br>
       同じ依頼を2つの部隊で受けることはできません。並行して回すなら難易度の違う依頼を同時に抱えることになり、
       <b>難しい依頼ほど時給が良い</b>ので、部隊を増やすほど上の階層へ手を出す必要が出ます。</div>
     ${DEBUG?`<div class="gdbg">
       <span>検証用</span>
-      <button class="btn sm dbg" id="qReopen">達成済みを再掲示（${doneList.length}件）</button>
+      <button class="btn sm dbg" id="qReopen">クリア履歴を消す（${doneList.length}件・初回報酬をもう一度）</button>
       <button class="btn sm dbg" id="qReroll">掲示中の敵を引き直す</button>
     </div>
     <div class="sechead">加入の傾向（検証用の表示）</div>
@@ -5900,6 +5989,7 @@ function gQuest(){
     const k=el.dataset.qk;
     GQF.kind=GQF.kind.includes(k)?GQF.kind.filter(x=>x!==k):GQF.kind.concat(k);
     refilter(); });
+  const qn=$('#qNew'); if(qn) qn.onclick=()=>{ GQF.newOnly=!GQF.newOnly; refilter(); };
   const qc=$('#qkClr'); if(qc) qc.onclick=()=>{ GQF.kind=[]; refilter(); };
   b.querySelectorAll('.rrow[data-o]').forEach(r=>{
     const o=offerOf(r.dataset.o); if(!o)return;
@@ -5926,7 +6016,7 @@ function gQuest(){
   const qo=$('#qReopen');
   if(qo) qo.onclick=()=>{
     QUESTS.forEach(q=>{ if(G.done[q.id]) delete G.done[q.id]; });
-    refreshOffers(); GMSG='【検証】達成済みの依頼を再掲示しました（敵は引き直し）。';
+    refreshOffers(); GMSG='【検証】クリア履歴を消しました（初回報酬が再び出ます）。';
     saveGuild(); renderGuild();
   };
   const qr=$('#qReroll');
@@ -5978,6 +6068,8 @@ function gDispatch(o,free){
         q.sec?`（時給 ${goldPerHour(q).toLocaleString()}G）`:''}<br>
       倒れた仲間の療養は依頼の長さに比例します。
       失敗で <b>${fmtDur(Math.round(Math.max(30,q.sec)*1.5))}</b>、成功でも ${fmtDur(Math.round(Math.max(30,q.sec)*0.5))}。</div>
+    ${(!cleared(q)&&firstText(q))?`<div class="qfirst big">初回達成報酬　<b>${firstText(q)}</b>
+      <i>1度きりです。2回目以降は通常の報酬だけになります。</i></div>`:''}
     ${q.manual?`<div class="warn"><b>この依頼は手動戦闘です。</b>
       現地に着いたら「指揮を執る」から、あなた自身がコマンドを選んで戦います。
       ${q.hero?'<b>主人公のいる部隊しか出せません。</b>':''}
@@ -6016,9 +6108,8 @@ function gDispatch(o,free){
   $('#qBack').onclick=()=>renderGuild();
 }
 function resolveInstant(p,q,o){
-  const rw=q.reward||{};
   const rep={at:now(),quest:q.name,questId:q.id,ok:true,turns:0,rounds:[],members:[],claimed:false,
-    pending:{gold:q.gold,member:rw.member?{clsId:rw.member,blank:!!rw.blank}:null,item:false,injuries:[]},
+    pending:rollPending(q,true),
     gold:0,injured:[],gained:[],items:[]};
   p.questId=null; p.offerId=null; p.returnAt=null; p.report=rep;   // 掲示は claimReport で畳む
   G.logs.unshift(rep);
@@ -6158,6 +6249,7 @@ function gReportResult(){
   const won=(r.rounds||[]).filter(x=>x.ok).length, all=(r.rounds||[]).length;
   b.innerHTML=`<h2>${gEsc(r.quest)} の報告</h2>
     <div class="gresult ${r.ok?'ok':'ng'}">${r.ok?'達成':'失敗'}</div>
+    ${r.first?'<div class="qfirst big"><b>初回達成報酬</b>　この依頼を初めて達成しました。報酬に上乗せされています。</div>':''}
     <div class="statgrid">
       <div class="sc"><u>報酬</u><b>${r.gold.toLocaleString()}G</b></div>
       <div class="sc"><u>戦闘</u><b>${won} / ${all} 勝</b></div>
@@ -6215,7 +6307,7 @@ function gManualStep(){
     <div class="cmds"><button class="btn big" id="mvGo"${can?'':' disabled'}>戦闘開始</button></div>
     ${can?'':'<div class="warn">当時の隊員が揃わないため出撃できません。</div>'}
     <div class="seghint">勝てば報酬、負ければ何も入りません。
-      <b>負けても掲示は残る</b>ので、編成を直して挑み直せます。</div>`;
+      <b>依頼は何度でも受け直せます。</b></div>`;
   $('#mvGo').onclick=()=>{ if(can) playManual(); };
 }
 
@@ -6273,15 +6365,8 @@ async function playManual(){
 /* 決着。ここで初めて封筒に中身が入る。**報酬は勝った時だけ。** */
 function gManualFinish(ok){
   const S=MANUAL; if(!S)return;
-  const q=S.q, rep=S.rep, p=S.p, rw=q.reward||{};
-  const pending={gold:0,member:null,item:false,injuries:[]};
-  if(ok){
-    pending.gold=q.gold;
-    if(rw.member) pending.member={clsId:rw.member,blank:!!rw.blank};
-    else if(rw.memberChance&&R(1)<rw.memberChance)
-      pending.member={rare:!!(rw.rareChance&&R(1)<rw.rareChance)};
-    if(rw.equipChance&&R(1)<rw.equipChance) pending.item=true;
-  }
+  const q=S.q, rep=S.rep, p=S.p;
+  const pending=rollPending(q,ok);
   const base=Math.max(30,q.sec)*1000;
   S.men.filter(u=>!u.alive).forEach(u=>
     pending.injuries.push({gid:u.gid,ms:Math.round(base*(ok?0.5:1.5))}));
@@ -6362,7 +6447,7 @@ function gAdmin(){
       装備は倉庫に入りきらず、その場で売り払われます（どちらも報告に残ります）。
       入る器を先に広げておかないと、良い引きをそのまま捨てることになります。</div>
     <div class="sechead">次の${nx.ext?'拡張':'ランク'}</div>
-    <div class="gtodo"><b>${gEsc(nx.n)}</b>　${gEsc(nx.hint)}<br>
+    <div class="gtodo"><b>${gEsc(nx.n)}</b><br>
       部隊 ${r.parties} → <b>${nx.parties}</b>　／
       仲間 ${r.roster} → <b>${nx.roster}</b>　／
       装備 ${r.inv} → <b>${nx.inv}</b>${
@@ -6370,10 +6455,6 @@ function gAdmin(){
     <div class="gcost">必要 <b class="${up?'gok':'gng'}">${r.next.toLocaleString()}G</b>
       　所持 ${G.gold.toLocaleString()}G${up?'':`　<b class="gng">あと ${(r.next-G.gold).toLocaleString()}G</b>`}</div>
     ${up?'<div class="cmds"><button class="btn big" id="gUp">ギルドを拡張する</button></div>':''}
-    <div class="seghint">${nx.ext
-      ?'名前のあるランクは<b>伝説で打ち止め</b>ですが、器の拡張に終わりはありません。同じ額を払うたびに広がります。'
-      :'見えるのは<b>次の一段だけ</b>です。その先は上がってから分かります。'}<br>
-      装備枠は<b>常に仲間枠の2倍より多く</b>取ってあります（全員が武器と防具を着けてなお、選り好みできる余地）。</div>
     <div class="sechead">ギルドを畳む</div>
     <div class="cmds"><button class="btn" id="gWipe">最初からやり直す</button></div>
     <div class="seghint">仲間・装備・金・ランクの<b>すべてを消して</b>新しいギルドを立ち上げ直します。元に戻せません。</div>`;
