@@ -5223,8 +5223,10 @@ function resolveQuest(p,offer){
     turns:r.rounds.reduce((a,x)=>a+x.turns,0),
     claimed:false,pending,gold:0,injured:[],gained:[],items:[]};
   partyUnits(p).forEach(resetUnit);
-  // 達成したら掲示は消える。失敗した依頼は残るので、編成を直して挑み直せる。
-  if(r.ok) G.offers=(G.offers||[]).filter(o=>o.oid!==offer.oid);
+  /* ★ 掲示はここでは消さない ★
+     ここで消すと報告を聞く前に一覧から居なくなり（＝完了欄へ落ち）、
+     一方リロードすると refreshOffers が掲示し直して報告待ちとして最上段に戻る。
+     同じ状態なのに置き場所が変わってしまう。掲示を畳むのは claimReport（達成確定）で行う。 */
   p.questId=null; p.offerId=null; p.returnAt=null; p.report=rep;
   G.logs.unshift(rep); if(G.logs.length>40) G.logs.length=40;
 }
@@ -5250,7 +5252,13 @@ function claimReport(rep){
   if(pen.item){ const o=gainItem(); rep.gold+=o.gold; rep.items=[o.text]; }
   (pen.injuries||[]).forEach(o=>{ const u=G.roster.find(x=>x.gid===o.gid); if(!u)return;
     u.healAt=now()+o.ms; rep.injured.push(u.name); });
-  if(q&&rep.ok) G.done[q.id]=1;      // 達成した依頼はもう掲示されない
+  /* ★ 達成が確定するのはここ ★
+     報告を聞いた時点で初めて依頼が終わり、掲示から消える。
+     解決した瞬間に消すと、報告待ちの依頼が一覧から消えたり戻ったりする。 */
+  if(q&&rep.ok){
+    G.done[q.id]=1;
+    G.offers=(G.offers||[]).filter(o=>o.qid!==q.id);
+  }
   saveGuild();
 }
 
@@ -6012,8 +6020,7 @@ function resolveInstant(p,q,o){
   const rep={at:now(),quest:q.name,questId:q.id,ok:true,turns:0,rounds:[],members:[],claimed:false,
     pending:{gold:q.gold,member:rw.member?{clsId:rw.member,blank:!!rw.blank}:null,item:false,injuries:[]},
     gold:0,injured:[],gained:[],items:[]};
-  if(o) G.offers=(G.offers||[]).filter(x=>x.oid!==o.oid);
-  p.questId=null; p.offerId=null; p.returnAt=null; p.report=rep;
+  p.questId=null; p.offerId=null; p.returnAt=null; p.report=rep;   // 掲示は claimReport で畳む
   G.logs.unshift(rep);
 }
 
@@ -6280,9 +6287,7 @@ function gManualFinish(ok){
     pending.injuries.push({gid:u.gid,ms:Math.round(base*(ok?0.5:1.5))}));
   S.men.forEach(resetUnit);
   rep.fought=true; rep.ok=ok; rep.pending=pending;
-  // 勝った依頼だけ掲示から消える。負けたら残るので挑み直せる。
-  if(ok&&S.offer) G.offers=(G.offers||[]).filter(o=>o.oid!==S.offer.oid);
-  G.logs.unshift(rep); if(G.logs.length>40) G.logs.length=40;
+  G.logs.unshift(rep); if(G.logs.length>40) G.logs.length=40;   // 掲示は claimReport で畳む
   claimReport(rep);
   // 結果画面は再生と共用する
   REPLAY={p,rep,q,men:S.men,idx:(rep.rounds||[]).length,playing:false};
