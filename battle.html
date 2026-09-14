@@ -4530,7 +4530,7 @@ function openDataPanel(){
    それを何度も回せばそのまま成功率の試算になる。
    ========================================================= */
 const GUILD_KEY='kosei-guild-v1';
-const PARTY_MAX=6;              // 伝説の格での部隊数。以降は拡張のたびに増える
+const PARTY_MAX=6;              // 伝説のランクでの部隊数。以降は拡張のたびに増える
 const GOLD_CAP=999999999;       // 検証用のカンスト値。最上位の拡張（7億G）を上回る
 const GEM_CAP=9999;
 // 部隊は拡張のたびに増えるので、漢数字が尽きたら算用数字に落とす
@@ -4539,7 +4539,7 @@ const KANJI_NUM=['一','二','三','四','五','六','七','八','九','十',
 let GVIEW='party', GMSG='';
 
 /* =========================================================
-   ギルドの格（ランク）
+   ギルドのランク
 
    ★ 金で買うのは戦力ではなく「抱えられる量」★
    良い装備は武具屋で買えるが、それは1個ずつの話。ここで買うのは器のほう。
@@ -4547,8 +4547,8 @@ let GVIEW='party', GMSG='';
    だから上限は3つ同時に上がる（部隊・仲間・装備）。
 
    ★ 必要金額の置き方 ★
-   「その格での時給を、どれくらい回し続ければ届くか」で決めている。
-     無名→駆け出し … 1時間ぶん     （1部隊・時給 2万）
+   「そのランクでの時給を、どれくらい回し続ければ届くか」で決めている。
+     無名→駆け出し … プレイ開始後すぐ     （1部隊・時給 2万）
      駆け出し→中堅 … 数時間ぶん     （2部隊・時給 5万）
      中堅→名門     … 数日ぶん       （3部隊・時給12万）
      名門→公認     … 数週間ぶん     （4部隊・時給22万）
@@ -4560,9 +4560,9 @@ let GVIEW='party', GMSG='';
    その次まで見せると遠さのほうが先に来る。見えるのは常に「あと一段」だけ。
    ========================================================= */
 const RANKS=[
-  {n:'無名ギルド',     parties:1,roster:8, inv:20, next:20000,
+  {n:'無名ギルド',     parties:1,roster:8, inv:20, next:2000,
    hint:'看板も出していない。'},
-  {n:'駆け出しギルド', parties:2,roster:14,inv:34, next:250000,
+  {n:'駆け出しギルド', parties:2,roster:14,inv:34, next:50000,
    hint:'名前を覚えられ始めた。'},
   {n:'中堅ギルド',     parties:3,roster:22,inv:52, next:5000000,
    hint:'街の依頼が回ってくるようになった。'},
@@ -4573,7 +4573,7 @@ const RANKS=[
   {n:'伝説のギルド',   parties:6,roster:64,inv:142,next:0,   // next は RANK_EXT が肩代わりする
    hint:'名は大陸中に知れている。'},
 ];
-/* ★ 名前のある格は伝説で打ち止め。器の拡張はそこで止めない ★
+/* ★ 名前のあるランクは伝説で打ち止め。器の拡張はそこで止めない ★
    最上位の値段を払うたびに、同じだけ広がり続ける。
    終わりを作ると「もう払う先が無い金」が生まれて、依頼を回す理由が消える。 */
 const RANK_EXT={parties:1,roster:8,inv:18,cost:700000000};
@@ -5257,7 +5257,7 @@ function loadGuild(){
   catch(e){ return null; }
 }
 function applyGuild(d){
-  /* 格より多い部隊を既に持っている保存（格の実装前）は、部隊の数に合わせて底上げする。
+  /* ランクより多い部隊を既に持っている保存（ランクの実装前）は、部隊の数に合わせて底上げする。
      いきなり「3/1」と出て作れなくなるより、そこまでは来ていた扱いのほうが素直。 */
   const rank0=d.rank!=null?d.rank:Math.max(0,((d.parties||[]).length||1)-1);
   G={gold:d.gold||0,gems:d.gems==null?10:d.gems,rank:Math.max(0,rank0|0),
@@ -5377,7 +5377,7 @@ function renderGuild(){
         <div><u>GOLD</u><b>${G.gold.toLocaleString()}</b></div>
         <div><u>宝石</u><b class="ggem">${G.gems}</b></div>
         <div><u>仲間</u><b>${G.roster.length} / ${maxRoster()}</b></div>
-        <div class="grk"><u>格</u><b>${gEsc(rankNow().n)}</b></div>
+        <div class="grk"><u>ランク</u><b>${gEsc(rankNow().n)}</b></div>
       </div>
     </div>
     <div class="gmenu">
@@ -5385,7 +5385,7 @@ function renderGuild(){
       ${item('quest','依頼を見る','受注状況と帰還予定',offers)}
       ${item('shop','武具屋','武器と防具の売り買い')}
       ${item('temple','寺院','負傷者の治療',hurt)}
-      ${item('admin','ギルド管理','格と、抱えられる量',canRankUp()?'!':0)}
+      ${item('admin','ギルド管理','現在のランク及びランクアップ',canRankUp()?'!':0)}
     </div>
     ${GMSG?`<div class="gmsg">${GMSG}</div>`:''}
     ${idle?`<div class="gidle">待機中の部隊が ${idle} つあります。<b>遊ばせている間は何も生みません。</b></div>`:''}
@@ -5551,7 +5551,7 @@ function gParty(){
          G.parties.length}/${maxParties()}）</button></div>`}
     <div class="seghint"><b>出払っている部隊は編成できません。</b>装備も一緒に持ち出しているためです。
       同時に複数の依頼を回すなら、その数だけ装備が要ります。<br>
-      作れる部隊の数は<b>ギルドの格</b>で決まります（いまは【${gEsc(rankNow().n)}】で ${maxParties()} 部隊まで）。</div>
+      作れる部隊の数は<b>ギルドのランク</b>で決まります（いまは【${gEsc(rankNow().n)}】で ${maxParties()} 部隊まで）。</div>
     <div class="sechead">ギルドメンバー　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
     <div class="fbar">
       <div class="esteps" id="fOwn">
@@ -6314,7 +6314,7 @@ function gShop(){
 }
 
 /* --- ギルド管理 ---
-   抱えられる量の現在値と上限、そして次の格だけを見せる。 */
+   抱えられる量の現在値と上限、そして次のランクだけを見せる。 */
 function gAdmin(){
   const b=$('#gbody');
   const r=rankNow(), nx=rankNext(), up=canRankUp();
@@ -6325,7 +6325,7 @@ function gAdmin(){
       <span class="gcapbar"><i style="width:${pc}%"></i></span></div>`;
   };
   b.innerHTML=`<h2>ギルド管理</h2>
-    <div class="grank"><u>いまの格</u><b>${gEsc(r.n)}</b><i>${gEsc(r.hint)}</i></div>
+    <div class="grank"><u>いまのランク</u><b>${gEsc(r.n)}</b><i>${gEsc(r.hint)}</i></div>
     <div class="sechead">抱えられる量</div>
     ${cap('部隊',G.parties.length,r.parties)}
     ${cap('仲間',G.roster.length,r.roster)}
@@ -6333,7 +6333,7 @@ function gAdmin(){
     <div class="seghint"><b>上限を超えた仲間は加入できず、応援金を置いて去ります。</b>
       装備は倉庫に入りきらず、その場で売り払われます（どちらも報告に残ります）。
       入る器を先に広げておかないと、良い引きをそのまま捨てることになります。</div>
-    <div class="sechead">次の${nx.ext?'拡張':'格'}</div>
+    <div class="sechead">次の${nx.ext?'拡張':'ランク'}</div>
     <div class="gtodo"><b>${gEsc(nx.n)}</b>　${gEsc(nx.hint)}<br>
       部隊 ${r.parties} → <b>${nx.parties}</b>　／
       仲間 ${r.roster} → <b>${nx.roster}</b>　／
@@ -6342,12 +6342,12 @@ function gAdmin(){
       　所持 ${G.gold.toLocaleString()}G${up?'':`　<b class="gng">あと ${(r.next-G.gold).toLocaleString()}G</b>`}</div>
     ${up?'<div class="cmds"><button class="btn big" id="gUp">ギルドを拡張する</button></div>':''}
     <div class="seghint">${nx.ext
-      ?'名前のある格は<b>伝説で打ち止め</b>ですが、器の拡張に終わりはありません。同じ額を払うたびに広がります。'
+      ?'名前のあるランクは<b>伝説で打ち止め</b>ですが、器の拡張に終わりはありません。同じ額を払うたびに広がります。'
       :'見えるのは<b>次の一段だけ</b>です。その先は上がってから分かります。'}<br>
       装備枠は<b>常に仲間枠の2倍より多く</b>取ってあります（全員が武器と防具を着けてなお、選り好みできる余地）。</div>
     <div class="sechead">ギルドを畳む</div>
     <div class="cmds"><button class="btn" id="gWipe">最初からやり直す</button></div>
-    <div class="seghint">仲間・装備・金・格の<b>すべてを消して</b>新しいギルドを立ち上げ直します。元に戻せません。</div>`;
+    <div class="seghint">仲間・装備・金・ランクの<b>すべてを消して</b>新しいギルドを立ち上げ直します。元に戻せません。</div>`;
   const wp=$('#gWipe');
   if(wp) wp.onclick=()=>{
     if(!confirm('ギルドを最初からやり直します。仲間も装備も金もすべて消えます。よろしいですか？'))return;
