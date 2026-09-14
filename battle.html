@@ -4675,10 +4675,13 @@ const QKIND={
 };
 const QUESTS=[
  /* ---------- 難度1：最初の数分 ---------- */
- {id:'q0',name:'ギルド登録の手続き',tier:1,kind:'story',sec:0,gph:0,enemies:[],
-  desc:'書類を出して判を押してもらうだけ。戦闘は起きない。',
-  first:{gold:500},
-  reward:{member:'sw',blank:true}},
+ /* once:true … 一度きり。クリアしたら掲示から消え、二度と出ない。
+    手続きは繰り返すものではないし、初期メンバーが無限に湧いても困る。 */
+ {id:'q0',name:'ギルド登録の手続き',tier:1,kind:'story',sec:0,gph:0,enemies:[],once:true,
+  desc:'書類を出して判を押してもらうだけ。戦闘は起きない。'
+      +'**登録が済むと、見習いの剣士が4人あてがわれる。**個性もスキルも持っていない。',
+  first:{gold:500,member:'sw',blank:true,count:4},
+  reward:{}},
  {id:'q1',name:'ゴブリン退治',tier:1,kind:'short',sec:60,gph:18000,enemies:['goblin'],
   desc:'畑を荒らすゴブリンが1匹。初仕事にはちょうどいい。',
   first:{gold:1000},
@@ -5051,9 +5054,9 @@ function refreshOffers(){
     if(q.tier<=mx)return true;
     return G.parties.some(p=>p.offerId===o.oid);
   });
-  // クリア済みでも掲示は残る。依頼は何度でも受けられる。
+  // クリア済みでも掲示は残る（once の依頼だけは一度きり）。
   QUESTS.forEach(q=>{
-    if(q.tier>mx)return;
+    if(q.tier>mx||(q.once&&G.done[q.id]))return;
     if(!G.offers.some(o=>o.qid===q.id)) G.offers.push(makeOffer(q.id));
   });
 }
@@ -5065,8 +5068,11 @@ function firstText(q){
   const f=q.first, a=[];
   if(f.gold) a.push(`${f.gold.toLocaleString()}G`);
   if(f.item) a.push('装備1つ');
-  if(f.member) a.push(f.member===true?(f.rare?'レア個性持ちの仲間1人':'仲間1人')
-                                     :`${CLS[f.member]?CLS[f.member].n:f.member} 1人`);
+  if(f.member){
+    const n=f.count||1;
+    a.push(f.member===true?`${f.rare?'レア個性持ちの仲間':'仲間'} ${n}人`
+                          :`${CLS[f.member]?CLS[f.member].n:f.member}${f.blank?'（個性・スキルなし）':''} ${n}人`);
+  }
   return a.join('・');
 }
 const offerOf=oid=>(G.offers||[]).find(o=>o.oid===oid)||null;
@@ -5299,23 +5305,27 @@ function rollPending(q,ok){
     const f=q.first;
     pending.first=true;
     pending.gold+=f.gold||0;
-    if(f.member) pending.firstMember=(f.member===true)?{rare:!!f.rare}
-                                    :{clsId:f.member,blank:!!f.blank};
+    if(f.member) pending.firstMember=(f.member===true)
+      ?{rare:!!f.rare,count:f.count||1}
+      :{clsId:f.member,blank:!!f.blank,count:f.count||1};
     if(f.item) pending.firstItem=true;
   }
   return pending;
 }
-/* 仲間を1人入れる。席が無ければ応援金に化ける。 */
+/* 仲間を入れる。席が無ければ応援金に化ける。count で複数人。 */
 function joinFromPending(rep,q,m){
-  if(G.roster.length>=maxRoster()){
-    const o=overflowMember();
-    rep.gold+=o.gold; rep.gained.push(o.text);
-    return;
+  const n=Math.max(1,m.count||1);
+  for(let i=0;i<n;i++){
+    if(G.roster.length>=maxRoster()){
+      const o=overflowMember();
+      rep.gold+=o.gold; rep.gained.push(o.text);
+      continue;
+    }
+    const u=m.clsId
+      ? (()=>{ const x=guildUnit(m.clsId,{blank:m.blank}); G.roster.push(x); return x; })()
+      : gainMember(q,m.rare);
+    rep.gained.push(`${memberLabel(u)} が仲間になった。`);
   }
-  const u=m.clsId
-    ? (()=>{ const x=guildUnit(m.clsId,{blank:m.blank}); G.roster.push(x); return x; })()
-    : gainMember(q,m.rare);
-  rep.gained.push(`${memberLabel(u)} が仲間になった。`);
 }
 /* 封筒を開ける。報告画面を出した瞬間に呼ぶので、数字が動くのと結果を見るのが同時になる。 */
 function claimReport(rep){
@@ -5337,7 +5347,8 @@ function claimReport(rep){
      （同じ掲示のままだと、繰り返すたびに一字一句同じ戦闘になる）。 */
   if(q&&rep.ok){
     G.done[q.id]=(G.done[q.id]||0)+1;
-    G.offers=(G.offers||[]).map(o=>o.qid===q.id?makeOffer(q.id):o);
+    G.offers=q.once ? (G.offers||[]).filter(o=>o.qid!==q.id)     // 一度きりの依頼は消える
+                    : (G.offers||[]).map(o=>o.qid===q.id?makeOffer(q.id):o);
   }
   saveGuild();
 }
