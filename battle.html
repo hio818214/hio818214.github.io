@@ -4600,6 +4600,13 @@ const rankNow=()=>rankInfo(rankIdx());
 const rankNext=()=>rankInfo(rankIdx()+1);        // 上限が無いので必ず存在する
 const maxParties=()=>rankNow().parties;
 const maxRoster=()=>rankNow().roster;
+/* ★ 受けられる難度もランクで開く ★
+   最初から難度6まで並んでいると、開けない依頼を眺めるだけの時間が長い。
+   1段上げるごとに1段開く（無名=難度1／駆け出し=2…）。
+   掲示そのものを出さないので、難度タブにも現れない。 */
+const QMAX_TIER=6;
+const maxTierOf=rank=>Math.min(QMAX_TIER,Math.max(0,rank|0)+1);
+const maxTier=()=>maxTierOf(rankIdx());
 /* 装備の上限。検証盤（G が無い）では従来どおり INV_MAX。 */
 const invCap=()=>(GUILD&&G)?rankNow().inv:INV_MAX;
 const canRankUp=()=>!!G&&G.gold>=rankNow().next;
@@ -4991,8 +4998,16 @@ function makeOffer(qid){
 }
 function refreshOffers(){
   if(!G.offers) G.offers=[];
+  const mx=maxTier();
+  /* ランクに見合わない難度は掲示から外す。
+     ただし部隊が出払っている依頼だけは残す（消すと呼び戻せなくなる）。 */
+  G.offers=G.offers.filter(o=>{
+    const q=questOf(o.qid); if(!q)return false;
+    if(q.tier<=mx)return true;
+    return G.parties.some(p=>p.offerId===o.oid);
+  });
   QUESTS.forEach(q=>{
-    if(G.done[q.id])return;
+    if(G.done[q.id]||q.tier>mx)return;
     if(!G.offers.some(o=>o.qid===q.id)) G.offers.push(makeOffer(q.id));
   });
 }
@@ -5243,6 +5258,7 @@ function claimReport(rep){
 function guildData(){
   const ser=it=>({iid:it.iid,id:it.id,slot:it.slot,spell:it.spell,trait:it.trait});
   return {v:4,gold:G.gold,gems:G.gems,rank:G.rank||0,gidc:G.gidc,oidc:G.oidc,name:G.name,hero:G.hero,
+    qf:{st:GQF.st,tier:GQF.tier,kind:GQF.kind.slice()},   // 依頼の絞り込みも持ち越す
     done:G.done,price:G.price,parties:G.parties,logs:G.logs,stockAt:G.stockAt,offers:G.offers,
     roster:G.roster.map(u=>Object.assign(serSave(u),{gid:u.gid,healAt:u.healAt||0,hero:!!u.hero})),
     inv:INV.map(ser),stock:G.stock.map(ser)};
@@ -5266,6 +5282,11 @@ function applyGuild(d){
      stockAt:d.stockAt||0,offers:d.offers||[],
      roster:[],parties:d.parties||[],logs:d.logs||[],stock:[]};
   INV=[]; iidc=0;
+  // 依頼の絞り込みを戻す。開いていない難度を指していたら「すべて」へ落とす。
+  const qf=d.qf||{};
+  GQF={st:['all','free','busy','rep'].includes(qf.st)?qf.st:'all',
+       tier:(qf.tier==='all'||(+qf.tier>=1&&+qf.tier<=maxTierOf(d.rank))) ? (qf.tier||'all') : 'all',
+       kind:Array.isArray(qf.kind)?qf.kind.filter(k=>QKIND[k]):[]};
   const put=(o,arr)=>{ const def=EQ[o.id]; if(!def)return;
     const iid=+o.iid||(iidc+1);
     arr.push({iid,id:o.id,slot:def.slot,spell:o.spell||null,trait:o.trait||null});
@@ -5822,10 +5843,10 @@ function gQuest(){
       </div>
     </div>
     <div class="fbar">
-      <div class="esteps" id="qTier">
+      ${tiers.length>1?`<div class="esteps" id="qTier">
         <button data-t="all"${GQF.tier==='all'?' class="on"':''}>すべて</button>
         ${tiers.map(t=>`<button data-t="${t}"${GQF.tier==t?' class="on"':''}>難度${t}</button>`).join('')}
-      </div>
+      </div>`:''}
       <div class="fchips">${Object.keys(QKIND).filter(k=>kindCount[k]).map(k=>
         `<button class="fchip${GQF.kind.includes(k)?' on':''}" data-qk="${k}">${
           QKIND[k].n}<i>${kindCount[k]}</i></button>`).join('')}
@@ -5859,17 +5880,19 @@ function gQuest(){
       ).join('<br>')}<br>
       <b>指揮官はどの依頼でも加入しません。</b>《共有》を必ず持つ特別な職なので、
       対人戦の報酬など別の導線に取ってあります。</div>`:''}`;
+  // 絞り込みは保存する。リロードしても同じ見え方で戻ってくる。
+  const refilter=()=>{ saveGuild(); gQuest(); };
   const qs=$('#qStat');
   if(qs) qs.onclick=e=>{ const btn=e.target.closest('button'); if(!btn)return;
-    GQF.st=btn.dataset.s; gQuest(); };
+    GQF.st=btn.dataset.s; refilter(); };
   const qt=$('#qTier');
   if(qt) qt.onclick=e=>{ const btn=e.target.closest('button'); if(!btn)return;
-    GQF.tier=btn.dataset.t; gQuest(); };
+    GQF.tier=btn.dataset.t; refilter(); };
   b.querySelectorAll('[data-qk]').forEach(el=>el.onclick=()=>{
     const k=el.dataset.qk;
     GQF.kind=GQF.kind.includes(k)?GQF.kind.filter(x=>x!==k):GQF.kind.concat(k);
-    gQuest(); });
-  const qc=$('#qkClr'); if(qc) qc.onclick=()=>{ GQF.kind=[]; gQuest(); };
+    refilter(); });
+  const qc=$('#qkClr'); if(qc) qc.onclick=()=>{ GQF.kind=[]; refilter(); };
   b.querySelectorAll('.rrow[data-o]').forEach(r=>{
     const o=offerOf(r.dataset.o); if(!o)return;
     const q=questOf(o.qid);
@@ -6337,7 +6360,8 @@ function gAdmin(){
     <div class="gtodo"><b>${gEsc(nx.n)}</b>　${gEsc(nx.hint)}<br>
       部隊 ${r.parties} → <b>${nx.parties}</b>　／
       仲間 ${r.roster} → <b>${nx.roster}</b>　／
-      装備 ${r.inv} → <b>${nx.inv}</b></div>
+      装備 ${r.inv} → <b>${nx.inv}</b>${
+        maxTierOf(rankIdx()+1)>maxTier()?`<br><b>難度 ${maxTierOf(rankIdx()+1)} の依頼</b>が回ってくるようになります。`:''}</div>
     <div class="gcost">必要 <b class="${up?'gok':'gng'}">${r.next.toLocaleString()}G</b>
       　所持 ${G.gold.toLocaleString()}G${up?'':`　<b class="gng">あと ${(r.next-G.gold).toLocaleString()}G</b>`}</div>
     ${up?'<div class="cmds"><button class="btn big" id="gUp">ギルドを拡張する</button></div>':''}
@@ -6357,9 +6381,13 @@ function gAdmin(){
   const bt=$('#gUp');
   if(bt&&up) bt.onclick=()=>{
     if(!canRankUp())return;
+    const before=maxTier();
     G.gold-=rankNow().next;
     G.rank=rankIdx()+1;
-    GMSG=`ギルドは【${gEsc(rankNow().n)}】になった。`;
+    refreshOffers();                 // 新しく開いた難度をその場で掲示する
+    const after=maxTier();
+    GMSG=`ギルドは【${gEsc(rankNow().n)}】になった。`
+      +(after>before?`　難度 ${after} の依頼が回ってくるようになった。`:'');
     saveGuild(); renderGuild();
   };
 }
