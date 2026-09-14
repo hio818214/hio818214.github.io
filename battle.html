@@ -232,6 +232,21 @@ body.guildmode .gwrap{display:flex;flex-direction:column;gap:14px;
 .k-duel{background:#1f3a30;color:var(--ally)}
 .k-new{background:#3a2f14;color:#d9ab4e}
 .k-done{background:#2c2740;color:var(--muted);font-weight:400}
+.k-key{background:#4a3a5e;color:#c9aef0}
+/* 枠の拡張。1行＝1枠 */
+.extrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 2px;
+  border-bottom:1px dotted var(--line)}
+.extrow.done{opacity:.55}
+.extname{flex:0 0 108px;font-size:12px}
+.extname i{display:block;font-style:normal;font-size:10px;color:var(--muted);margin-top:2px}
+.extnum{flex:0 0 130px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.extnum b{color:var(--text);font-weight:400}
+.extbuy{margin-left:auto;display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px}
+.extbuy em{font-style:normal;font-size:10.5px;color:var(--muted)}
+/* ランクアップの告知。報告の最後に一度だけ出る */
+.grankup{background:#2a2413;border:1px solid var(--gold);border-radius:3px;
+  padding:11px 13px;color:var(--gold);font-size:12.5px;line-height:1.8}
+.grankup b{font-family:var(--serif);font-size:15px;letter-spacing:.06em}
 /* 初回達成報酬。1度きりなので目立たせる */
 .qfirst{display:inline-block;font-size:11px;color:var(--gold);border-left:2px solid var(--gold);
   padding-left:8px;margin-top:4px;line-height:1.6}
@@ -4538,8 +4553,7 @@ function openDataPanel(){
    それを何度も回せばそのまま成功率の試算になる。
    ========================================================= */
 const GUILD_KEY='kosei-guild-v1';
-const PARTY_MAX=6;              // 伝説のランクでの部隊数。以降は拡張のたびに増える
-const GOLD_CAP=999999999;       // 検証用のカンスト値。最上位の拡張（7億G）を上回る
+const GOLD_CAP=999999999;       // 検証用のカンスト値
 const GEM_CAP=9999;
 // 部隊は拡張のたびに増えるので、漢数字が尽きたら算用数字に落とす
 const KANJI_NUM=['一','二','三','四','五','六','七','八','九','十',
@@ -4547,67 +4561,71 @@ const KANJI_NUM=['一','二','三','四','五','六','七','八','九','十',
 let GVIEW='party', GMSG='';
 
 /* =========================================================
-   ギルドのランク
+   ギルドのランクと拡張
 
-   ★ 金で買うのは戦力ではなく「抱えられる量」★
-   良い装備は武具屋で買えるが、それは1個ずつの話。ここで買うのは器のほう。
-   部隊が増えれば依頼を並行して回せ、枠が増えれば引いた中から選り好みできる。
-   だから上限は3つ同時に上がる（部隊・仲間・装備）。
+   ★ ランクは買えない ★
+   以前は金で一段ずつ買う形にしていたが、それだと「金を貯めるだけ」で上がる。
+   ランクは **キークエストの達成** で上がる。
+   各難度に置いたキークエストを**全部**達成すると、組合が次のランクを認可する。
+   キーは難易度の高い依頼に置く（放置依頼には置かない）。
+   待てば終わる依頼で格が上がると、腕ではなく時間で上がってしまう。
 
-   ★ 必要金額の置き方 ★
-   「そのランクでの時給を、どれくらい回し続ければ届くか」で決めている。
-     無名→駆け出し … プレイ開始後すぐ     （1部隊・時給 2万）
-     駆け出し→中堅 … 数時間ぶん     （2部隊・時給 5万）
-     中堅→名門     … 数日ぶん       （3部隊・時給12万）
-     名門→公認     … 数週間ぶん     （4部隊・時給22万）
-     公認→伝説     … 数か月ぶん     （5部隊・時給33万）
-   一段ごとに桁が変わるので、下の依頼を回し続けても上には届かない。
-   上の階層へ手を出す圧力がここからも掛かる。
+   ★ 金で買うのは「枠」だけ。しかも回数に上限がある ★
+   ランクが決めるのは **各枠を何回まで広げてよいか**（extCap）。
+     無名 0回 ／ 駆け出し 1回 ／ 中堅 2回 ／ 名門 3回 ／ 公認 4回 ／ 伝説 無制限
+   上限は**枠ごとに独立**なので、中堅でも部隊枠だけ据え置きという選び方ができる。
+   「認可は下りているが、どこへ使うかは自分で決める」という形にしたかった。
 
-   ★ 次の一段しか見せない ★
-   その次まで見せると遠さのほうが先に来る。見えるのは常に「あと一段」だけ。
+   ★ 装備枠は常に仲間枠の2倍より多い ★
+   全員が武器と防具を着けた状態（＝仲間×2）で、なお選り好みできる余地を残す。
+   base/step をいじってもこの規則が破れないよう、invCap 側で底上げしている。
    ========================================================= */
 const RANKS=[
-  {n:'無名ギルド',     parties:1,roster:8, inv:20, next:2000,
-   hint:'看板も出していない。'},
-  {n:'駆け出しギルド', parties:2,roster:14,inv:34, next:50000,
-   hint:'名前を覚えられ始めた。'},
-  {n:'中堅ギルド',     parties:3,roster:22,inv:52, next:5000000,
-   hint:'街の依頼が回ってくるようになった。'},
-  {n:'名門ギルド',     parties:4,roster:32,inv:74, next:70000000,
-   hint:'腕利きが向こうから訪ねてくる。'},
-  {n:'王国公認ギルド', parties:5,roster:46,inv:104,next:700000000,
-   hint:'王家の紋を掲げることを許された。'},
-  {n:'伝説のギルド',   parties:6,roster:64,inv:142,next:0,   // next は RANK_EXT が肩代わりする
-   hint:'名は大陸中に知れている。'},
+  {n:'無名ギルド',     extCap:0,  hint:'看板も出していない。'},
+  {n:'駆け出しギルド', extCap:1,  hint:'名前を覚えられ始めた。'},
+  {n:'中堅ギルド',     extCap:2,  hint:'街の依頼が回ってくるようになった。'},
+  {n:'名門ギルド',     extCap:3,  hint:'腕利きが向こうから訪ねてくる。'},
+  {n:'王国公認ギルド', extCap:4,  hint:'王家の紋を掲げることを許された。'},
+  {n:'伝説のギルド',   extCap:Infinity, hint:'名は大陸中に知れている。もう誰も止めない。'},
 ];
-/* ★ 名前のあるランクは伝説で打ち止め。器の拡張はそこで止めない ★
-   最上位の値段を払うたびに、同じだけ広がり続ける。
-   終わりを作ると「もう払う先が無い金」が生まれて、依頼を回す理由が消える。 */
-const RANK_EXT={parties:1,roster:8,inv:18,cost:700000000};
-/* ★ 装備枠は常に仲間枠の2倍より多い ★
-   全員が武器と防具を着けた状態（＝仲間×2）で、なお選り好みできる余地を残す。
-   表の値を書き換えてもこの規則は破れないよう、ここで底上げする。 */
-const invFor=(roster,raw)=>Math.max(raw||0,roster*2+4);
-function rankInfo(i){
-  const last=RANKS.length-1;
-  if(i<=last){
-    const r=RANKS[i];
-    return {n:r.n,hint:r.hint,parties:r.parties,roster:r.roster,inv:invFor(r.roster,r.inv),
-            next:(i<last?r.next:RANK_EXT.cost),ext:0};
+/* 枠ごとの基準値と1回あたりの伸び。
+   部隊は1ずつ、仲間は10ずつ、装備は20ずつ（＝仲間×2を割らない刻み）。 */
+const EXT_DEF={
+  parties:{n:'部隊枠',  base:1,  step:1},
+  roster: {n:'仲間枠',  base:10, step:10},
+  inv:    {n:'倉庫枠',  base:24, step:20},
+};
+const EXT_KEYS=['parties','roster','inv'];
+/* 拡張の値段。**枠ごとではなく「その枠を何回広げたか」で決まる。**
+   1回目1,000G・2回目3,000G…と3倍ずつ。表が尽きたらそのまま3倍で伸ばす。 */
+const EXT_COST=[1000,3000,10000,30000,100000,300000,1000000,3000000,10000000];
+const extCost=n=>n<EXT_COST.length?EXT_COST[n]
+  :EXT_COST[EXT_COST.length-1]*Math.pow(3,n-EXT_COST.length+1);
+const extLv=k=>(G&&G.ext&&+G.ext[k])||0;
+const extValue=k=>EXT_DEF[k].base+EXT_DEF[k].step*extLv(k);
+const extCap=()=>rankNow().extCap;
+const extLeft=k=>extCap()-extLv(k);                    // 残り認可回数（Infinity あり）
+const canBuyExt=k=>!!G&&extLeft(k)>0&&G.gold>=extCost(extLv(k));
+
+/* --- ランクはキークエストで決まる ---
+   難度1のキーを全部クリア → 駆け出し、難度2も全部 → 中堅…と、**下から順に**上がる。
+   飛び級はしない（難度3のキーだけ埋めても、難度2が残っていれば上がらない）。 */
+const keyQuests=tier=>QUESTS.filter(q=>q.key&&q.tier===tier);
+const keyDone=q=>!!(G&&G.done[q.id]);
+function rankFromKeys(){
+  let r=0;
+  for(let t=1;t<RANKS.length;t++){
+    const ks=keyQuests(t);
+    if(!ks.length||!ks.every(keyDone))break;
+    r=t;
   }
-  const k=i-last, b=RANKS[last];                 // 伝説から何度広げたか
-  const roster=b.roster+RANK_EXT.roster*k;
-  return {n:`${b.n} ＋${k}`,hint:'伝説の先。払っただけ器が広がる。',
-    parties:b.parties+RANK_EXT.parties*k,
-    roster,inv:invFor(roster,b.inv+RANK_EXT.inv*k),
-    next:RANK_EXT.cost,ext:k};
+  return Math.min(RANKS.length-1,r);
 }
-const rankIdx=()=>Math.max(0,(G&&G.rank)||0);
-const rankNow=()=>rankInfo(rankIdx());
-const rankNext=()=>rankInfo(rankIdx()+1);        // 上限が無いので必ず存在する
-const maxParties=()=>rankNow().parties;
-const maxRoster=()=>rankNow().roster;
+const rankIdx=()=>G?rankFromKeys():0;
+const rankNow=()=>RANKS[rankIdx()];
+const rankNext=()=>RANKS[rankIdx()+1]||null;
+const maxParties=()=>extValue('parties');
+const maxRoster=()=>extValue('roster');
 /* ★ 受けられる難度もランクで開く ★
    最初から難度6まで並んでいると、開けない依頼を眺めるだけの時間が長い。
    1段上げるごとに1段開く（無名=難度1／駆け出し=2…）。
@@ -4615,9 +4633,9 @@ const maxRoster=()=>rankNow().roster;
 const QMAX_TIER=6;
 const maxTierOf=rank=>Math.min(QMAX_TIER,Math.max(0,rank|0)+1);
 const maxTier=()=>maxTierOf(rankIdx());
-/* 装備の上限。検証盤（G が無い）では従来どおり INV_MAX。 */
-const invCap=()=>(GUILD&&G)?rankNow().inv:INV_MAX;
-const canRankUp=()=>!!G&&G.gold>=rankNow().next;
+/* 装備の上限。検証盤（G が無い）では従来どおり INV_MAX。
+   仲間枠の2倍＋4 を下回らないよう、ここで底上げする。 */
+const invCap=()=>(GUILD&&G)?Math.max(extValue('inv'),maxRoster()*2+4):INV_MAX;
 
 /* --- 上限にぶつかった時 ---
    ★ 黙って消さない ★ 何も出ないと「報酬が出なかった」と読めてしまう。
@@ -4698,7 +4716,7 @@ const QUESTS=[
   desc:'街道沿いの森を見て回る。ゴブリンが群れている。',
   first:{gold:2500},
   reward:{equipChance:0.35,memberChance:0.2,memberBias:{rg:16,ar:12}}},
- {id:'qt',name:'ゴブリンの連戦訓練',tier:1,kind:'chain',sec:240,gph:27000,
+ {id:'qt',name:'ゴブリンの連戦訓練',tier:1,kind:'chain',sec:240,gph:27000,key:true,
   waves:[['goblin','goblin'],['goblin','goblin'],['goblin','goblin','goblin']],
   desc:'ゴブリンの群れを三度続けて相手にする。**間に回復は挟めない。**'
       +'1戦目で使い切ると3戦目が持たない。',
@@ -4731,12 +4749,12 @@ const QUESTS=[
   desc:'毒と眠りが延々と飛んでくる。**速さで押し切るか、状態異常ごと耐えるか。**',
   first:{gold:22000},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,mg:10},rareChance:0.15}},
- {id:'q2d',name:'ゴブリンの砦',tier:2,kind:'horde',sec:720,gph:32000,
+ {id:'q2d',name:'ゴブリンの砦',tier:2,kind:'horde',sec:720,gph:32000,key:true,
   enemies:['goblin','goblin','goblin','goblin','goblin','goblin'],
   desc:'**6匹が一度に来る。**一体一体は弱いが、《数の利》で膨らむ。範囲が無いと削り切れない。',
   first:{gold:19000,item:true},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:16,hx:12}}},
- {id:'q2f',name:'三度の追い立て',tier:2,kind:'chain',sec:1080,gph:33000,
+ {id:'q2f',name:'三度の追い立て',tier:2,kind:'chain',sec:1080,gph:33000,key:true,
   waves:[['goblin','goblin','harpy'],['skeleton','skeleton'],['slime','mandra']],
   desc:'**回復なしで三連戦。**速い相手、硬い相手、毒の相手と順に当たる。'
       +'一つの型では抜けられない。',
@@ -4754,7 +4772,7 @@ const QUESTS=[
   desc:'不死が三体。倒しても立ち上がることがある。',
   first:{gold:42000,item:true},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,hx:14},rareChance:0.2}},
- {id:'q3b',name:'犬舎の暴走',tier:3,kind:'std',sec:900,gph:46000,
+ {id:'q3b',name:'犬舎の暴走',tier:3,kind:'std',sec:900,gph:46000,key:true,
   enemies:['cerberus','cerberus','goblin','goblin'],
   desc:'鎖を切った猟犬が2頭。**追い詰めるほど強くなる。**短期決戦しかない。',
   first:{gold:35000},
@@ -4764,12 +4782,12 @@ const QUESTS=[
   desc:'石像が道を塞ぎ、後ろから毒が飛ぶ。**前を抜けないと後ろに届かない。**',
   first:{gold:55000,item:true},
   reward:{equipChance:0.55,memberChance:0.3,memberBias:{mg:16,hx:14},rareChance:0.25}},
- {id:'q3e',name:'屍の行進',tier:3,kind:'horde',sec:1800,gph:45000,
+ {id:'q3e',name:'屍の行進',tier:3,kind:'horde',sec:1800,gph:45000,key:true,
   enemies:['skeleton','skeleton','skeleton','skeleton','skeleton','skeleton','skeleton'],
   desc:'**7体が横一列で来る。**一体ずつは大したことがないが、《怨嗟》で倒すほど残りが育つ。',
   first:{gold:68000,member:true},
   reward:{equipChance:0.6,memberChance:0.35,memberBias:{pr:20,mg:14},rareChance:0.25}},
- {id:'q3d',name:'四連の門',tier:3,kind:'chain',sec:2400,gph:48000,
+ {id:'q3d',name:'四連の門',tier:3,kind:'chain',sec:2400,gph:48000,key:true,
   waves:[['goblin','goblin','goblin','goblin'],['skeleton','skeleton','lich'],
          ['gargoyle','gargoyle'],['cerberus','cerberus','harpy']],
   desc:'**回復なしで四連戦。**門ごとに相手の型が変わる。'
@@ -4794,17 +4812,17 @@ const QUESTS=[
       +'物理で削り合うと先にこちらが尽きる。',
   first:{gold:140000,item:true},
   reward:{equipChance:0.65,memberChance:0.4,memberBias:{mg:20,hx:14},rareChance:0.3}},
- {id:'q4a',name:'竜の通り道',tier:4,kind:'std',sec:3600,gph:58000,
+ {id:'q4a',name:'竜の通り道',tier:4,kind:'std',sec:3600,gph:58000,key:true,
   enemies:['wyvern','wyvern','wyvern'],
   desc:'最速級が三体。**《竜鱗》で大技が通らない。**手数で削るしかない。',
   first:{gold:175000,item:true},
   reward:{equipChance:0.7,memberChance:0.4,memberBias:{rg:16,ar:16},rareChance:0.35}},
- {id:'q6',name:'巣穴の掃討',tier:4,kind:'horde',sec:7200,gph:62000,
+ {id:'q6',name:'巣穴の掃討',tier:4,kind:'horde',sec:7200,gph:62000,key:true,
   enemies:['goblin','goblin','goblin','wyvern','wyvern'],
   desc:'数と火力の両方が来る。生半可な編成では帰れない。',
   first:{gold:370000,item:true,member:true,rare:true},
   reward:{equipChance:0.8,memberChance:0.5,memberBias:{kn:14,sw:10,mg:10},rareChance:0.5}},
- {id:'q4d',name:'五段の試練',tier:4,kind:'chain',sec:5400,gph:68000,
+ {id:'q4d',name:'五段の試練',tier:4,kind:'chain',sec:5400,gph:68000,key:true,
   waves:[['goblin','goblin','goblin'],['skeleton','skeleton','skeleton'],
          ['harpy','harpy','wyvern'],['gargoyle','gargoyle','slime'],
          ['cerberus','cerberus','vampire']],
@@ -4818,23 +4836,23 @@ const QUESTS=[
   reward:{equipChance:1,memberChance:0.6,memberBias:{ar:14,rg:14,kn:10},rareChance:0.4}},
 
  /* ---------- 難度5：数時間 ---------- */
- {id:'q5b',name:'首無しの街道',tier:5,kind:'std',sec:7200,gph:92000,
+ {id:'q5b',name:'首無しの街道',tier:5,kind:'std',sec:7200,gph:92000,key:true,
   enemies:['dullahan','dullahan','skeleton','skeleton','lich'],
   desc:'首無しが二騎。**《宣告》で確実に落としにくる。**押し切られる前に落とす。',
   first:{gold:550000,item:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{kn:16,pr:16},rareChance:0.5}},
- {id:'q5a',name:'吸血鬼の館',tier:5,kind:'std',sec:9000,gph:88000,
+ {id:'q5a',name:'吸血鬼の館',tier:5,kind:'std',sec:9000,gph:88000,key:true,
   enemies:['vampire','vampire','skeleton','skeleton','lich'],
   desc:'削っても削っても戻る。**吸血と再生を止める手立てが要る。**',
   first:{gold:660000,item:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{hx:18,pr:14},rareChance:0.55}},
- {id:'q5d',name:'七つの石像',tier:5,kind:'horde',sec:10800,gph:100000,
+ {id:'q5d',name:'七つの石像',tier:5,kind:'horde',sec:10800,gph:100000,key:true,
   enemies:['gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle'],
   desc:'**石像が7体。**全員が軽減と倍化を持ちうる。'
       +'殴った分だけ返る盤面で、どうやって総量を削るか。',
   first:{gold:900000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{mg:22,hx:16},rareChance:0.6}},
- {id:'q7',name:'古城の最奥',tier:5,kind:'chain',sec:10800,gph:95000,
+ {id:'q7',name:'古城の最奥',tier:5,kind:'chain',sec:10800,gph:95000,key:true,
   waves:[['skeleton','skeleton','goblin','goblin'],
          ['gargoyle','gargoyle','lich'],
          ['dullahan','vampire','lich','skeleton']],
@@ -5333,6 +5351,7 @@ function claimReport(rep){
   if(rep.manual&&!rep.fought)return;   // 手動依頼はまだ戦っていない。開ける中身が無い
   rep.claimed=true;
   const q=questOf(rep.questId), pen=rep.pending||{};
+  const rank0=rankIdx();               // キークエストで上がるので、開ける前後で比べる
   rep.first=!!pen.first;
   if(pen.gold){ rep.gold=pen.gold; G.gold+=pen.gold; }
   if(pen.firstMember) joinFromPending(rep,q,pen.firstMember);
@@ -5349,6 +5368,16 @@ function claimReport(rep){
     G.done[q.id]=(G.done[q.id]||0)+1;
     G.offers=q.once ? (G.offers||[]).filter(o=>o.qid!==q.id)     // 一度きりの依頼は消える
                     : (G.offers||[]).map(o=>o.qid===q.id?makeOffer(q.id):o);
+    /* ★ ランクはここで上がる ★
+       キークエストを全部埋めた瞬間に、報告画面でそれを伝える。
+       上がったら新しい難度の依頼も掲示する。 */
+    const rank1=rankIdx();
+    if(rank1>rank0){
+      // Infinity は JSON にすると null になるので、保存できる数字に落とす
+      const cp=RANKS[rank1].extCap;
+      rep.rankUp={from:RANKS[rank0].n,to:RANKS[rank1].n,cap:cp===Infinity?9999:cp};
+      refreshOffers();
+    }
   }
   saveGuild();
 }
@@ -5356,7 +5385,7 @@ function claimReport(rep){
 /* --- 保存（検証盤とは別形式・別の鍵） --- */
 function guildData(){
   const ser=it=>({iid:it.iid,id:it.id,slot:it.slot,spell:it.spell,trait:it.trait});
-  return {v:4,gold:G.gold,gems:G.gems,rank:G.rank||0,gidc:G.gidc,oidc:G.oidc,name:G.name,hero:G.hero,
+  return {v:5,gold:G.gold,gems:G.gems,ext:{...G.ext},gidc:G.gidc,oidc:G.oidc,name:G.name,hero:G.hero,
     qf:{st:GQF.st,tier:GQF.tier,kind:GQF.kind.slice(),newOnly:!!GQF.newOnly},  // 絞り込みも持ち越す
     done:G.done,price:G.price,parties:G.parties,logs:G.logs,stockAt:G.stockAt,offers:G.offers,
     roster:G.roster.map(u=>Object.assign(serSave(u),{gid:u.gid,healAt:u.healAt||0,hero:!!u.hero})),
@@ -5372,10 +5401,13 @@ function loadGuild(){
   catch(e){ return null; }
 }
 function applyGuild(d){
-  /* ランクより多い部隊を既に持っている保存（ランクの実装前）は、部隊の数に合わせて底上げする。
-     いきなり「3/1」と出て作れなくなるより、そこまでは来ていた扱いのほうが素直。 */
-  const rank0=d.rank!=null?d.rank:Math.max(0,((d.parties||[]).length||1)-1);
-  G={gold:d.gold||0,gems:d.gems==null?10:d.gems,rank:Math.max(0,rank0|0),
+  /* ランクは保存しない（キークエストから毎回導く）。
+     拡張の回数だけを持つ。旧セーブ（rank を買う形式）は、
+     買っていたランクぶんを全枠の拡張回数として引き継ぐ。 */
+  const ex=d.ext||{};
+  const old=Math.max(0,(d.rank|0));
+  const ext={parties:+ex.parties||old,roster:+ex.roster||old,inv:+ex.inv||old};
+  G={gold:d.gold||0,gems:d.gems==null?10:d.gems,ext,
      gidc:d.gidc||0,oidc:d.oidc||0,
      name:d.name||'かけだし団',hero:d.hero||'レイ',done:d.done||{},price:d.price||{},
      stockAt:d.stockAt||0,offers:d.offers||[],
@@ -5384,7 +5416,7 @@ function applyGuild(d){
   // 依頼の絞り込みを戻す。開いていない難度を指していたら「すべて」へ落とす。
   const qf=d.qf||{};
   GQF={st:['all','free','busy','rep'].includes(qf.st)?qf.st:'all',
-       tier:(qf.tier==='all'||(+qf.tier>=1&&+qf.tier<=maxTierOf(d.rank))) ? (qf.tier||'all') : 'all',
+       tier:(qf.tier==='all'||(+qf.tier>=1&&+qf.tier<=QMAX_TIER)) ? (qf.tier||'all') : 'all',
        kind:Array.isArray(qf.kind)?qf.kind.filter(k=>QKIND[k]):[],
        newOnly:!!qf.newOnly};
   const put=(o,arr)=>{ const def=EQ[o.id]; if(!def)return;
@@ -5405,7 +5437,8 @@ function applyGuild(d){
   refreshOffers();
 }
 function newGuild(name,hero){
-  G={gold:0,gems:10,rank:0,gidc:0,oidc:0,name:name,hero:hero,done:{},price:{},stockAt:0,offers:[],
+  G={gold:0,gems:10,ext:{parties:0,roster:0,inv:0},
+     gidc:0,oidc:0,name:name,hero:hero,done:{},price:{},stockAt:0,offers:[],
      roster:[],parties:[],logs:[],stock:[]};
   INV=[]; iidc=0;
   const h=guildUnit('sw',{name:hero}); h.hero=true; G.roster.push(h);
@@ -5506,7 +5539,7 @@ function renderGuild(){
       ${item('quest','依頼を見る','受注状況と帰還予定',offers)}
       ${item('shop','武具屋','武器と防具の売り買い')}
       ${item('temple','寺院','負傷者の治療',hurt)}
-      ${item('admin','ギルド管理','現在のランク及びランクアップ',canRankUp()?'!':0)}
+      ${item('admin','ギルド管理','ランクと枠の拡張',EXT_KEYS.some(canBuyExt)?'!':0)}
     </div>
     ${GMSG?`<div class="gmsg">${GMSG}</div>`:''}
     ${idle?`<div class="gidle">待機中の部隊が ${idle} つあります。<b>遊ばせている間は何も生みません。</b></div>`:''}
@@ -5518,6 +5551,7 @@ function renderGuild(){
       <button class="btn sm dbg" id="dbgE">装備ドロップ</button>
       <button class="btn sm dbg" id="dbgG">金をカンストさせる</button>
       <button class="btn sm dbg" id="dbgJ">宝石をカンストさせる</button>
+      <button class="btn sm dbg" id="dbgK">ランクを1つ上げる</button>
     </div>`:''}
     ${DEBUG?`<div class="gfoot">
       時間は実時間で進みます。<b>ページを閉じていても依頼は進行します。</b><br>
@@ -5541,6 +5575,16 @@ function renderGuild(){
      検証では「持っている状態」を作れれば十分なので、一度でカンストさせる。 */
   dbg('#dbgG',()=>{ G.gold=GOLD_CAP; GMSG=`【検証】金を ${GOLD_CAP.toLocaleString()} にした`; });
   dbg('#dbgJ',()=>{ G.gems=GEM_CAP;  GMSG=`【検証】宝石を ${GEM_CAP} にした`; });
+  /* 次のランクに要るキークエストをまとめてクリア扱いにする。
+     キーは高難度に置いてあるので、素で上げると検証に時間がかかりすぎる。 */
+  dbg('#dbgK',()=>{
+    const ks=keyQuests(rankIdx()+1);
+    if(!ks.length){ GMSG='【検証】これ以上のランクはありません'; return; }
+    ks.forEach(q=>{ G.done[q.id]=(G.done[q.id]||0)+1; });
+    refreshOffers();
+    GMSG=`【検証】ギルドランクが『${gEsc(rankNow().n)}』になった（各枠 ${
+      extCap()===Infinity?'無制限':extCap()+'回'} まで拡張可）`;
+  });
   ({party:gParty,quest:gQuest,shop:gShop,temple:gTemple,admin:gAdmin}[GVIEW]||gParty)();
   tickLabels();
 }
@@ -5672,7 +5716,8 @@ function gParty(){
          G.parties.length}/${maxParties()}）</button></div>`}
     <div class="seghint"><b>出払っている部隊は編成できません。</b>装備も一緒に持ち出しているためです。
       同時に複数の依頼を回すなら、その数だけ装備が要ります。<br>
-      作れる部隊の数は<b>ギルドのランク</b>で決まります（いまは【${gEsc(rankNow().n)}】で ${maxParties()} 部隊まで）。</div>
+      作れる部隊の数は<b>ギルド管理で広げた枠</b>の分だけです（いまは ${maxParties()} 部隊まで。
+      広げられる回数は【${gEsc(rankNow().n)}】の認可で決まります）。</div>
     <div class="sechead">ギルドメンバー　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
     <div class="fbar">
       <div class="esteps" id="fOwn">
@@ -5897,6 +5942,7 @@ function gQuest(){
       <span class="rpos">${fmtDur(q.sec)}</span>
       <span class="rmain"><b>${gEsc(q.name)}<i class="gtag tr">難度${q.tier}</i><i class="gtag ${k.c}">${k.n}</i>${
         cleared(q)?`<i class="gtag k-done">達成 ${clearCount(q)}</i>`:'<i class="gtag k-new">未クリア</i>'}${
+        q.key?'<i class="gtag k-key">キー</i>':''}${
         q.hero?'<i class="gmust">主人公必須</i>':''}${q.manual?'<i class="gman">手動戦闘</i>':''}</b>
         <i>報酬 ${q.gold.toLocaleString()}G${q.sec?`　／　時給 ${goldPerHour(q).toLocaleString()}G`:''}</i><br>
         ${ft?`<span class="qfirst">初回達成報酬　<b>${ft}</b></span><br>`:''}
@@ -6261,6 +6307,11 @@ function gReportResult(){
   b.innerHTML=`<h2>${gEsc(r.quest)} の報告</h2>
     <div class="gresult ${r.ok?'ok':'ng'}">${r.ok?'達成':'失敗'}</div>
     ${r.first?'<div class="qfirst big"><b>初回達成報酬</b>　この依頼を初めて達成しました。報酬に上乗せされています。</div>':''}
+    ${r.rankUp?`<div class="grankup">
+      ギルドランクが『<b>${gEsc(r.rankUp.to)}</b>』に上がった！<br>
+      これにより、ギルド組合からさらなる施設拡張の認可が下りました
+      （各種拡張上限が<b>${r.rankUp.cap===null||r.rankUp.cap===undefined?'—'
+        :(r.rankUp.cap>=9999?'無制限':r.rankUp.cap)}</b>になりました）。</div>`:''}
     <div class="statgrid">
       <div class="sc"><u>報酬</u><b>${r.gold.toLocaleString()}G</b></div>
       <div class="sc"><u>戦闘</u><b>${won} / ${all} 勝</b></div>
@@ -6441,51 +6492,86 @@ function gShop(){
    抱えられる量の現在値と上限、そして次のランクだけを見せる。 */
 function gAdmin(){
   const b=$('#gbody');
-  const r=rankNow(), nx=rankNext(), up=canRankUp();
-  const cap=(label,now,max)=>{
-    const pc=Math.min(100,Math.round(now/Math.max(1,max)*100));
-    return `<div class="gcap${now>=max?' full':''}">
-      <u>${label}</u><b>${now} / ${max}</b>
-      <span class="gcapbar"><i style="width:${pc}%"></i></span></div>`;
+  const r=rankNow(), nx=rankNext();
+  const capTxt=extCap()===Infinity?'無制限':`${extCap()} 回まで`;
+  const cur={parties:maxParties(),roster:maxRoster(),inv:invCap()};
+  const held={parties:G.parties.length,roster:G.roster.length,inv:INV.length};
+  /* 1枠ぶんの行。いま抱えている数／上限、次に広げた時の値、値段、残りの認可回数。 */
+  const extRow=k=>{
+    const d=EXT_DEF[k], lv=extLv(k), left=extLeft(k);
+    // 倉庫は仲間枠×2+4 の底上げが掛かるので、次の値もその規則を通して出す
+    const rawNext=d.base+d.step*(lv+1);
+    const nextVal=(k==='inv')?Math.max(rawNext,maxRoster()*2+4)
+                 :(k==='roster')?rawNext:rawNext;
+    const cost=extCost(lv), can=canBuyExt(k);
+    const money=left<=0?'<b class="gng">認可の上限です</b>'
+      :can?`<b class="gok">${cost.toLocaleString()}G</b>`
+      :`<b class="gng">${cost.toLocaleString()}G</b><em>あと ${(cost-G.gold).toLocaleString()}G</em>`;
+    return `<div class="extrow${left<=0?' done':''}">
+      <span class="extname">${d.n}
+        <i>拡張 ${lv} 回${left===Infinity?'（無制限）':` ／ 残り ${Math.max(0,left)} 回`}</i></span>
+      <span class="extnum">${held[k]} / <b>${cur[k]}</b>${left>0?` → ${nextVal}`:''}</span>
+      <span class="extbuy">${money}
+        ${can?`<button class="btn sm" data-ext="${k}">広げる</button>`:''}</span>
+    </div>`;
   };
+  const nt=rankIdx()+1, ks=keyQuests(nt);      // 次のランクに要るキークエスト
   b.innerHTML=`<h2>ギルド管理</h2>
+    <div class="pname"><label>ギルド名</label>
+      <input id="gName" value="${gAttr(G.name)}" maxlength="16" spellcheck="false">
+      <i>いずれ他のプレイヤーから見える名前になります</i></div>
     <div class="grank"><u>いまのランク</u><b>${gEsc(r.n)}</b><i>${gEsc(r.hint)}</i></div>
-    <div class="sechead">抱えられる量</div>
-    ${cap('部隊',G.parties.length,r.parties)}
-    ${cap('仲間',G.roster.length,r.roster)}
-    ${cap('装備',INV.length,r.inv)}
+    <div class="gtodo">組合が認可している拡張は<b>各枠 ${capTxt}</b>。
+      どの枠に使うかは自由で、<b>使わずに残しても構いません。</b></div>
+    <div class="sechead">枠の拡張</div>
+    ${EXT_KEYS.map(extRow).join('')}
     <div class="seghint"><b>上限を超えた仲間は加入できず、応援金を置いて去ります。</b>
       装備は倉庫に入りきらず、その場で売り払われます（どちらも報告に残ります）。
-      入る器を先に広げておかないと、良い引きをそのまま捨てることになります。</div>
-    <div class="sechead">次の${nx.ext?'拡張':'ランク'}</div>
-    <div class="gtodo"><b>${gEsc(nx.n)}</b><br>
-      部隊 ${r.parties} → <b>${nx.parties}</b>　／
-      仲間 ${r.roster} → <b>${nx.roster}</b>　／
-      装備 ${r.inv} → <b>${nx.inv}</b>${
-        maxTierOf(rankIdx()+1)>maxTier()?`<br><b>難度 ${maxTierOf(rankIdx()+1)} の依頼</b>が回ってくるようになります。`:''}</div>
-    <div class="gcost">必要 <b class="${up?'gok':'gng'}">${r.next.toLocaleString()}G</b>
-      　所持 ${G.gold.toLocaleString()}G${up?'':`　<b class="gng">あと ${(r.next-G.gold).toLocaleString()}G</b>`}</div>
-    ${up?'<div class="cmds"><button class="btn big" id="gUp">ギルドを拡張する</button></div>':''}
+      入る器を先に広げておかないと、良い引きをそのまま捨てることになります。<br>
+      倉庫枠は<b>常に仲間枠の2倍＋4</b>を下回りません（全員が武器と防具を着けてなお選べる余地）。</div>
+    <div class="sechead">次のランク</div>
+    ${nx?`<div class="gtodo"><b>${gEsc(nx.n)}</b>　${gEsc(nx.hint)}<br>
+      認可される拡張が<b>各枠 ${nx.extCap===Infinity?'無制限':`${nx.extCap} 回`}</b>になり、
+      <b>難度 ${Math.min(QMAX_TIER,nt+1)} の依頼</b>が回ってくるようになります。</div>
+      <div class="seghint"><b>ランクは金では上がりません。</b>
+        下のキークエストを<b>すべて達成する</b>と、組合から認可が下ります。</div>
+      <div class="rlist">${ks.map(q=>`<div class="rrow">
+        <span class="rpos">${keyDone(q)?'達成':'未達'}</span>
+        <span class="rmain"><b>${gEsc(q.name)}</b><i class="gtag tr">難度${q.tier}</i>${
+          keyDone(q)?'<i class="gtag k-done">クリア済み</i>':'<i class="gtag k-new">未クリア</i>'}<br>
+          <span class="rsub">${foeSummary(q)}　／　${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span></span>
+        </div>`).join('')||'<div class="tdesc">キークエストが設定されていません。</div>'}</div>`
+     :'<div class="gtodo"><b>これ以上のランクはありません。</b>拡張の回数も無制限です。</div>'}
     <div class="sechead">ギルドを畳む</div>
     <div class="cmds"><button class="btn" id="gWipe">最初からやり直す</button></div>
     <div class="seghint">仲間・装備・金・ランクの<b>すべてを消して</b>新しいギルドを立ち上げ直します。元に戻せません。</div>`;
+  /* ギルド名の書き換え。**確定しても画面を描き直さない** —
+     描き直すとメニューのタップが入力欄の blur に食われて1回目が空振りする。 */
+  const gn=$('#gName');
+  if(gn){
+    const apply=()=>{
+      const v=gn.value.trim().slice(0,16);
+      if(!v){ gn.value=G.name; return; }
+      if(v===G.name)return;
+      G.name=v; saveGuild();
+      const h=$('#gHeadName'); if(h) h.textContent=G.name;
+    };
+    gn.onchange=apply; gn.onblur=apply;
+    gn.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); gn.blur(); } };
+  }
+  b.querySelectorAll('[data-ext]').forEach(el=>el.onclick=()=>{
+    const k=el.dataset.ext;
+    if(!canBuyExt(k))return;
+    G.gold-=extCost(extLv(k));
+    G.ext[k]=extLv(k)+1;
+    GMSG=`${EXT_DEF[k].n}を広げた（${k==='parties'?maxParties():k==='roster'?maxRoster():invCap()}）。`;
+    saveGuild(); renderGuild();
+  });
   const wp=$('#gWipe');
   if(wp) wp.onclick=()=>{
     if(!confirm('ギルドを最初からやり直します。仲間も装備も金もすべて消えます。よろしいですか？'))return;
     try{ localStorage.removeItem(GUILD_KEY); }catch(err){}
     G=null; GVIEW='party'; GMSG=''; renderGuild();
-  };
-  const bt=$('#gUp');
-  if(bt&&up) bt.onclick=()=>{
-    if(!canRankUp())return;
-    const before=maxTier();
-    G.gold-=rankNow().next;
-    G.rank=rankIdx()+1;
-    refreshOffers();                 // 新しく開いた難度をその場で掲示する
-    const after=maxTier();
-    GMSG=`ギルドは【${gEsc(rankNow().n)}】になった。`
-      +(after>before?`　難度 ${after} の依頼が回ってくるようになった。`:'');
-    saveGuild(); renderGuild();
   };
 }
 
