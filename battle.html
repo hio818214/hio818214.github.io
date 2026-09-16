@@ -14,8 +14,8 @@
   --panel2:#232032;
   --line:#332e46;
   --line2:#453e5c;
-  --text:#ece5da;
-  --muted:#9a92ac;
+  --text:#ffffff;
+  --muted:#ffffff;
   --ally:#57c9a4;
   --ally-dim:#2a5f52;
   --foe:#e2596d;
@@ -1314,7 +1314,7 @@ function traitAllowed(t,cls){
 
 /* =========================================================
    2. スキル（魔法と特技）
-
+**魔法はカタカナ、特技は漢字かひらがな。ここは絶対。**
    kind:'magic' … 魔力依存。命中判定なし（必ず当たる）
    kind:'art'   … 攻撃力依存。命中判定あり（だから必中撃に価値が出る）
 
@@ -1352,21 +1352,21 @@ const SPELLS=[
  {id:'cure',   name:'ヨドイヤ',    kind:'magic',type:'cure',  scope:'one', mp:12,
   desc:'味方単体の状態異常をすべて解除する。毒・眠り・休みのどれでも治る。'},
  {id:'rally',  name:'ワマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
-  desc:'味方単体の攻撃力+35%（3ターン）。「共有」「共鳴」「奪取」の起点になる。'},
+  desc:'味方単体の攻撃力+35%（3ターン）。'},
  {id:'haste',  name:'ハマシ',      kind:'magic',type:'buff',  scope:'one', mp:8,  stat:'spd',value:0.35, turns:3,
   desc:'味方単体の素早さ+35%（3ターン）。行動順が繰り上がる。'},
  {id:'guardup',name:'ボマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'def',value:0.40, turns:3,
-  desc:'味方単体の防御力+40%（3ターン）。「肩代わり」役を延命させる。'},
+  desc:'味方単体の防御力+40%（3ターン）。'},
  {id:'blur',   name:'ヨマシ',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
   desc:'味方単体の回避率+22%（3ターン）。素早さの差や《軽業》と足し合わさる。《必中》には無効。'},
  {id:'weaken', name:'ワソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
-  desc:'敵単体の攻撃力-30%（3ターン）。「反射」持ちに撃つと跳ね返る。'},
+  desc:'敵単体の攻撃力-30%（3ターン）。'},
  {id:'breach', name:'ミナボソギ',  kind:'magic',type:'debuff',scope:'all', mp:18, stat:'def',value:-0.28,turns:3,
   desc:'敵全体の防御力-28%（3ターン）。物理アタッカーの前準備。'},
  {id:'slow',   name:'ハソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
   desc:'敵単体の素早さ-30%（3ターン）。行動順を後ろへ落とす。'},
  {id:'venom',  name:'ドヨド',      kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
-  desc:'敵単体を毒状態に（4ターン）。毎手番終了時に最大HPの5%を失う。「毒血」の起点。'},
+  desc:'敵単体を毒状態に（4ターン）。毎手番終了時に最大HPの5%を失う。'},
  {id:'sleep',  name:'ネヨド',      kind:'magic',type:'ail',   scope:'one', mp:10, ail:'sleep',
   desc:'敵単体を眠らせる。次の手番を失い、その間は被ダメージ2倍・個性が働かない。殴れば起きる。'},
  {id:'leafdance',name:'ハガクレ',  kind:'magic',type:'evade',scope:'one',mp:10,needs:'mandra',
@@ -1374,7 +1374,7 @@ const SPELLS=[
 
  /* ---------- 特技（攻撃力依存・命中判定あり） ---------- */
  {id:'zenryoku',name:'全力斬',  kind:'art',type:'atk',scope:'one',mp:10,power:1.5,needs:'剣所持',
-  desc:'対象へ攻撃力×1.5の一撃。剣を持つ者だけが覚える。'},
+  desc:'対象へ攻撃力×1.5の一撃。'},
  {id:'samidare',name:'五月雨斬',kind:'art',type:'atk',scope:'one',mp:16,power:0.55,hits:4,randomTarget:true,needs:'剣所持',
   desc:'4回攻撃。毎回ランダムに対象を選び直す。集団戦向けで、単体には火力が散る。'},
  {id:'hicchuu', name:'必中撃',  kind:'art',type:'atk',scope:'one',mp:8, power:0.8,alwaysHit:true,needs:'剣所持',
@@ -1382,7 +1382,7 @@ const SPELLS=[
  {id:'hayabusa',name:'隼斬',    kind:'art',type:'atk',scope:'one',mp:10,power:0.8,hits:2,needs:'剣所持',
   desc:'同じ対象へ攻撃力×0.8を2回。命中判定も2回行う。'},
  {id:'taiatari',name:'体当たり',kind:'art',type:'atk',scope:'one',mp:6, power:1.3,recoil:0.1,
-  desc:'対象へ攻撃力×1.3。反動で与えたダメージの10%を自分も受ける。誰でも覚えられる。'},
+  desc:'対象へ攻撃力×1.3。反動で与えたダメージの10%を自分も受ける。'},
  {id:'kamitsuki',name:'噛みつき',kind:'art',type:'atk',scope:'one',mp:7,power:1.45,needs:'獣',
   desc:'対象へ攻撃力×1.45。牙を持つ者の一撃。'},
  {id:'tsumesaki',name:'爪裂き', kind:'art',type:'atk',scope:'one',mp:8, power:0.7,hits:2,needs:['獣','飛行'],
@@ -1758,12 +1758,25 @@ const HUMANS   = CLASSES.filter(c=>c.kind==='human');
 const MONSTERS = CLASSES.filter(c=>c.kind==='monster');
 const KIND_LABEL={human:'人間職',monster:'魔物'};
 /* 控えを50人まで抱えるので、名前も多めに用意しておく */
-const ANAMES=['ライカ','ゼノ','ミルフィ','オーウェン','シャロ','ベルグ','ノエル',
-  'アイラ','クレイ','ディーン','エルザ','フィン','グレン','ハンナ','イヴ','ジャン',
-  'カイ','リオ','マーヤ','ニカ','オルガ','パウル','レン','ソフィ','ティナ','ウルズ',
-  'ヴェラ','ワイス','ヤナ','ザック','ルカ','メイ','トール','セシル','ハルト','ノア',
-  'エイダ','ブルーノ','コハク','ダリア','エリク','フローラ','ギード','ヒナ','イリス',
-  'ジーク','クロエ','ラウル','ミナ','ネロ','オリヴィア','ピア'];
+const ANAMES = [
+  'ライカ', 'ゼノ', 'ミルフィ', 'オーウェン', 'シャロ', 'ベルグ', 'ノエル',
+  'アイラ', 'クレイ', 'ディーン', 'エルザ', 'フィン', 'グレン', 'ハンナ', 'イヴ', 'ジャン',
+  'カイ', 'リオ', 'マーヤ', 'ニカ', 'オルガ', 'パウル', 'レン', 'ソフィ', 'ティナ', 'ウルズ',
+  'ヴェラ', 'ワイス', 'ヤナ', 'ザック', 'ルカ', 'メイ', 'トール', 'セシル', 'ハルト', 'ノア',
+  'エイダ', 'ブルーノ', 'コハク', 'ダリア', 'エリク', 'フローラ', 'ギード', 'ヒナ', 'イリス',
+  'ジーク', 'クロエ', 'ラウル', 'ミナ', 'ネロ', 'オリヴィア', 'ピア',
+  // 追加100個
+  'アーサー', 'アリア', 'アレン', 'イアン', 'イザベル', 'ヴァル', 'ウィル', 'ヴェイン', 'エルヴィス', 'オスカー',
+  'カレン', 'キース', 'クララ', 'クロード', 'コリン', 'サラ', 'シオン', 'シェリー', 'シェン', 'ジン',
+  'スカイ', 'ステラ', 'セドリック', 'セナ', 'ソラ', 'ターニャ', 'ダグラス', 'チセ', 'テオ', 'ニア',
+  'ニコル', 'ネイト', 'ネル', 'ハーヴィ', 'バルド', 'ハル', 'ヒューゴ', 'フェイ', 'フェリックス', 'フォン',
+  'ブレンダ', 'ヘゼル', 'ヘンリー', 'ベス', 'マイク', 'マロン', 'ミハイル', 'ミレーナ', 'メリル', 'モニカ',
+  'ユーリ', 'ユナ', 'ユーナ', 'ユリウス', 'ラーズ', 'ライナス', 'ライアン', 'リアム', 'リタ', 'リック',
+  'リリィ', 'リン', 'ルイ', 'ルーカス', 'ルーシー', 'ルナ', 'レイ', 'レオン', 'レヴィ', 'レナ',
+  'ロイ', 'ロキ', 'ロザリー', 'ロード', 'アリス', 'アンナ', 'イサミ', 'エマ', 'カノン', 'ギン',
+  'クレオ', 'サクヤ', 'サシャ', 'シエル', 'シリル', 'シルヴィ', 'セイラ', 'ゼン', 'ツバキ', 'ナギ',
+  'ナタン', 'ニーナ', 'ハク', 'バル', 'ピピン', 'フィオナ', 'フラン', 'マキ', 'ミオ', 'ミラ'
+];
 /* 同じ名前が並ばないように未使用の名前から引く */
 function freshAllyName(){
   const used=new Set([...U,...BENCH].filter(x=>x.side==='ally').map(x=>x.name0||x.name));
@@ -4772,7 +4785,7 @@ const QUESTS=[
 
  /* ---------- 難度2：十数分 ---------- */
  {id:'q2a',name:'廃屋の物音',tier:2,kind:'short',sec:240,gph:26000,
-  enemies:['skeleton','goblin'],
+  enemies:['skeleton','skeleton','skeleton'],
   desc:'空き家に骨が出た。**倒しても立ち上がることがある。**',
   first:{gold:4000},
   reward:{equipChance:0.35,memberChance:0.2,memberBias:{pr:16,sw:8}}},
@@ -4792,8 +4805,8 @@ const QUESTS=[
   first:{gold:22000},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,mg:10},rareChance:0.15}},
  {id:'q2d',name:'ゴブリンの砦',tier:2,kind:'horde',sec:720,gph:32000,key:true,
-  enemies:['goblin','goblin','goblin','goblin','goblin','goblin'],
-  desc:'**6匹が一度に来る。**一体一体は弱いが、《数の利》で膨らむ。範囲が無いと削り切れない。',
+  enemies:['goblin','goblin','goblin','goblin'],
+  desc:'**4匹が一度に来る。**一体一体は弱いが、《数の利》で膨らむ。範囲が無いと削り切れない。',
   first:{gold:19000,item:true},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:16,hx:12}}},
  {id:'q2f',name:'三度の追い立て',tier:2,kind:'chain',sec:1080,gph:33000,key:true,
@@ -4911,8 +4924,9 @@ const QUESTS=[
 
  /* ---------- 難度6：壁。クリア者が出ない前提で置いてある ---------- */
  {id:'q6a',name:'大侵攻',tier:6,kind:'horde',sec:21600,gph:150000,
-  enemies:['dullahan','dullahan','gargoyle','vampire','vampire','lich','lich'],
-  desc:'**7体。前は硬く、後ろは全員が術者。**',
+  waves:[['goblin','goblin','goblin','goblin','skeleton','skeleton','skeleton'],
+         ['dullahan','dullahan','gargoyle','vampire','vampire','lich','lich']],
+  desc:'**7体x2。前は硬く、後ろは全員が術者。**',
   first:{gold:5000000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.8,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
  {id:'q6b',name:'黙示の五夜',tier:6,kind:'chain',sec:43200,gph:170000,
@@ -5002,22 +5016,22 @@ const QUESTS=[
      追加分：難度3（数十分〜半日の放置）
      ========================================================= */
   {id:'q3f',name:'迷い込んだ猟犬',tier:3,kind:'short',sec:600,gph:43000,
-   enemies:['cerberus'],
-   desc:'手負いの猟犬が1頭だけ。**瀕死になると火力が跳ね上がる。**一気に仕留めきること。',
+   enemies:['cerberus','cerberus','cerberus','cerberus'],
+   desc:'手負いの猟犬。**瀕死になると火力が跳ね上がる。**一気に仕留めきること。',
    first:{gold:30000},
    reward:{equipChance:0.45,memberChance:0.3,memberBias:{rg:18,sw:14},rareChance:0.2}},
   {id:'q3g',name:'奇妙な植物の駆除',tier:3,kind:'std',sec:1200,gph:45000,
-   enemies:['mandra','mandra','mandra'],
+   enemies:['mandra','mandra','mandra','harpy'],
    desc:'状態異常の雨あられ。**動けなくなる前になぎ払う火力が要る。**',
    first:{gold:48000,item:true},
    reward:{equipChance:0.5,memberChance:0.3,memberBias:{hx:18,mg:14},rareChance:0.2}},
   {id:'q3h',name:'魔窟の入り口',tier:3,kind:'chain',sec:2700,gph:47000,
-   waves:[['goblin','goblin','slime'],['skeleton','mandra'],['gargoyle','gargoyle']],
+   waves:[['goblin','goblin','slime'],['skeleton','skeleton','mandra'],['gargoyle','gargoyle','gargoyle','gargoyle']],
    desc:'**回復なしで三連戦。**最後には硬い石像が待つ。息切れしない編成が求められる。',
    first:{gold:100000,item:true,member:true},
    reward:{equipChance:0.65,memberChance:0.35,memberBias:{kn:14,pr:14,mg:10},rareChance:0.25}},
   {id:'q3i',name:'遺跡の定点観測',tier:3,kind:'idle',sec:14400,gph:26000,
-   enemies:['gargoyle','gargoyle','skeleton'],
+   enemies:['gargoyle','gargoyle','skeleton','skeleton','skeleton'],
    desc:'古代遺跡を監視する。**4時間。**時給は低いが、仕事中や授業中に回すのに適している。',
    first:{gold:180000,item:true},
    reward:{equipChance:0.7,memberChance:0.5,memberBias:{mg:16,hx:14,pr:10},rareChance:0.25}},
@@ -5026,12 +5040,12 @@ const QUESTS=[
      追加分：難度4（1〜2時間〜長時間の放置）
      ========================================================= */
   {id:'q4e',name:'単独飛竜の撃墜',tier:4,kind:'short',sec:1800,gph:54000,
-   enemies:['wyvern'],
-   desc:'はぐれた飛竜を仕留める。**最速かつ《竜鱗》持ち。**短期決戦で被害を抑える。',
+   enemies:['wyvern','wyvern','wyvern','wyvern','wyvern'],
+   desc:'飛竜を仕留める。**最速かつ《竜鱗》持ち。**短期決戦で被害を抑える。',
    first:{gold:95000},
    reward:{equipChance:0.6,memberChance:0.35,memberBias:{ar:22,rg:14},rareChance:0.35}},
   {id:'q4f',name:'血を吸う獣',tier:4,kind:'std',sec:3000,gph:57000,
-   enemies:['cerberus','cerberus','vampire'],
+   enemies:['cerberus','cerberus','cerberus','cerberus','vampire','vampire','vampire'],
    desc:'前衛は追い詰められるほど狂暴化し、後衛は削っても回復する。**火力の集中が必要。**',
    first:{gold:150000,item:true},
    reward:{equipChance:0.65,memberChance:0.4,memberBias:{sw:16,hx:16},rareChance:0.35}},
@@ -5041,7 +5055,7 @@ const QUESTS=[
    first:{gold:320000,item:true,member:true},
    reward:{equipChance:0.75,memberChance:0.45,memberBias:{ar:20,mg:16},rareChance:0.4}},
   {id:'q4h',name:'霊峰の巡礼護衛',tier:4,kind:'idle',sec:28800,gph:34000,
-   enemies:['wyvern','wyvern','gargoyle','lich'],
+   enemies:['wyvern','wyvern','gargoyle','lich','lich','lich'],
    desc:'険しい山道を信徒と共に越える。**8時間。**睡眠時間を丸ごと当てられる長さ。',
    first:{gold:550000,item:true},
    reward:{equipChance:0.9,memberChance:0.6,memberBias:{kn:18,pr:16,sw:10},rareChance:0.45}},
@@ -5050,8 +5064,8 @@ const QUESTS=[
      追加分：難度5（数時間〜丸1日の放置）
      ========================================================= */
   {id:'q5e',name:'彷徨う鎧',tier:5,kind:'short',sec:3600,gph:89000,
-   enemies:['dullahan'],
-   desc:'首無しが単騎。**《宣告》を受ける前に火力を叩き込めるか**のダメージチェック。',
+   enemies:['dullahan','dullahan','dullahan','dullahan','dullahan','dullahan','dullahan'],
+   desc:'首無し。**《宣告》を受ける前に火力を叩き込めるか**のダメージチェック。',
    first:{gold:350000,item:true},
    reward:{equipChance:0.8,memberChance:0.5,memberBias:{sw:20,mg:16},rareChance:0.55}},
   {id:'q5f',name:'死霊術師の実験場',tier:5,kind:'std',sec:8000,gph:90000,
@@ -5065,7 +5079,7 @@ const QUESTS=[
    first:{gold:950000,item:true,member:true,rare:true},
    reward:{equipChance:1,memberChance:0.65,memberBias:{kn:24,hx:16},rareChance:0.65}},
   {id:'q5h',name:'王都防衛戦線の維持',tier:5,kind:'idle',sec:86400,gph:52000,
-   enemies:['dullahan','dullahan','gargoyle','gargoyle','lich'],
+   enemies:['dullahan','dullahan','gargoyle','gargoyle','lich','lich','lich'],
    desc:'最前線で陣地を死守する。**24時間。**丸一日部隊が帰ってこないが、巨額の富を生む。',
    first:{gold:2500000,item:true,rare:true},
    reward:{equipChance:1,memberChance:0.8,memberBias:{kn:16,pr:16,sw:14},rareChance:0.75}},
@@ -5074,7 +5088,10 @@ const QUESTS=[
      追加分：難度6（理不尽の極致）
      ========================================================= */
   {id:'q6d',name:'天を覆う翼',tier:6,kind:'horde',sec:28800,gph:155000,
-   enemies:['wyvern','wyvern','wyvern','wyvern','harpy','harpy','harpy'],
+   waves:[['wyvern','wyvern','wyvern','wyvern','harpy','harpy','harpy'],
+          ['wyvern','wyvern','wyvern','wyvern','harpy','harpy','harpy'],
+          ['wyvern','wyvern','wyvern','wyvern','harpy','harpy','harpy'],
+          ['wyvern','wyvern','wyvern','wyvern','harpy','harpy','harpy']],
    desc:'**空を埋め尽くす最速の7体。**一巡目で壊滅せずに反撃の糸口を掴めるか。',
    first:{gold:7500000,item:true,member:true,rare:true},
    reward:{equipChance:1,memberChance:0.9,memberBias:{ar:20,rg:20,kn:10},rareChance:1}},
@@ -5091,7 +5108,7 @@ const QUESTS=[
      追加分：決闘（主人公出撃必須）
      ========================================================= */
   {id:'qd3',name:'御前試合',tier:4,kind:'duel',sec:600,gph:120000,hero:true,manual:true,
-   enemies:['kn','kn','sw','pr'],
+   enemies:['kn','sw','kn','pr','pr','pr'],
    desc:'王都からの招待試合。**堅牢な盾役2枚と回復役**という極めて手堅い布陣。'
        +'手動指揮で崩し切れるか。勝てば王都の騎士が移籍してくる。',
    first:{gold:80000,member:'kn',item:true},
@@ -5143,7 +5160,8 @@ function gainMember(q,rare){
 }
 const memberLabel=u=>`${u.name}（${u.clsName}${u.rareFrom?'・レア《'+TRAITS[u.rareFrom].name+'》':''}）`;
 /* =========================================================
-   自作依頼（伝説のギルドで解禁）
+   自作依頼（中堅ギルドで解禁）
+敵を7枠×最大5連戦で並べ、所要時間（1分〜7日）を決めます。
 
    ★ 敵の並びが決めるのは「時給」。総額ではない ★
    ここが肝で、**時間はいくらでも伸ばせるのに壊れない**理由でもある。
@@ -5221,20 +5239,60 @@ const injured=u=>u.healAt>now();
      洋風  … 《接頭》《名詞》     例：ファイアーラット
      短名  … 《修飾》＋団/隊/衆   例：紅蓮団
    手で書かせないのは、名付けで手が止まるより引き直すほうが速いから。 */
-const PN_WA=['女神','黄昏','紅蓮','蒼天','黎明','静寂','暴風','鉄血','月影','氷雪','雷鳴','白銀',
-  '漆黒','深淵','流星','砂塵','薄明','終焉','曙光','無銘','常夜','灰燼','群青','朱雀','北天','残照'];
-const PN_NOUN=['威光','刃','翼','盾','牙','灯','誓い','足跡','咆哮','使徒','守人','狩人','継承者',
-  '導き','轍','鼓動','残響','黙示','証','旗','夜明け','鎖','約束','帰路'];
-const PN_PRE=['ファイアー','シルバー','クリムゾン','アイアン','ブレイブ','ワイルド','グラン',
-  'ノーザン','サンダー','フロスト','シャドウ','ブラッド','ゴールデン','エメラルド','スカイ','ストーム','ルナ','ソル'];
-const PN_POST=['ラット','ファング','クロウ','ウィング','ブレイド','ハウンド','ランス','アロー',
-  'ハンマー','クレスト','リーパー','ウルフ','ホーク','バジリスク','キャラバン','ブリゲード','オーダー','カンパニー'];
-const PN_SUF=['団','隊','党','衆','組','会'];
-function randPartyName(){
-  const r=RI(10);
-  if(r<4) return `${pick(PN_WA)}の${pick(PN_NOUN)}`;
-  if(r<8) return `${pick(PN_PRE)}${pick(PN_POST)}`;
-  return `${pick(PN_WA)}${pick(PN_SUF)}`;
+const PN_WA = [
+  '女神','黄昏','紅蓮','蒼天','黎明','静寂','暴風','鉄血','月影','氷雪','雷鳴','白銀',
+  '漆黒','深淵','流星','砂塵','薄明','終焉','曙光','無銘','常夜','灰燼','群青','朱雀','北天','残照',
+  // 追加
+  '紫電','虚空','幻影','幽冥','星屑','極光','断罪','天罰','救世'
+];
+
+const PN_NOUN = [
+  '威光','刃','翼','盾','牙','灯','誓い','足跡','咆哮','使徒','守人','狩人','継承者',
+  '導き','轍','鼓動','残響','黙示','証','旗','夜明け','鎖','約束','帰路',
+  // 追加
+  '篝火','心臓','天秤','境界','羅針盤','道標','祈り','残光'
+];
+
+const PN_PRE = [
+  'ファイアー','シルバー','クリムゾン','アイアン','ブレイブ','ワイルド','グラン',
+  'ノーザン','サンダー','フロスト','シャドウ','ブラッド','ゴールデン','エメラルド','スカイ','ストーム','ルナ','ソル',
+  // 追加
+  'ダーク','ナイト','カオス','ホーリー','アビス','ヴォイド','ファントム','コバルト'
+];
+
+const PN_POST = [
+  'ラット','ファング','クロウ','ウィング','ブレイド','ハウンド','ランス','アロー',
+  'ハンマー','クレスト','リーパー','ウルフ','ホーク','バジリスク','キャラバン','ブリゲード','オーダー','カンパニー',
+  // 追加
+  'ナイト','ガード','バスター','チェイサー','ロード','スピリット','ヴァルキリー'
+];
+
+// 組織の接尾辞を拡張
+const PN_SUF = ['団','隊','党','衆','組','会','騎士団','旅団','同盟','義勇軍','結社','連盟','遊撃隊'];
+
+// 状態・形容表現を追加
+const PN_ADJ = ['名もなき','彷徨える','果てなき','眠れぬ','輝ける','喪われた','堕ちた','掲げられし'];
+
+function randPartyName() {
+  const r = RI(15); // パターンを増やして15段階に拡張
+  
+  // パターン1: 漢語＋名詞 (例: 黄昏の刃) [約27%]
+  if (r < 4) return `${pick(PN_WA)}の${pick(PN_NOUN)}`;
+  
+  // パターン2: カタカナ合成 (例: クリムゾンファング) [約27%]
+  if (r < 8) return `${pick(PN_PRE)}${pick(PN_POST)}`;
+  
+  // パターン3: 漢語＋組織 (例: 紅蓮騎士団) [約20%]
+  if (r < 11) return `${pick(PN_WA)}${pick(PN_SUF)}`;
+  
+  // パターン4: 形容表現＋名詞 (例: 彷徨える使徒) [約13%]
+  if (r < 13) return `${pick(PN_ADJ)}${pick(PN_NOUN)}`;
+  
+  // パターン5: 形容表現＋漢語＋名詞 (例: 彷徨える紫電使徒) [約6%]
+  if (r < 14) return `${pick(PN_ADJ)}${pick(PN_WA)}${pick(PN_NOUN)}`;
+  
+  // パターン6: カタカナ＋組織 (例: ダーク同盟) [約6%]
+  return `${pick(PN_PRE)}${pick(PN_SUF)}`;
 }
 /* 既にある名前とは被らせない。被ったままだと盤面でどちらか分からなくなる。 */
 function freshPartyName(){
@@ -5693,7 +5751,7 @@ function newGuild(name,hero){
    ========================================================= */
 const gEsc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
 // 属性値に入れる用。value="…" を閉じられないよう引用符も潰す
-const gAttr=s=>gEsc(s).replace(/"/g,'&quot;');
+const gAttr=s=>gEsc(s).replace(/"/g,'&quot;'); // 正規表現の"がコードの見た目を壊すのでコメントで入れておく
 
 /* 個性・スキル・装備をチップで並べる。検証盤のカードと同じ見た目・同じ説明チップ。
    traitSlots / spellSlots を通しているので、**装備由来の枠も重複で無効な枠もそのまま出る**。
@@ -5783,7 +5841,7 @@ function renderGuild(){
       ${item('admin','ギルド管理','ランクと枠の拡張',rankIdx()>(G.rankSeen||0)?'!':0)}
     </div>
     ${GMSG?`<div class="gmsg">${GMSG}</div>`:''}
-    ${idle?`<div class="gidle">待機中の部隊が ${idle} つあります。<b>遊ばせている間は何も生みません。</b></div>`:''}
+    ${idle?`<div class="gidle">待機中の部隊が ${idle} つあります。</div>`:''}
     <div class="gpanel" id="gbody"></div>
     ${DEBUG?`<div class="gdbg">
       <span>検証用</span>
@@ -6808,17 +6866,14 @@ function gAdmin(){
   const nt=rankIdx()+1, ks=keyQuests(nt);      // 次のランクに要るキークエスト
   b.innerHTML=`<h2>ギルド管理</h2>
     <div class="pname"><label>ギルド名</label>
-      <input id="gName" value="${gAttr(G.name)}" maxlength="16" spellcheck="false">
-      <i>いずれ他のプレイヤーから見える名前になります</i></div>
+      <input id="gName" value="${gAttr(G.name)}" maxlength="16" spellcheck="false"></div>
     <div class="grank"><u>いまのランク</u><b>${gEsc(r.n)}</b><i>${gEsc(r.hint)}</i></div>
-    <div class="gtodo">組合が認可している拡張は<b>各枠 ${capTxt}</b>。
-      どの枠に使うかは自由で、<b>使わずに残しても構いません。</b></div>
+    <div class="gtodo">組合が認可している拡張は<b>各枠 ${capTxt}</b>。</div>
     <div class="sechead">枠の拡張</div>
     ${EXT_KEYS.map(extRow).join('')}
     <div class="seghint"><b>上限を超えた仲間は加入できず、応援金を置いて去ります。</b>
       装備は倉庫に入りきらず、その場で売り払われます（どちらも報告に残ります）。
-      入る器を先に広げておかないと、良い引きをそのまま捨てることになります。<br>
-      倉庫枠は<b>常に仲間枠の2倍＋4</b>を下回りません（全員が武器と防具を着けてなお選べる余地）。</div>
+      入る器を先に広げておかないと、良い引きをそのまま捨てることになります。</div>
     ${customUnlocked()?`<div class="sechead">依頼を作る</div>
       <div class="gtodo">敵を並べて自分で依頼を掲示できます。
         いま <b>${customList().length} / ${maxCustom()}</b> 枠。
@@ -7035,8 +7090,7 @@ function gTemple(){
   const hurt=G.roster.filter(showHurt);   // 報告を聞く前の負傷はここにも出さない
   const cost=u=>Math.max(100,Math.ceil((u.healAt-now())/60000)*150);
   b.innerHTML=`<h2>寺院</h2>
-    <div class="seghint">療養は<b>放っておけば時間で明けます</b>。急ぐなら金か宝石を払ってください。
-      <b>無料の道を残してあるので、全員負傷＋無一文でも詰みません。</b></div>
+    <div class="seghint">療養は<b>放っておけば時間で明けます</b>。急ぐなら金か宝石を払ってください。</div>
     <div class="rlist">${hurt.map(u=>`<div class="rrow" data-u="${u.gid}">
       <span class="rpos">療養</span>
       <span class="rmain"><b>${gEsc(u.name)}</b><i>${u.clsName}</i><br>
