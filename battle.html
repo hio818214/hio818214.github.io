@@ -14,7 +14,7 @@
   --panel2:#232032;
   --line:#332e46;
   --line2:#453e5c;
-  --text:#ffffff;
+  --text:#efffff;
   --muted:#ffffff;
   --ally:#57c9a4;
   --ally-dim:#2a5f52;
@@ -6632,7 +6632,7 @@ function gReportResult(){
     if(hurt.length) return {ok:false,
       why:`${hurt.map(u=>gEsc(u.name)).join('・')} が療養中のため、この部隊はまだ出せません。`};
     if(q.hero&&!men.some(u=>u.hero)) return {ok:false,why:'この依頼は主人公の出撃が条件です。'};
-    return {ok:true,why:'<b>敵は掲示し直されている</b>ので、前回と同じ相手とはかぎりません。',q,off};
+    return {ok:true,why:'<b>敵は前回と同じ相手とはかぎりません</b>。',q,off};
   })();
   const won=(r.rounds||[]).filter(x=>x.ok).length, all=(r.rounds||[]).length;
   b.innerHTML=`<h2>${gEsc(r.quest)} の報告</h2>
@@ -6652,8 +6652,7 @@ function gReportResult(){
     ${r.gained.length?`<div class="gtodo">${r.gained.map(gEsc).join('<br>')}</div>`:''}
     ${r.items.length?`<div class="gtodo">${r.items.map(gEsc).join('<br>')}</div>`:''}
     ${r.injured.length?`<div class="warn">${r.injured.map(gEsc).join('・')} が負傷した。寺院で治療できる。</div>`:''}
-    <div class="seghint">報酬と負傷は<b>報告を開いた時点</b>で反映されます。部隊一覧では成否が分かりません。${
-      DEBUG?`<br>各戦闘の種：${(r.rounds||[]).map(x=>x.seed).join(' / ')||'—'}`:''}</div>
+    <div class="seghint">${DEBUG?`<br>各戦闘の種：${(r.rounds||[]).map(x=>x.seed).join(' / ')||'—'}`:''}</div>
     ${again.why?`<div class="seghint">${again.why}</div>`:''}
     <div class="cmds">
       ${again.ok?'<button class="btn big" id="rReGo">同じ依頼へもう一度送り出す</button>':''}
