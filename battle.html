@@ -1086,38 +1086,38 @@ kibunya:{name:'気分屋',cat:'弱',desc:'自分の手番開始時、ランダ�
 /* ---------- 素質（基礎パラメータの底上げ） ----------
    役割の狭いものほど数値を厚くしてある。素早さは「手番そのものが増える」ので抑えめ。 */
 kyoujin: talent('kyoujin','強靭','def',0.40,
-  '最大HP+40%。さらに戦闘開始時、防御+40%の永続バフが自分に乗る（《共有》で配れる）。',{hp:1.4}),
+  '最大HP+40%。さらに戦闘開始時、防御+40%の永続バフが自分に乗る。',{hp:1.4}),
 eichi:   talent('eichi','叡智','mat',0.40,
-  '最大MP+60%。さらに戦闘開始時、魔力+40%の永続バフが自分に乗る（《共有》で配れる）。'
+  '最大MP+60%。さらに戦闘開始時、魔力+40%の永続バフが自分に乗る。'
   +'MPは魔法を使わない職には無価値なので厚め。',{mp:1.6}),
 makekkai:talent('makekkai','魔結界','mdf',0.60,
-  '戦闘開始時、魔防+60%の永続バフが自分に乗る（《共有》で配れる）。物理型の相手には効かないぶん厚くしてある。'),
+  '戦闘開始時、魔防+60%の永続バフが自分に乗る。'),
 idaten:  talent('idaten','韋駄天','spd',0.30,
-  '戦闘開始時、素早さ+30%の永続バフが自分に乗る（《共有》で配れる）。手番が増えるという意味なので、他の素質より控えめ。'),
+  '戦闘開始時、素早さ+30%の永続バフが自分に乗る。'),
 
 /* ---------- 資源（MPまわり） ---------- */
-mashield:{name:'魔盾',cat:'資源',desc:'HPが減る時、MPがあればMPで肩代わりする。毒や反動にも効く。《生命転用》とちょうど逆向き。'},
+mashield:{name:'魔盾',cat:'資源',desc:'HPが減る時、MPがあればMPで肩代わりする。毒や反動にも効く。'},
 amp:{name:'増幅',cat:'資源',desc:'スキルの消費MPが1.5倍になる代わりに威力も1.5倍。効率は変わらず、一撃が重くなる。'},
 shousen:{name:'消費軽減',cat:'資源',desc:'スキルの消費MPが3/4になる。'},
-renki:{name:'練気',cat:'資源',desc:'自分の手番終了時、最大MPの8%を回復する。《微回復》のMP版。',
+renki:{name:'練気',cat:'資源',desc:'自分の手番終了時、最大MPの8%を回復する。',
   turnEnd(s,c){ if(c.unit!==s||!s.alive||s.mp>=s.maxMp)return;
     const g=Math.max(1,Math.round(s.maxMp*0.08)); gainMp(s,g); proc(s,'renki',`MP+${g}`);}},
 katsubou:{name:'魔力渇望',cat:'資源',desc:'MPが減るほど全ステータスが上がる。残MP0で全ステ+50%。',
   mod(s,k){ if(!s.maxMp)return 1; const r=s.mp/s.maxMp; if(r>=1)return 1;
     s.fired.katsubou=2; return 1+0.5*(1-r);}},
-kyuuma:{name:'吸魔',cat:'資源',desc:'通常攻撃で与えたダメージの18%をMPとして吸収する。特技・魔法では働かない。',
+kyuuma:{name:'吸魔',cat:'資源',desc:'通常攻撃で与えたダメージの18%をMPとして吸収する。',
   dealt(s,c){ if(c.attacker!==s||!c.normal)return; const g=Math.round(c.dmg*0.18); if(g<1)return;
     gainMp(s,g); proc(s,'kyuuma',`MP+${g}を吸収`);}},
 
 /* ---------- 追加の対敵・習熟 ---------- */
-kuzushi:{name:'崩し',cat:'対敵',desc:'通常攻撃が命中した時、28%で相手の体勢を崩し休み状態にする。特技・魔法では働かない。',
+kuzushi:{name:'崩し',cat:'対敵',desc:'通常攻撃が命中した時、28%で相手の体勢を崩し休み状態にする。',
   dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target.alive)return;
     if(R(1)>=0.28)return;
     proc(s,'kuzushi',`${c.target.name}の体勢を崩した`); addAil(c.target,'rest',null,s);}},
-dokugeki:{name:'毒撃',cat:'対敵',desc:'通常攻撃が命中した時、相手を毒状態にする。特技・魔法では働かない。',
+dokugeki:{name:'毒撃',cat:'対敵',desc:'通常攻撃が命中した時、相手を毒状態にする。',
   dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target.alive||c.target.ail.poison)return;
     proc(s,'dokugeki',`${c.target.name}を毒に`); addAil(c.target,'poison',4,s);}},
-chitai:{name:'遅滞',cat:'対敵',desc:'被弾した時、攻撃者の行動順を少し遅らせる。1手番につき1回まで。範囲攻撃・多段攻撃への備え。',
+chitai:{name:'遅滞',cat:'対敵',desc:'被弾した時、攻撃者の行動順を少し遅らせる。',
   damaged(s,c){ if(c.target!==s||!c.attacker||!c.attacker.alive)return;
     if(s.cnt.chitaiTurn===turnNo)return;             // 多段攻撃で何度も遅らせない
     if(hasT(c.attacker,'fudou'))return;              // 《不動》は行動順を動かされない
@@ -1813,13 +1813,37 @@ function rollTraits(cls){
   const pool=ok.filter(id=>!fixed.includes(id));
   return [...fixed,...pickWeighted(pool,cls.bias,Math.max(0,3-fixed.length))].slice(0,3);
 }
-/* 職業に応じたスキル。spN 枠だけ引き、残りは「なし」。
-   needs を満たさないスキルは候補から外す（剣を持たない者に剣技は出ない）。 */
+/* 職業に応じたスキル。
+   needs を満たさないスキルは候補から外す（剣を持たない者に剣技は出ない）。
+
+   ★ 枠数は spN〜3 のランダム ★
+   固定だと同じ職業の個体が全部同じ厚みになる。下限だけ職業で決めて、上は運。
+
+   ★ 魔法か特技かは、攻撃力と魔力の二乗比で1枠ずつ引く ★
+     cls.atk² < R(cls.atk² + cls.mat²)  → 魔法、そうでなければ特技
+   つまり魔法が出る確率は mat² / (atk² + mat²)。
+   二乗にしているのは差を強調するため。等倍だと「どちらつかず」が多くなりすぎる。
+   剣士(78/28)なら魔法はおよそ11%、魔導士(34/88)ならおよそ87%。
+   **1枠ごとに引く**ので、寄ってはいても混ざることはある。 */
 function rollSpells(cls){
   if(!cls) return pickWeighted(SPELL_IDS,null,3);
-  const n=cls.spN==null?3:cls.spN;
   const pool=SPELL_IDS.filter(id=>skillAllowed(SP[id],cls));
-  return [...pickWeighted(pool,cls.spBias,n),'none','none','none'].slice(0,3);
+  const lo=clamp(cls.spN==null?3:cls.spN,0,3);
+  const n=lo+RI(4-lo);
+  const a2=cls.atk*cls.atk, m2=cls.mat*cls.mat;
+  let mag=pool.filter(id=>!isArt(SP[id])), art=pool.filter(id=>isArt(SP[id]));
+  const out=[];
+  for(let i=0;i<n;i++){
+    const wantMag=a2<R(a2+m2);
+    // 欲しい側が尽きていたら、もう片方から引く（枠を空けるより持たせる）
+    const src=wantMag?(mag.length?mag:art):(art.length?art:mag);
+    if(!src.length)break;
+    const got=pickWeighted(src,cls.spBias,1)[0];
+    if(!got||got==='none')break;
+    out.push(got);
+    mag=mag.filter(id=>id!==got); art=art.filter(id=>id!==got);
+  }
+  return [...out,'none','none','none'].slice(0,3);
 }
 
 /* paused は起動時 true。設定を終える前に勝手に戦闘が進まないようにするため、
