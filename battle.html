@@ -5774,6 +5774,26 @@ function newGuild(name,hero){
    ギルドの描画
    ========================================================= */
 const gEsc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+/* ★ タップの拾い方 ★
+   携帯では、スクロールの直後の1タップが click として飛ばないことがある
+   （慣性スクロールを止めるタップが click を伴わない）。
+   pointerdown → pointerup の移動距離で「タップかどうか」を自分で決めれば、
+   click が来るかどうかに依存しなくなる。
+   pointerup で preventDefault するので、後から来る click と二重には発火しない。 */
+function onTap(el,fn){
+  if(!window.PointerEvent){ el.onclick=fn; return; }   // 古い環境はそのまま click
+  let sx=0,sy=0,pid=null;
+  el.onpointerdown=e=>{ pid=e.pointerId; sx=e.clientX; sy=e.clientY; };
+  el.onpointercancel=()=>{ pid=null; };
+  el.onpointerup=e=>{
+    if(pid!==e.pointerId)return;
+    pid=null;
+    // 10px 以上動いていたらスクロール。配置してしまわない
+    if(Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)return;
+    e.preventDefault();
+    fn(e);
+  };
+}
 // 属性値に入れる用。value="…" を閉じられないよう引用符も潰す
 const gAttr=s=>gEsc(s).replace(/"/g,'&quot;'); // 正規表現の"がコードの見た目を壊すのでコメントで入れておく
 
@@ -5838,8 +5858,39 @@ function dedupeParties(){
   });
 }
 
+/* ★ いま画面を奪ってはいけない状態か ★
+   帰還は1秒ごとの巡回で起きるので、編集中に描き直すと操作が丸ごと飛ぶ。
+   一覧（メニューから開く画面）は描き直してよく、その下のサブ画面は駄目、という線引き。 */
+let GSUB=false;          // 編成・受注などのサブ画面を出している
+function guildBusy(){
+  if(typeof REPLAY!=='undefined'&&REPLAY)return true;   // 報告の再生中
+  if(typeof MANUAL!=='undefined'&&MANUAL)return true;   // 手動依頼の最中
+  if(typeof GMAKE!=='undefined'&&GMAKE)return true;     // 自作依頼の下書き
+  const mh=$('#modalHost');
+  if(mh&&mh.innerHTML)return true;                      // 詳細（エディタ）が開いている
+  return GSUB;
+}
+/* 画面を描き直さずに、メニューのバッジだけ差し替える。
+   帰還を知らせたいだけの時はこちらを使う。 */
+function gBadgeSync(){
+  if(!G)return;
+  const set=(k,n)=>{
+    const host=document.querySelector(`[data-g="${k}"] b`); if(!host)return;
+    const old=host.querySelector('.gbadge');
+    if(!n){ if(old) old.remove(); return; }
+    if(old){ old.textContent=n; return; }
+    const i=document.createElement('i');
+    i.className='gbadge'; i.textContent=n; host.appendChild(i);
+  };
+  set('party',G.parties.filter(p=>p.report).length);
+  set('quest',(G.offers||[]).filter(o=>!G.parties.some(p=>p.offerId===o.oid)).length);
+  set('temple',G.roster.filter(showHurt).length);
+  set('admin',rankIdx()>(G.rankSeen||0)?'!':0);
+}
+
 function renderGuild(){
   const host=$('#gwrap'); if(!host)return;
+  GSUB=false;            // 一覧に戻ってきた
   if(!G){ renderGuildStart(); return; }
   const item=(k,t,s,n)=>`<button data-g="${k}"${GVIEW===k?' class="on"':''}>
     <b>${t}${n?` <i class="gbadge">${n}</i>`:''}</b><span>${s}</span></button>`;
@@ -5858,7 +5909,7 @@ function renderGuild(){
       </div>
     </div>
     <div class="gmenu">
-      ${item('party','パーティを編成する','部隊を組み、依頼へ送り出す',ret)}
+      ${item('party','パーティを管理する','部隊を組み、依頼へ送り出す',ret)}
       ${item('quest','依頼を見る','受注状況と帰還予定',offers)}
       ${item('shop','武具屋','武器と防具の売り買い')}
       ${item('temple','寺院','負傷者の治療',hurt)}
@@ -5926,9 +5977,15 @@ function startGuildTick(){
   if(GTIMER)clearInterval(GTIMER);
   GTIMER=setInterval(()=>{
     if(!G)return;
-    // 帰還の通知で見ているタブを奪わない。報告は依頼／部隊どちらからでも聞ける。
-    if(checkReturns()){ GMSG='部隊が帰還しました。報告を聞いてください。'; renderGuild(); return; }
-    if(maybeRestock()&&GVIEW==='shop'){ renderGuild(); return; }
+    /* 帰還の通知で、見ている画面を奪わない。
+       一覧なら描き直してよいが、編成中・詳細を開いている最中・依頼を受ける操作中は
+       **バッジだけ**にとどめる。ここで renderGuild すると操作が丸ごと飛ぶ。 */
+    if(checkReturns()){
+      GMSG='部隊が帰還しました。報告を聞いてください。';
+      if(!guildBusy()){ renderGuild(); return; }
+      gBadgeSync();
+    }
+    if(maybeRestock()&&GVIEW==='shop'&&!guildBusy()){ renderGuild(); return; }
     tickLabels();
   },1000);
 }
@@ -6100,6 +6157,7 @@ let GFILT={own:'all',cls:[]};
 
 function gPartyEdit(p){
   const b=$('#gbody'); if(!b)return;
+  GSUB=true;             // 帰還の巡回に描き直させない
   const slots=partySlots(p);
   const pool0=G.roster.filter(u=>!partyHas(p,u.gid));
   const pool=pool0.filter(u=>{
@@ -6181,14 +6239,14 @@ function gPartyEdit(p){
     </div>`;
   const redraw=()=>{ saveGuild(); gPartyEdit(p); };
   // 枠の × で控えへ戻す。枠のタップ（選択）より先に止める。
-  b.querySelectorAll('[data-out]').forEach(el=>el.onclick=ev=>{
+  b.querySelectorAll('[data-out]').forEach(el=>onTap(el,ev=>{
     ev.stopPropagation();
     const i=+el.dataset.out;
     if(slots[i]===GPICK) GPICK=null;
     slots[i]=null; redraw();
-  });
+  }));
   // 枠をタップ
-  b.querySelectorAll('.pcell').forEach(el=>el.onclick=()=>{
+  b.querySelectorAll('.pcell').forEach(el=>onTap(el,()=>{
     const i=+el.dataset.slot, here=slots[i];
     if(GPICK==null){ if(here!=null) GPICK=here; redraw(); return; }
     if(GPICK===here){ GPICK=null; redraw(); return; }   // 自分を押したら解除
@@ -6204,7 +6262,7 @@ function gPartyEdit(p){
       slots[i]=GPICK;
     }
     GPICK=null; redraw();
-  });
+  }));
   // 控えの「選ぶ」
   b.querySelectorAll('.rrow').forEach(r=>{
     const u=G.roster.find(x=>x.gid==r.dataset.u); if(!u)return;
@@ -6449,6 +6507,7 @@ function debugReward(q){
 function gDispatch(o,free){
   const q=questOf(o.qid);
   const b=$('#gbody');
+  GSUB=true;             // 受注の操作中も描き直させない
   // 掲示時に決まっている相手を、そのまま見せる
   const foeList=questWaves(q).map((w,i)=>{
     const f=foesFor(o,i);
@@ -6895,19 +6954,14 @@ function gAdmin(){
     <div class="sechead">枠の拡張</div>
     ${EXT_KEYS.map(extRow).join('')}
     <div class="seghint"><b>上限を超えた仲間は加入できず、応援金を置いて去ります。</b>
-      装備は倉庫に入りきらず、その場で売り払われます（どちらも報告に残ります）。
-      入る器を先に広げておかないと、良い引きをそのまま捨てることになります。</div>
+      装備は倉庫に入りきらず、その場で売り払われます。</div>
     ${customUnlocked()?`<div class="sechead">依頼を作る</div>
       <div class="gtodo">敵を並べて自分で依頼を掲示できます。
         いま <b>${customList().length} / ${maxCustom()}</b> 枠。
         <b>構成が決めるのは時給</b>で、所要時間は1分から7日まで自由です。</div>
       <div class="cmds"><button class="btn" id="gMakeGo">依頼を作る</button></div>`:''}
     ${nx?`<div class="sechead">次のランク</div>
-      <div class="gtodo"><b>${gEsc(nx.n)}</b>　${gEsc(nx.hint)}<br>
-      認可される拡張が<b>各枠 ${nx.extCap===Infinity?'無制限':`${nx.extCap} 回`}</b>になり、
-      <b>難度 ${Math.min(QMAX_TIER,nt+1)} の依頼</b>が回ってくるようになります。</div>
-      <div class="seghint"><b>ランクは金では上がりません。</b>
-        下のキークエストを<b>すべて達成する</b>と、組合から認可が下ります。</div>
+      <div class="seghint"> 下のキークエストを<b>${ks.length > 1 ? 'すべて' : ''}達成する</b>と、ランクアップします。</div>
       <div class="rlist">${ks.map(q=>`<div class="rrow">
         <span class="rpos">${keyDone(q)?'達成':'未達'}</span>
         <span class="rmain"><b>${gEsc(q.name)}</b><i class="gtag tr">難度${q.tier}</i>${
