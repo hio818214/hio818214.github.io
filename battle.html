@@ -173,7 +173,9 @@ body.guildmode .gwrap{display:flex;flex-direction:column;gap:14px;
 .gmenu button{background:var(--panel);border:1px solid var(--line2);border-radius:4px;
   padding:16px 14px;text-align:left;cursor:pointer;font-family:inherit;color:var(--text);transition:.12s}
 .gmenu button:hover{border-color:var(--gold);background:var(--panel2)}
-.gmenu button:disabled{opacity:.35;cursor:not-allowed}
+/* ★ :disabled のスタイルはどこにも置かない ★
+   置くと「灰色のボタン」が作りやすくなり、また増える。
+   押せない時はボタンを出さず、.rwhy で理由を書くこと（→ btnOr）。 */
 .gmenu button b{display:block;font-size:14px;margin-bottom:3px}
 .gmenu button span{display:block;font-size:10.5px;color:var(--muted);line-height:1.55}
 .gpanel{background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:14px 16px;
@@ -455,12 +457,16 @@ body.mobile.guildmode .gmenu{grid-template-columns:1fr 1fr}
 .who span{font-family:var(--sans);font-size:10px;color:var(--muted);margin-left:8px;letter-spacing:.1em}
 .cmds{display:flex;gap:6px;flex-wrap:wrap}
 .cmd{background:var(--panel2);border:1px solid var(--line2);border-radius:2px;padding:7px 14px;cursor:pointer;font-size:12.5px;transition:.12s}
-.cmd:hover:not(:disabled){background:var(--gold);color:#1a1526;border-color:var(--gold)}
-.cmd:disabled{opacity:.32;cursor:not-allowed}
+.cmd:hover{background:var(--gold);color:#1a1526;border-color:var(--gold)}
 .spells{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:5px}
 .sp{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);border-radius:2px;padding:5px 8px;cursor:pointer;font-size:11.5px;text-align:left}
-.sp:hover:not(:disabled){border-color:var(--gold)}
-.sp:disabled{opacity:.3;cursor:not-allowed}
+.sp:hover{border-color:var(--gold)}
+/* 押せないスキル。button ではなく span なので押しようがない。
+   枠線を点線・背景を落として「ボタンではない」と分かる見た目にする。
+   大きさは button と同じなので、MPが増減しても並びは動かない。 */
+.spoff{background:transparent;border-style:dashed;opacity:.5;cursor:default}
+.spoff:hover{border-color:var(--line2)}
+.spoff i{border-color:var(--foe);color:var(--foe)}
 .sp b{font-weight:500;flex:1}
 .sp em{font-style:normal;font-family:var(--mono);font-size:9.5px;color:var(--mana)}
 .sp i{font-style:normal;font-size:8.5px;color:var(--muted);border:1px solid var(--line2);border-radius:2px;padding:0 3px}
@@ -514,9 +520,10 @@ body.mobile .mask.dlg{padding:16px;align-items:center}
 .rsub{font-size:10.5px;color:var(--muted)}
 .rsub em{font-style:normal;color:#96d8b0}
 .rbtn{display:flex;gap:3px;flex:0 0 auto;align-items:center}
-/* 受けられない理由。押せないボタンの代わりに置くので、ボタンと同じ高さに座らせる */
-.rwhy{font-size:10.5px;color:var(--muted);line-height:1.5;text-align:right;
-  max-width:132px;padding:4px 2px}
+/* 押せない理由。ボタンの代わりに同じ場所へ置くので、ボタンと同じ高さに座らせる。
+   読ませたい文字なので、装飾は薄くしても字は本文と同じ 11px を保つ。 */
+.rwhy{font-size:11px;color:#8d85a0;line-height:1.5;text-align:right;
+  max-width:150px;padding:4px 2px}
 .rbtn button{background:#2a2538;border:1px solid var(--line2);border-radius:2px;padding:5px 7px;
   font-size:10.5px;color:var(--muted);cursor:pointer}
 .rbtn button:hover{border-color:var(--gold);color:var(--gold)}
@@ -773,7 +780,9 @@ document.body.className=/[?&]sim(=1)?(&|$)/.test(location.search)?'':'guildmode'
   </div>
 
   <p class="legend"><b>職業</b>は人間職8種と魔物12種。<b>編成では職業・種族が重複します</b>（同じ職が並ぶこともあります）。
-  <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ドヨド</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存・必中）と<b>特技</b>（攻撃依存・命中判定あり）が同じ3枠を奪い合います。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
+  <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ドヨド</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存）と<b>特技</b>（攻撃依存・命中判定あり）が同じ3枠を奪い合います。
+  <b>魔法のダメージと回復は必ず当たります</b>が、<b>敵に掛けるデバフと状態異常だけは「魔力 ÷ 魔防」で弾かれることがあります</b>
+  （味方へのバフ・回復・状態回復は必ず通ります）。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
   <b>タグ特効</b> — 《人斬り》《射落とし》《不死狩り》《獣狩り》《石砕き》は、相手の<b>職業タグ</b>を見て与ダメージを上げます。
   倍率はタグの珍しさで変えてあり、<b>人型（20職中13職）は+30%、獣・無機（各2職）は+60%</b>です。
   相手の顔ぶれによって価値が変わる唯一の要素なので、<b>編成は自分だけでなく相手も見る</b>ことになります。<br>
@@ -1385,13 +1394,22 @@ function traitAllowed(t,cls){
    とくに マシ（増し）と ソギ（削ぎ）は、強化と弱体を取り違えようがない。
      ヤキ = 焼き（攻撃） イヤ = 癒（回復） マシ = 増し（強化）
      ソギ = 削ぎ（弱体） ヨド = 淀み（状態異常）
-   語根 … ホ炎 ワ腕力 ボ防御 ハ速さ ヨ回避 キ傷 ド毒 ネ眠り（マは魔力用に空けてある）
+   語根 … ホ炎 ワ腕力 マ魔力 ボ防御 ハ速さ ヨ回避 キ傷 ド毒 ネ眠り
+
+   ★ 攻めは系統別、守りは共通 ★
+   ワマシ／ワソギ は攻撃だけ、ママシ／マソギ は魔力だけを動かす。
+   **攻め手は選ばせたい**（物理型か魔法型かが編成の性格になる）ため。
+   対して ボマシ／ミナボソギ は防御と魔防の**両方**を動かす。
+   壁役は「物理には強いが魔法には紙」では壁として成立しないので、守りは分けない。
 
    同じ母音が続いたら長音にまとめる。キ＋イヤ → キーヤ。
-   例）ミナボソギ ＝ 皆＋防御＋削ぎ ＝ 敵全体の防御ダウン。
+   ただし ママシ だけは例外でそのまま（マーシ にすると マシ 系と見分けがつかない）。
+   例）ミナボソギ ＝ 皆＋防御＋削ぎ ＝ 敵全体の防御力ダウン。
    種族専用の魔法だけは規則の外に置き、固有名詞にする（ハガクレ・クレナイ・ホロビ・ネムリバナ）。 */
 const SPELLS=[
- /* ---------- 魔法（魔力依存・必中） ---------- */
+ /* ---------- 魔法（魔力依存） ----------
+    ダメージと回復は必中。**敵に掛けるデバフ・状態異常だけ**は
+    魔力÷魔防で弾かれることがある（→ magicLand）。 */
  {id:'fire',   name:'ホヤキ',      kind:'magic',type:'atk',   scope:'one', mp:8,  power:1.7,
   desc:'単体に魔力×1.7の魔法ダメージ。魔防で軽減される。'},
  {id:'inferno',name:'ミナホヤキ',  kind:'magic',type:'atk',   scope:'all', mp:24, power:1.0,
@@ -1405,17 +1423,24 @@ const SPELLS=[
  {id:'cure',   name:'ヨドイヤ',    kind:'magic',type:'cure',  scope:'one', mp:12,
   desc:'味方単体の状態異常をすべて解除する。毒・眠り・休みのどれでも治る。'},
  {id:'rally',  name:'ワマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
-  desc:'味方単体の攻撃+35%（3ターン）。'},
+  desc:'味方単体の攻撃+35%（3ターン）。魔力には乗らない。'},
+ {id:'mrally', name:'ママシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'mat',value:0.35, turns:3,
+  desc:'味方単体の魔力+35%（3ターン）。攻撃には乗らない。'},
  {id:'haste',  name:'ハマシ',      kind:'magic',type:'buff',  scope:'one', mp:8,  stat:'spd',value:0.35, turns:3,
   desc:'味方単体の素早さ+35%（3ターン）。行動順が繰り上がる。'},
- {id:'guardup',name:'ボマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'def',value:0.40, turns:3,
-  desc:'味方単体の防御+40%（3ターン）。'},
+ /* ★ 守りだけは分けない ★
+    壁役が「物理には強いが魔法には紙」では壁として成立しない。
+    攻め手（ワマシ／ママシ）は選ばせるが、守りは1枚で両方に効かせる。 */
+ {id:'guardup',name:'ボマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:['def','mdf'],value:0.40, turns:3,
+  desc:'味方単体の防御力+40%（3ターン）。防御と魔防の両方が上がる。'},
  {id:'blur',   name:'ヨマシ',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
   desc:'味方単体の回避率+22%（3ターン）。素早さの差や《軽業》と足し合わさる。《必中》には無効。'},
  {id:'weaken', name:'ワソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
-  desc:'敵単体の攻撃-30%（3ターン）。'},
- {id:'breach', name:'ミナボソギ',  kind:'magic',type:'debuff',scope:'all', mp:18, stat:'def',value:-0.28,turns:3,
-  desc:'敵全体の防御-28%（3ターン）。物理アタッカーの前準備。'},
+  desc:'敵単体の攻撃-30%（3ターン）。魔法職には効かない。'},
+ {id:'mweaken',name:'マソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'mat',value:-0.30,turns:3,
+  desc:'敵単体の魔力-30%（3ターン）。後衛の術者を黙らせる手。'},
+ {id:'breach', name:'ミナボソギ',  kind:'magic',type:'debuff',scope:'all', mp:18, stat:['def','mdf'],value:-0.28,turns:3,
+  desc:'敵全体の防御力-28%（3ターン）。防御と魔防の両方を削るので、どの型の攻め手でも通る。'},
  {id:'slow',   name:'ハソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
   desc:'敵単体の素早さ-30%（3ターン）。行動順を後ろへ落とす。'},
  {id:'venom',  name:'ドヨド',      kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
@@ -1481,11 +1506,18 @@ const SPELLS=[
   desc:'敵全体の現在HPを12%削る。魔防も軽減も無視するので、硬い相手ほど効く。リッチ専用。'},
  {id:'noshikakari',name:'のしかかり',kind:'art',type:'atk',scope:'one',mp:10,power:1.3,ail:'rest',ailChance:0.3,needs:'gargoyle',
   desc:'攻撃×1.3。30%で相手を休み状態にする。ガーゴイル専用。'},
+ /* ★ ケルベロスの2つだけは攻撃・防御のまま ★
+    プレイヤー側のボマシ／ミナボソギが両対応になったので、
+    ここも揃えたくなるが**あえて物理だけに残してある**。
+    **物理パーティの天敵**という役割を持たせるため。
+    噛み砕きで防御だけを削り、咆哮で攻撃だけを落とすので、
+    殴り合いの編成は正面から崩れるが、魔法型は素通りできる。
+    「この相手には型を変えて当たる」が生まれる数少ない敵。 */
  {id:'kamikudaki',name:'噛み砕き',kind:'art',type:'atk',scope:'one',mp:10,power:1.1,
   debuffOn:{stat:'def',value:-0.25,turns:3},needs:'cerberus',
-  desc:'攻撃×1.1。命中すると相手の防御-25%（3ターン）。ケルベロス専用。'},
+  desc:'攻撃×1.1。命中すると相手の防御-25%（3ターン）。魔防は下がらない。ケルベロス専用。'},
  {id:'houkou',  name:'咆哮',kind:'art',type:'debuff',scope:'all',mp:12,stat:'atk',value:-0.20,turns:3,needs:'cerberus',
-  desc:'敵全体の攻撃-20%（3ターン）。ダメージは無い。ケルベロス専用。'},
+  desc:'敵全体の攻撃-20%（3ターン）。魔力は下がらず、ダメージも無い。ケルベロス専用。'},
  {id:'kamaitachi',name:'かまいたち',kind:'art',type:'atk',scope:'one',mp:12,power:0.5,hits:3,randomTarget:true,needs:'harpy',
   desc:'攻撃×0.5を3回。毎回ランダムに対象を選び直す。ハーピィ専用。'},
  {id:'habataki',name:'羽撃き',kind:'art',type:'debuff',scope:'all',mp:12,stat:'acc',value:-0.20,turns:3,needs:'harpy',
@@ -1510,7 +1542,12 @@ const skillCat=sp=>isArt(sp)?'特技':TYPE_LABEL[sp.type];
 /* 射程の表記。範囲／2体／単体 を1か所で決める。 */
 const scopeLabel=sp=>!sp?'単体':(sp.scope==='all'?'範囲':(sp.multi?sp.multi+'体':'単体'));
 /* スキルの説明ツールチップ（カード・コマンド欄で共通） */
-const skillTip=sp=>`【${sp.name}】${skillKind(sp)}／MP${sp.mp}／${scopeLabel(sp)}／${TYPE_LABEL[sp.type]}　${sp.desc}`;
+/* ★ 魔防で弾かれる注記は1か所だけに書く ★
+   該当するスキルは10個以上あるので、desc に1つずつ書くと必ずどれかが食い違う。
+   条件（魔法 かつ 敵に掛けるもの）から自動で付ける。 */
+const magicResist=sp=>(sp&&!isArt(sp)&&(sp.type==='debuff'||sp.type==='ail'))
+  ? '　※相手の魔防で弾かれることがあります（魔力÷魔防）' : '';
+const skillTip=sp=>`【${sp.name}】${skillKind(sp)}／MP${sp.mp}／${scopeLabel(sp)}／${TYPE_LABEL[sp.type]}　${sp.desc}${magicResist(sp)}`;
 
 /* この職業がそのスキルを抽選で引けるか。編集画面での手動選択には効かない。 */
 function skillAllowed(sp,cls){
@@ -1726,17 +1763,20 @@ const CLASSES=[
   tags:['人型'],
   desc:'魔力が人間職で最高。紙装甲だが範囲魔法の総火力が抜けている。',
   bias:{tsuishou:16,jukkou:12,yonetsu:10,charge:6,tazuna:5,seimei:5},
-  spN:3, spBias:{inferno:16,blast:14,fire:12,sleep:6}},
+  spN:3, spBias:{inferno:16,blast:14,fire:12,mrally:10,sleep:6}},
  {id:'pr',n:'僧侶',   c:'PR',kind:'human',hp:420,mp:74,atk:38,def:44,mat:66,mdf:70,spd:44,
   tags:['人型'],
   desc:'回復と魔防の要。魔防は全職中で最高。',
   bias:{fujigari:18,surplus:16,seijou:14,regen:10,gunshi:10,share:8,mitodoke:5},
-  spN:3, spBias:{heal:20,mheal:14,cure:14,guardup:6}},
+  spN:3, spBias:{heal:20,mheal:14,cure:14,guardup:8,mrally:6}},
  {id:'rg',n:'斥候',   c:'RG',kind:'human',hp:400,mp:36,atk:70,def:42,mat:34,mdf:40,spd:78,
   tags:['人型','剣所持'],
-  desc:'素早さが人間職で最高。先手を取って弱体を撒く。',
+  /* 「弱体を撒く」は説明から外した。魔力34では魔防に弾かれるうえ、
+     スキルの抽選が攻撃と魔力の二乗比なので、そもそも魔法をほとんど引かない。
+     この職の売りは素早さそのもの（先手・回避・手数）。 */
+  desc:'素早さが人間職で最高。誰よりも先に動き、回避と手数で削る。',
   bias:{shissou:16,karuwaza:14,kouun:10,sonae:10,kemonogari:10,timid:9,kasoku:8,mekiki:6,tsuitou:6},
-  spN:2, spBias:{hayabusa:14,blur:12,samidare:10,weaken:8,slow:8,venom:6}},
+  spN:2, spBias:{hayabusa:14,blur:12,samidare:10,weaken:8,slow:8,mweaken:6,venom:6}},
  {id:'ar',n:'弓兵',   c:'AR',kind:'human',hp:430,mp:40,atk:74,def:44,mat:40,mdf:42,spd:62,
   tags:['人型','射手'],
   desc:'後列から高い攻撃を通す。速さと火力の両立型。',
@@ -1746,13 +1786,15 @@ const CLASSES=[
   tags:['人型'],
   desc:'毒と呪いで削る魔法職。継続ダメージが本体。相手の魔法を封じる唯一の職でもある。',
   bias:{juso:16,shouki:16,dokuchi:14,ishi:9,recoil:6,tsuishou:5},
-  spN:3, spBias:{venom:18,mseal:16,sleep:12,mnseal:10,breach:10,inferno:8}},
+  /* 呪術師は「相手の魔法を潰す唯一の職」。封魔（マヨド）で唱えさせず、
+     マソギで魔力そのものを削る。2つ合わせて対魔法職の専門家になる。 */
+  spN:3, spBias:{venom:18,mseal:16,mweaken:14,sleep:12,mnseal:10,breach:10,inferno:8}},
  {id:'cm',n:'指揮官', c:'CM',kind:'human',hp:480,mp:50,atk:52,def:52,mat:52,mdf:52,spd:50,
   tags:['人型','剣所持'], fixed:['share'],
   desc:'本人の数値はすべて平凡。ただし必ず《共有》を持ち、素質系の個性を引きやすい。'
       +'自分に掛かったバフを味方全体へ配るのが仕事。',
   bias:{gourei:20,tazuna:14,kyoujin:14,eichi:14,makekkai:10,idaten:10,resonate:10,gunshi:8,mitodoke:6},
-  spN:2, spBias:{rally:18,guardup:14,haste:12}},
+  spN:2, spBias:{rally:18,guardup:14,haste:12,mrally:12}},
  /* ★ 戦闘の外で働く職 ★
     数値はどれも平凡で、7枠を1つ食うぶんは確実に弱くなる。**それがコスト。**
     見返りは戦闘ではなく「魔物が仲間になる」こと。
@@ -1794,7 +1836,7 @@ const CLASSES=[
   tags:['人型','不死'],
   desc:'魔力が全体で最高。呪詛と遺志で死後も削る。',
   bias:{juso:22,shireijutsu:18,konbaku:16,ishi:14,tsuishou:10,mekiki:8,seimei:7},
-  spN:3, spBias:{horobi:18,inferno:16,mfkiri:14,blast:12,venom:8,sleep:8}},
+  spN:3, spBias:{horobi:18,inferno:16,mfkiri:14,blast:12,mrally:10,venom:8,sleep:8}},
  {id:'gargoyle',n:'ガーゴイル', c:'GG',kind:'monster',hp:660,mp:24,atk:58,def:86,mat:22,mdf:52,spd:32,
   tags:['無機','飛行'],
   desc:'防御が全体で最高の石像。軽減と棘返しで攻撃を跳ね返す。',
@@ -2468,19 +2510,58 @@ function castSpell(a,sp,target,o={}){
   } else if(sp.type==='debuff'){
     const bm=o.mult||1;
     const tg=sp.scope==='all'?foesOf():oneTarget();
-    tg.forEach(t=>addBuff(t,{label:sp.name,stat:sp.stat,value:sp.value*bm,turns:sp.turns,kind:'debuff'},a));
+    tg.forEach(t=>{
+      if(!t.alive)return;
+      // 魔法のデバフだけ 魔力 vs 魔防 で抜ける。特技（咆哮・羽撃き）は今までどおり確定
+      if(!isArt(sp)&&R(1)>=magicLand(a,t,1)){
+        addLog(`${a.name} の ${sp.name} は ${t.name} の魔防に弾かれた`,'l-sys'); return; }
+      addBuff(t,{label:sp.name,stat:sp.stat,value:sp.value*bm,turns:sp.turns,kind:'debuff'},a);
+    });
 
   } else if(sp.type==='ail'){
     const tg=sp.scope==='all'?foesOf():oneTarget();
     tg.forEach(t=>{
       if(!t.alive)return;
-      if(sp.chance&&R(1)>=sp.chance){ addLog(`${t.name} には効かなかった`,'l-sys'); return; }
+      /* 魔法 … 元の確率に 魔力vs魔防 を掛ける（元が確定なら倍率そのもの）
+         特技 … 今までどおり、書いてある確率と命中判定だけ */
+      const p=isArt(sp)?(sp.chance==null?1:sp.chance):magicLand(a,t,sp.chance);
+      if(R(1)>=p){
+        addLog(isArt(sp)?`${t.name} には効かなかった`
+                        :`${a.name} の ${sp.name} は ${t.name} の魔防に弾かれた`,'l-sys'); return; }
       if(needHit&&!hitCheck(a,t)){ addLog(`${a.name} の ${sp.name} は ${t.name} に外れた`,'l-sys'); return; }
       addAil(t,sp.ail,sp.turns,a);
       if(sp.ail2) addAil(t,sp.ail2,sp.turns,a);      // ネムリバナ … 眠りと毒を同時に
     });
   }
   if(!o.isExtra) emit('allySkill',{actor:a,spell:sp,target});
+}
+/* --- 魔法の通りやすさ（魔力 vs 魔防） -------------------------------
+   **敵に掛けるデバフ・状態異常だけ**が対象。
+   味方へのバフ・回復・状態回復は今までどおり必ず通る（掛け直す意味が無くなるため）。
+
+   ★ 比をそのまま掛けない ★
+   魔力も魔防もバフが掛け算で乗るので、素の職業値では 0.37〜3.5 の比が、
+   実戦（装備＋ママシ＋魔力渇望／ローブ＋ボマシ）では **0.15〜12** まで開く。
+   そのまま掛けると、**賭けとして置いた確率スキルが確定に化ける** —
+   ミナマヨド(30%)は比2.5で75%、比4で100%になり、
+   「プレイヤー側は30%・3ターン／敵側は確定・1ターン」の住み分けが壊れる。
+
+   そこで平方根で振れ幅を縮め、さらに上下を留める。
+     下限 0.15 … 格上相手にもわずかに通る。0 にはしない
+     上限 1.50 … 30% が 45% までしか伸びない。賭けは賭けのまま
+
+   ★ 特技は対象外 ★
+   あちらは攻撃依存で、**命中判定という別の関門を既に通っている**。
+   ここに魔力÷魔防まで足すと二重の壁になり、
+   「魔法は必中／特技は命中判定あり」という切り分けそのものが崩れる。
+   個性由来のデバフ（睨み・呪詛・威圧・強者崩し・溶解・瘴気）も対象外。
+   開幕1回きりや条件付きばかりなので、確率を足すと空振りが二段になる。 */
+const MAGIC_LAND_MIN=0.15, MAGIC_LAND_MAX=1.50;
+function magicLand(a,t,base){
+  const p=(base==null)?1:base;
+  const mdf=stat(t,'mdf'); if(!mdf) return p;
+  const m=Math.min(MAGIC_LAND_MAX,Math.max(MAGIC_LAND_MIN,Math.sqrt(stat(a,'mat')/mdf)));
+  return Math.min(1,p*m);
 }
 const canPay=(u,c)=>u.mp>=c||(u.traits.includes('seimei')&&u.hp>(c-u.mp)*2);
 function pay(u,c){
@@ -3073,17 +3154,27 @@ function renderCmd(u){
     return;
   }
   box.innerHTML=`<div class="who">${u.name}<span>${u.clsName}</span></div>
-    <div class="cmds"><button class="cmd" data-c="attack">たたかう</button><button class="cmd" data-c="guard">ぼうぎょ</button><button class="cmd" data-c="swap"${swapOptions(u).none?' disabled':''}>いれかえ</button></div>
+    <div class="cmds"><button class="cmd" data-c="attack">たたかう</button><button class="cmd" data-c="guard">ぼうぎょ</button>${
+      swapOptions(u).none?'':'<button class="cmd" data-c="swap">いれかえ</button>'}</div>
     <div class="spells">${spellSlots(u).filter(x=>x.id!=='none').map(x=>{const s=SP[x.id];
       const cost=mpCost(u,s);
-      // 重複で無効な枠はボタンとして残すが押せない。なぜ使えないかが見えるように。
       const sealed=!canCast(u,s);
-      const cls=['sp',isArt(s)?'art':'',x.live?'':'dup',sealed?'dup':''].filter(Boolean).join(' ');
+      const poor=!canPay(u,cost);
+      const ok=x.live&&!sealed&&!poor;
+      /* ★ 押せないスキルは button にしない ★
+         まるごと消すと**スキルを失ったように見え**、MPが増減するたび並びも動く。
+         かといって灰色のボタンは「押せそうなのに押せない」ままになる。
+         そこで**押せるものだけ button**、押せないものは理由を書いた札にする。
+         場所も大きさも同じなので並びは動かず、押せるかどうかは見て分かる。 */
+      const why=!x.live?'重複':sealed?'封魔':`MP不足`;
       const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${
-        sealed?'【封魔で唱えられない】':''}${skillTip(s)}`;
-      return `<button class="${cls}" data-sp="${x.id}" data-tip="${tip}" ${
-        (x.live&&!sealed&&canPay(u,cost))?'':'disabled'}><b>${s.name}</b><i>${
-        !x.live?'重複':sealed?'封魔':scopeLabel(s)}</i><em>${cost}</em></button>`;}).join('')
+        sealed?'【封魔で唱えられない】':''}${poor&&!sealed&&x.live?`【MPが ${cost} 要ります】`:''}${skillTip(s)}`;
+      const cls=['sp',isArt(s)?'art':'',ok?'':'spoff'].filter(Boolean).join(' ');
+      return ok
+        ? `<button class="${cls}" data-sp="${x.id}" data-tip="${tip}"><b>${s.name}</b><i>${
+            scopeLabel(s)}</i><em>${cost}</em></button>`
+        : `<span class="${cls}" data-tip="${tip}"><b>${s.name}</b><i>${why}</i><em>${cost}</em></span>`;
+      }).join('')
       ||'<span class="hint">スキルを持っていません</span>'}</div>
     ${u.ail.seal?`<div class="warn"><b>封魔</b> — あと ${u.ail.seal} 手番、魔法を唱えられません。特技と通常攻撃は使えます。</div>`:''}
     <div class="hint" id="hint">個性: ${u.traits.filter(t=>t!=='none').map(t=>'<b>'+TRAITS[t].name+'</b>').join(' / ')||'なし'}</div>`;
@@ -3097,7 +3188,7 @@ function renderCmd(u){
     {el:gBtn,title:'ぼうぎょ',
      desc:'この手番は防御力+80%になり、最大MPの10%を回復します。攻撃はしません。'});
   const swBtn=box.querySelector('[data-c="swap"]');
-  if(swBtn&&!swBtn.disabled) swBtn.onclick=()=>chooseSwap(u,swBtn);
+  if(swBtn) swBtn.onclick=()=>chooseSwap(u,swBtn);
   box.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{
     const sp=SP[b.dataset.sp];
     if(sp.scope==='all'||sp.multi){
@@ -3367,7 +3458,7 @@ function openEditor(u){
         <button class="btn" id="clrT">個性3枠をなしに</button>
       </div>`}
 
-      <div class="sechead">スキル（魔法＝魔力依存・必中／特技＝攻撃依存・命中判定あり）</div>
+      <div class="sechead">スキル（魔法＝魔力依存／特技＝攻撃依存・命中判定あり）</div>
       ${[0,1,2].map(i=>{ const id=u.spells[i]||'none'; const dup=id!=='none'&&!SSLOT[i].live;
         const nm=id==='none'?'— なし —':SP[id].name;
         return `<div class="slot"><label>スキル${i+1}</label>
@@ -4607,7 +4698,8 @@ function renderInv(){
         <span class="rsub">${b}${by?`　／　<b>${by.name}</b> が装備中`:'　／　未装備'}</span>
       </span>
       <span class="rbtn">
-        <button data-act="del"${by?' disabled title="装備中は削除できません"':''}>削除</button>
+        ${by?'<span class="rwhy">装備中は削除できません</span>'
+            :'<button data-act="del">削除</button>'}
       </span></div>`;}).join('')||'<div class="tdesc">装備をまだ持っていません。「生成」で作ってください。</div>';
   list.querySelectorAll('.rrow').forEach(row=>{
     const iid=+row.dataset.iid;
@@ -6225,6 +6317,20 @@ function newGuild(name,hero){
    ギルドの描画
    ========================================================= */
 const gEsc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+/* ★★ 押せないボタンはギルド画面に置かない ★★
+   灰色のボタンは「そこに何かがある」ことだけを伝えて、
+   **なぜ押せないのかも、どうすれば押せるのかも言いません。**
+   押せない時はボタンごと消し、同じ場所に**理由を言葉で**置きます。
+
+   btnOr(ok, ボタンのHTML, 理由)
+     ok が真 … ボタンをそのまま出す
+     ok が偽 … 理由だけを出す（値段や残り時間もここに書ける）
+
+   戦闘中のスキル欄だけは「消す」ではなく「**ボタンをやめて札にする**」。
+   まるごと消すとスキルを失ったように見え、MPが増減するたび並びが動くため。
+   押せるものだけが button で、押せないものは理由つきの札になる。 */
+const btnOr=(ok,html,why)=>ok?html:`<span class="rwhy">${why}</span>`;
 /* ★ タップの拾い方 ★
    携帯では、スクロールの直後の1タップが click として飛ばないことがある
    （慣性スクロールを止めるタップが click を伴わない）。
@@ -6590,7 +6696,9 @@ function gParty(){
           +(showHurt(u)?'<em class="ghurt">負傷</em>':'')).join('・')||'誰もいない'}</span></span>
       <span class="rbtn">
         ${p.report?`<button data-a="rep">${repLabel(p.report)}</button>`:''}
-        ${p.questId?`<button data-a="skip"${G.gems<skip?' disabled':''}>呼び戻す 宝石${skip}</button>`:''}
+        ${p.questId?btnOr(G.gems>=skip,
+          `<button data-a="skip">呼び戻す 宝石${skip}</button>`,
+          `呼び戻すには宝石${skip}（いま ${G.gems}）`):''}
         ${(partyBusy(p)||p.report)?''
           :'<button data-a="edit">編成</button><button data-a="del">解散</button>'}
       </span></div>`;
@@ -6733,7 +6841,9 @@ function gPartyEdit(p){
         ${other?`<em class="gbelong">${gEsc(other.name)}${busy?'・出払い中':''}</em>`:''}<br>
         ${unitChips(u)}</span>
       <span class="rbtn">
-        <button data-a="pick"${(hurt||busy)?' disabled':''}>${GPICK===u.gid?'選択中':'選ぶ'}</button>
+        ${btnOr(!hurt&&!busy,
+          `<button data-a="pick">${GPICK===u.gid?'選択中':'選ぶ'}</button>`,
+          hurt?'療養が明けるまで編成できません':'出払い中は動かせません')}
         <button data-a="edit">詳細</button>
       </span></div>`;
   };
@@ -6895,8 +7005,9 @@ function gQuest(){
         <span class="rsub">${questFoeText(q)}　／　${foeSummary(q)}　／　${st}</span></span>
       <span class="rbtn">
         ${rp?`<button data-a="rep">${repLabel(rp.report)}</button>`:''}
-        ${p?`<button data-a="skip"${G.gems<skipCost(p.returnAt-now())?' disabled':''
-          }>呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`:''}
+        ${p?btnOr(G.gems>=skipCost(p.returnAt-now()),
+          `<button data-a="skip">呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`,
+          `呼び戻すには宝石${skipCost(p.returnAt-now())}（いま ${G.gems}）`):''}
         ${DEBUG?'<button class="dbg" data-a="dbg" title="戦闘も待ち時間も無しで、この依頼の報酬だけを引きます（検証用）">報酬だけ引く</button>':''}
         ${p||rp?'':(el.length
           ? '<button data-a="go">受ける</button>'
@@ -7206,12 +7317,14 @@ function gReportStep(){
       ${S.idx?'<b>前の戦闘の傷はそのままです。</b>回復は挟めません。':'全員が万全の状態で挑みます。'}
       ${DEBUG&&n>1?`　／　種 ${rd.seed}`:''}</div>
     <div class="cmds">
-      <button class="btn big" id="rvGo"${canPlay?'':' disabled'}>この戦闘を見る</button>
+      ${canPlay?'<button class="btn big" id="rvGo">この戦闘を見る</button>':''}
       <button class="btn" id="rvSkip1">この戦闘を飛ばす</button>
       <button class="btn" id="rvSkipAll">最後まで飛ばす</button>
     </div>
-    ${canPlay?'':'<div class="warn">当時の隊員が揃わないため再生できません。</div>'}`;
-  $('#rvGo').onclick=()=>{ if(canPlay) playRound(); };
+    ${canPlay?'':`<div class="warn">当時の隊員が揃っていないので、この戦闘は再生できません。
+      （除名した・入れ替えたなどで、当時の顔ぶれを再現できません）<br>
+      飛ばして結果だけ見ることはできます。</div>`}`;
+  const rv=$('#rvGo'); if(rv) rv.onclick=()=>playRound();
   $('#rvSkip1').onclick=()=>{ if(canPlay) simRound(S,S.idx); S.idx++; gReportStep(); };
   $('#rvSkipAll').onclick=()=>{
     if(canPlay) while(S.idx<rounds.length){ simRound(S,S.idx); S.idx++; }
@@ -7460,11 +7573,12 @@ function gManualStep(){
     <div class="gtodo"><b>この戦闘はあなたが指揮を執ります。</b>自動では進みません。<br>
       相手：${foes.map(x=>`<span class="gname" data-tip="${unitTip(x)}">${gEsc(x.name)}</span>`).join('・')||'—'}<br>
       ${S.idx?'<b>前の戦闘の傷はそのままです。</b>回復は挟めません。':'全員が万全の状態で挑みます。'}</div>
-    <div class="cmds"><button class="btn big" id="mvGo"${can?'':' disabled'}>戦闘開始</button></div>
-    ${can?'':'<div class="warn">当時の隊員が揃わないため出撃できません。</div>'}
+    ${can?'<div class="cmds"><button class="btn big" id="mvGo">戦闘開始</button></div>':''}
+    ${can?'':`<div class="warn">この部隊に出せる仲間がいないので、戦闘を始められません。
+      （除名した・入れ替えたなどで、送り出した時の顔ぶれが残っていません）</div>`}
     <div class="seghint">勝てば報酬、負ければ何も入りません。
       <b>依頼は何度でも受け直せます。</b></div>`;
-  $('#mvGo').onclick=()=>{ if(can) playManual(); };
+  const mv=$('#mvGo'); if(mv) mv.onclick=()=>playManual();
 }
 
 /* 1戦ぶんを手で戦う。検証盤のループをそのまま使い、auto だけ切る。 */
@@ -7558,8 +7672,11 @@ function gShop(){
       <span class="rmain"><b>${d?d.n:'?'}</b><i>${d?eqStatText(d):''}</i><br>
         <span class="rsub">${bo?`<em>${bo}</em>`:'<span class="rnone">付与なし</span>'}</span></span>
       <span class="rbtn"><b class="gprice">${(buy?pr:sell).toLocaleString()}G</b>
-        <button data-a="x"${buy&&(G.gold<pr||INV.length>=invCap())
-          ?` disabled${INV.length>=invCap()?' title="倉庫がいっぱいです"':''}`:''}>${buy?'買う':'売る'}</button></span>
+        ${btnOr(!buy||(G.gold>=pr&&INV.length<invCap()),
+          `<button data-a="x">${buy?'買う':'売る'}</button>`,
+          INV.length>=invCap()
+            ? `倉庫がいっぱいです（${INV.length}/${invCap()}）`
+            : `金が ${(pr-G.gold).toLocaleString()}G 足りません`)}</span>
     </div>`;
   };
   b.innerHTML=`<h2>武具屋</h2>
@@ -7734,8 +7851,8 @@ function gMake(){
       報酬は金だけで、<b>初回達成報酬はありません</b>。</div>
     <div class="rlist">${customList().map(row).join('')||'<div class="tdesc">まだ1つも作っていません。</div>'}</div>
     <div class="cmds">
-      <button class="btn big" id="cNew"${customList().length>=maxCustom()?' disabled':''}>
-        ＋ 新しい依頼を作る（${customList().length}/${maxCustom()}）</button>
+      ${customList().length>=maxCustom()?'':`<button class="btn big" id="cNew">
+        ＋ 新しい依頼を作る（${customList().length}/${maxCustom()}）</button>`}
       <button class="btn" id="cBack">ギルド管理へ戻る</button></div>
     ${customList().length>=maxCustom()?`<div class="seghint">
       <b>依頼枠がいっぱいです。</b>ギルド管理で依頼枠を広げるか、いらない依頼を取り下げてください。</div>`:''}`;
@@ -7788,8 +7905,9 @@ function gMakeEdit(){
       <button class="btn sm" id="cRoll">名前を引き直す</button></div>
     ${waves.map(waveBlock).join('')}
     <div class="cmds">
-      <button class="btn" id="cAddW"${waves.length>=CUSTOM_WAVES?' disabled':''}>
-        ＋ 連戦を足す（${waves.length}/${CUSTOM_WAVES}）</button>
+      ${waves.length>=CUSTOM_WAVES
+        ? `<span class="rwhy">連戦はここまで（${waves.length}/${CUSTOM_WAVES}）</span>`
+        : `<button class="btn" id="cAddW">＋ 連戦を足す（${waves.length}/${CUSTOM_WAVES}）</button>`}
     </div>
     <div class="sechead">所要時間</div>
     <div class="pname"><label>所要（分）</label>
@@ -7807,10 +7925,11 @@ function gMakeEdit(){
       <div class="sc"><u>報酬</u><b>${gold.toLocaleString()}G</b></div>
     </div>
     <div class="cmds">
-      <button class="btn big" id="cSave"${total?'':' disabled'}>${D.fresh?'掲示する':'保存する'}</button>
+      ${total?`<button class="btn big" id="cSave">${D.fresh?'掲示する':'保存する'}</button>`:''}
       <button class="btn" id="cCancel">やめる</button>
     </div>
-    ${total?'':'<div class="warn">敵が1体もいません。少なくとも1体は置いてください。</div>'}`;
+    ${total?'':`<div class="warn">敵が1体もいないので、まだ${D.fresh?'掲示':'保存'}できません。
+      少なくとも1体は置いてください。</div>`}`;
   const commit=()=>{ D.waves=waves.map(w=>w.filter(Boolean)); D.sec=sec; };
   const redraw=()=>{ commit(); gMakeEdit(); };
   b.querySelectorAll('select[data-w]').forEach(sel=>sel.onchange=()=>{
@@ -7861,8 +7980,11 @@ function gTemple(){
       <span class="rmain"><b>${gEsc(u.name)}</b><i>${u.clsName}</i><br>
         <span class="rsub">あと <b class="gleft" data-until="${u.healAt}">—</b> で自然に明ける</span></span>
       <span class="rbtn"><b class="gprice">${cost(u).toLocaleString()}G</b>
-        <button data-a="heal"${G.gold<cost(u)?' disabled':''}>治療</button>
-        <button data-a="gem"${G.gems<skipCost(u.healAt-now())?' disabled':''}>宝石${skipCost(u.healAt-now())}</button></span>
+        ${btnOr(G.gold>=cost(u),'<button data-a="heal">治療</button>',
+          `金が ${(cost(u)-G.gold).toLocaleString()}G 足りません`)}
+        ${btnOr(G.gems>=skipCost(u.healAt-now()),
+          `<button data-a="gem">宝石${skipCost(u.healAt-now())}</button>`,
+          `宝石${skipCost(u.healAt-now())}（いま ${G.gems}）`)}</span>
       </div>`).join('')||'<div class="tdesc">療養中の仲間はいません。</div>'}</div>`;
   b.querySelectorAll('.rrow').forEach(r=>{
     const u=G.roster.find(x=>x.gid==r.dataset.u); if(!u)return;
