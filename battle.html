@@ -784,7 +784,8 @@ document.body.className=/[?&]sim(=1)?(&|$)/.test(location.search)?'':'guildmode'
   <b>魔法のダメージと回復は必ず当たります</b>が、<b>敵に掛けるデバフと状態異常だけは「魔力 ÷ 魔防」で弾かれることがあります</b>
   （味方へのバフ・回復・状態回復は必ず通ります）。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
   <b>タグ特効</b> — 《人斬り》《射落とし》《不死狩り》《獣狩り》《石砕き》は、相手の<b>職業タグ</b>を見て与ダメージを上げます。
-  倍率はタグの珍しさで変えてあり、<b>人型（20職中13職）は+30%、獣・無機（各2職）は+60%</b>です。
+  倍率は<b>どれも+40%で同じ</b>です。珍しいタグの特効は、<b>単一種族の依頼</b>（7体すべてスケルトン、
+  7体すべて石像など）を選べば確実に刺さるので、倍率を上げなくても十分に強くなります。
   相手の顔ぶれによって価値が変わる唯一の要素なので、<b>編成は自分だけでなく相手も見る</b>ことになります。<br>
   <b>いきなり系</b> — 《先駆け》《号令》《睨み》《瘴気》《備え》《強者崩し》《軍資》は<b>戦闘開始時に1回だけ</b>動きます。
   仕切り直すまで二度と発動しないので、<b>編成を決めた時点で盤面が一段動いた状態から始まります</b>。<br>
@@ -919,13 +920,19 @@ function procPop(u,name){
 
 /* タグ特効（キラー系）を1つの型から作る。
    タグは職業の tags（人型・不死・獣・飛行・無機…）をそのまま使う。
-   ★ 倍率は「そのタグの珍しさ」で決めている ★
-   人型は20職中13職に付いているのでほぼ無条件＝倍率は低い。
-   獣・無機は2職しかいないので刺さる相手が限られる＝倍率は高い。
-   これを揃えてしまうと「人斬りだけ強い」になる。 */
+   ★ 倍率は全部そろえてある（+40%）★
+   以前は「そのタグの珍しさ」で 1.30〜1.60 と差を付けていたが、やめた。
+   種族を足すたびに珍しさが変わり、そのたび全部の倍率を引き直すことになる
+   （実際、魔物を4体足した時点で 獣2→3・無機2→3 になって根拠が崩れた）。
+
+   珍しいタグの特効は、倍率を上げなくても**すでに状況的に強い**。
+   依頼には「7体すべてスケルトン」「7体すべて石像」のような単一種族のものがあり、
+   相手の顔ぶれは掲示の時点で決まっている（→ 結果を予想する）。
+   **刺さる依頼を選べる**ことが報酬で、倍率はその上乗せではない。 */
+const TAG_KILL_MUL=1.40;
 const clsTagsOf=u=>{ const c=CLS[u.clsId]; return (c&&c.tags)||[]; };
 const hasTag=(u,t)=>clsTagsOf(u).includes(t);
-function killer(id,name,tag,mul){
+function killer(id,name,tag,mul=TAG_KILL_MUL){
   return {name,cat:'特効',
     desc:`「${tag}」タグを持つ相手への与ダメージ+${Math.round((mul-1)*100)}%。物理でも魔法でも乗る。`,
     outgoing(s,c){ if(c.attacker!==s||!c.target||!hasTag(c.target,tag))return;
@@ -1175,11 +1182,11 @@ chitai:{name:'遅滞',cat:'対敵',desc:'被弾した時、攻撃者の行動順
 nino:{name:'二の太刀',cat:'習熟',desc:'行動の直後にもう一度行動できる。ただし再行動のあと自分に休みが付くので、手数は増えない。'},
 
 /* ---------- タグ特効 ---------- */
-hitokiri: killer('hitokiri','人斬り','人型',1.30),   // 13/20職。ほぼ無条件なので控えめ
-iotoshi:  killer('iotoshi','射落とし','飛行',1.45),  //  5/20職
-fujigari: killer('fujigari','不死狩り','不死',1.50), //  4/20職
-kemonogari:killer('kemonogari','獣狩り','獣',1.60),  //  2/20職
-ishikudaki:killer('ishikudaki','石砕き','無機',1.60),//  2/20職
+hitokiri: killer('hitokiri','人斬り','人型'),
+iotoshi:  killer('iotoshi','射落とし','飛行'),
+fujigari: killer('fujigari','不死狩り','不死'),
+kemonogari:killer('kemonogari','獣狩り','獣'),
+ishikudaki:killer('ishikudaki','石砕き','無機'),
 
 /* ---------- いきなり（戦闘開始時） ---------- */
 sakigake:{name:'先駆け',cat:'開幕',desc:'戦闘開始時、自分の威力+40%（3ターン）。',
@@ -1246,7 +1253,7 @@ himei:{name:'悲鳴',cat:'専用',needs:'mandra',
     proc(s,'himei',`悲鳴を上げた（MP${cost}）`);
     // 手番を使わない反撃なので isExtra。叫ぶはダメージが無いので連鎖もしない。
     castSpell(s,SP.sakebu,null,{isExtra:true});}},
-nebari:{name:'根張り',cat:'専用',needs:'mandra',
+nebari:{name:'根張り',cat:'専用',needs:['mandra','treant'],
   desc:'自分の手番が回るたび防御力が+8%累積（上限+40%）。「いれかえ」で動くとリセットされる。マンドラゴラ専用。',
   turnEnd(s,c){ if(c.unit!==s||!s.alive)return;
     if((s.cnt.nebari||0)>=5)return;
@@ -1322,8 +1329,8 @@ sekika:{name:'石化',cat:'専用',needs:'gargoyle',
     proc(s,'sekika',`石化して全快した（+${s.maxHp-before}／2ターン動けない）`);
     pop(s,'+'+(s.maxHp-before),'heal');
     addAil(s,'rest',null,s); s.ail.rest=2;}},
-fudou:{name:'不動',cat:'専用',needs:'gargoyle',
-  desc:'素早さを下げるデバフを受け付けず、行動順を早められたり遅らされたりしない。「いれかえ」で動かされることもない。ガーゴイル専用。',
+fudou:{name:'不動',cat:'専用',needs:['gargoyle','golem'],
+  desc:'素早さを下げるデバフを受け付けず、行動順を早められたり遅らされたりしない。「いれかえ」で動かされることもない。ガーゴイル・ゴーレム専用。',
   buffApplied(s,c){ if(c.unit!==s||c.buff.kind!=='debuff'||!bHits(c.buff,'spd'))return;
     s.buffs=s.buffs.filter(b=>b!==c.buff);
     proc(s,'fudou',`${c.buff.label}を受け付けなかった`);}},
@@ -1347,17 +1354,64 @@ fukitobasu:{name:'吹き飛ばす',cat:'専用',needs:'harpy',
     if(R(1)>=0.25)return;
     if(forceMove(c.target)) proc(s,'fukitobasu',`${c.target.name}を吹き飛ばした`);}},
 
+/* 判定は addAil の ailImmuneBy にある（《無心》と共通）。ここは表示用の枠だけ。 */
 kubinashi:{name:'首無し',cat:'専用',needs:'dullahan',
-  desc:'毒・眠り・休み・宣告・封魔、すべての状態異常を受け付けない。デュラハン専用。',
-  ailApplied(s,c){ if(c.unit!==s)return;
-    delete s.ail[c.ail];
-    proc(s,'kubinashi',`${AIL_LABEL[c.ail]||c.ail}を受け付けなかった`);}},
+  desc:'毒・眠り・休み・宣告・封魔、すべての状態異常を受け付けない。デュラハン専用。'},
 senkoku:{name:'死の宣告',cat:'専用',needs:'dullahan',
   desc:'通常攻撃が命中した時、10%で相手に「宣告」を付ける。3手番後に倒れる。デュラハン専用。',
   dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target||!c.target.alive)return;
     if(c.target.ail.doom||R(1)>=0.10)return;
     proc(s,'senkoku',`${c.target.name}に死を宣告した`);
     addAil(c.target,'doom',3,s);}},
+
+/* ---------- 追加分（薬師・ケンタウロス・ゴーレム・トレント・フェニックス） ---------- */
+
+/* 薬師。**回復量は撃ち手の魔力を見ない**ので、《薬効》は healBoost フックで足す。
+   sumHook で合算するため、将来ほかの職が同じフックを持っても素直に積める。 */
+yakkou:{name:'薬効',cat:'専用',needs:'ap',
+  desc:'自分が使う回復の効果+30%。薬でも魔法でも乗る。薬師専用。',
+  healBoost(){ return 0.30; }},
+/* ★ 「1回だけ弾く」ではなく魔防を上げる形にしてある ★
+   デバフ・状態異常は 魔力÷魔防 で弾かれるようになった（→ magicLand）ので、
+   **魔防を上げることが、そのまま状態異常への耐性**になる。
+   回数制の盾にすると u.evade と同じく新しいフィールドが要り、
+   resetUnit・状態チップ・集計の控え・手動戦闘の控え、の4か所を同時に直す必要がある。
+   手動戦闘の中断復帰（→ 保存するのは変わる値だけ）はまだ実機確認前なので、
+   いま増やす場所ではない。既にある仕組みで同じ意味を出す。 */
+yobou:{name:'予防',cat:'専用',needs:'ap',
+  desc:'戦闘開始時、味方全体の魔防+30%（3ターン）。状態異常とデバフを受けにくくなる。薬師専用。',
+  battleStart(s){ if(!s.alive)return; proc(s,'yobou','味方に予防薬を配った');
+    allies(s).forEach(t=>{ if(t.alive)
+      addBuff(t,{label:'予防',stat:'mdf',value:0.30,turns:3,kind:'buff',noSpread:true},s); });}},
+
+/* ケンタウロス。`射手` タグで通常攻撃が列を無視するので、
+   この個性は「後列を撃てる」ではなく「**後列を撃つと痛い**」を足す。 */
+nerai:{name:'狙い撃ち',cat:'専用',needs:'centaur',
+  desc:'後列にいる相手への与ダメージ+25%。ケンタウロス専用。',
+  outgoing(s,c){ if(c.attacker!==s||!c.target||isFront(c.target))return;
+    c.dmg*=1.25; c.tags.push('狙い撃ち'); fire(s,'nerai');}},
+
+/* ゴーレム。判定は addAil の ailImmuneBy にある。ここは表示用の枠だけ。 */
+mushin:{name:'無心',cat:'専用',needs:'golem',
+  desc:'毒・眠り・休み・宣告・封魔、すべての状態異常を受け付けない。ゴーレム専用。'},
+
+/* トレント。**死亡後カテゴリで唯一の回復。**
+   遺志（バフ）・呪詛（デバフ）・執念（攻撃）・転生（復活）に並ぶ5つ目の型。 */
+rakuyou:{name:'落葉',cat:'専用',needs:'treant',
+  desc:'倒れる時、味方全体のHPを最大値の15%ぶん回復する。トレント専用。',
+  death(s,c){ if(c.unit!==s)return;
+    const t=allies(s).filter(x=>x.alive); if(!t.length)return;
+    proc(s,'rakuyou','朽ちて養分になった');
+    t.forEach(a=>{ const h=Math.round(a.maxHp*0.15); healRaw(a,h); });}},
+
+/* フェニックス。《転生》はレア個性で誰にでも付くので、
+   専用個性は「**味方も立て直す**」方向へずらしてある。 */
+saitan:{name:'再誕',cat:'専用',needs:'phoenix',
+  desc:'倒れた時、1度だけHP60%で復活し、味方全体の状態異常を解除する。フェニックス専用。',
+  death(s,c){ if(c.unit!==s||s.cnt.saitan)return; s.cnt.saitan=1; c.revive=true;
+    s.alive=true; s.hp=Math.round(s.maxHp*0.6); s.ct=time+10000/stat(s,'spd');
+    proc(s,'saitan','灰から蘇った');
+    allies(s).forEach(a=>{ if(a.alive&&a!==s) clearAils(a); });}},
 
 none:{name:'—',cat:'なし',desc:'個性なし（空き枠）。素の性能を確かめたい時に使います。'},
 };
@@ -1530,6 +1584,45 @@ const SPELLS=[
   desc:'攻撃×1.4。相手のHPが30%以下なら必中かつ攻撃×2.8。デュラハン専用。'},
  {id:'kokubatotsu',name:'黒馬突',kind:'art',type:'atk',scope:'one',mp:12,power:1.2,multi:2,needs:'dullahan',
   desc:'攻撃×1.2で、届く範囲の敵2体を同時に貫く。デュラハン専用。'},
+
+ /* ---------- 薬師の薬（特技の回復） ----------
+    ★ 撃ち手の魔力を見ない（flat）★
+    回復はいままで全部が魔法だったので、**封魔されると治療手段が丸ごと消えて**いた。
+    薬は特技なので封魔を素通りし、魔防にも弾かれない。
+    伸びないかわりに、魔力の低い職でも終盤まで一定の仕事が残る。 */
+ {id:'kizugusuri',name:'傷薬',  kind:'art',type:'heal',scope:'one',mp:8, flat:0.25,alwaysHit:true,needs:'ap',
+  desc:'味方単体のHPを、その人の最大HPの25%ぶん回復する。使い手の魔力には左右されない。薬師専用。'},
+ {id:'gedoku',   name:'解毒薬',kind:'art',type:'cure',scope:'one',mp:10,alwaysHit:true,needs:'ap',
+  desc:'味方単体の状態異常をすべて解除する。特技なので、封魔されていても使える。薬師専用。'},
+ {id:'bannou',   name:'万能薬',kind:'art',type:'cure',scope:'all',mp:26,alwaysHit:true,needs:'ap',
+  desc:'味方全体の状態異常をすべて解除する。薬師専用。'},
+
+ /* ---------- ケンタウロス ---------- */
+ {id:'yatsugi', name:'矢継ぎ',kind:'art',type:'atk',scope:'one',mp:12,power:0.65,hits:2,needs:'centaur',
+  desc:'同じ対象へ攻撃×0.65を2回。命中判定も2回行う。ケンタウロス専用。'},
+ {id:'teigeki', name:'蹄撃',  kind:'art',type:'atk',scope:'one',mp:9, power:1.35,ail:'rest',ailChance:0.3,needs:'centaur',
+  desc:'攻撃×1.35。30%で相手を休み状態にする。ケンタウロス専用。'},
+
+ /* ---------- ゴーレム ---------- */
+ {id:'fumitsubushi',name:'踏み潰し',kind:'art',type:'atk',scope:'one',mp:12,power:1.6,needs:'golem',
+  desc:'攻撃×1.6の一撃。ゴーレム専用。'},
+ {id:'ganseki', name:'岩石落とし',kind:'art',type:'atk',scope:'all',mp:18,power:0.7,needs:'golem',
+  desc:'敵全体へ攻撃×0.7。数少ない範囲物理。ゴーレム専用。'},
+
+ /* ---------- トレント ---------- */
+ {id:'nagiharai',name:'薙ぎ払い',kind:'art',type:'atk',scope:'all',mp:16,power:0.65,needs:'treant',
+  desc:'敵全体へ攻撃×0.65。太い腕を横に振り回す。トレント専用。'},
+ {id:'tsutashibari',name:'蔦縛り',kind:'art',type:'atk',scope:'one',mp:10,power:0.9,
+  debuffOn:{stat:'spd',value:-0.35,turns:3},needs:'treant',
+  desc:'攻撃×0.9。命中すると相手の素早さ-35%（3ターン）。トレント専用。'},
+
+ /* ---------- フェニックス ----------
+    種族専用の魔法は命名規則の外に置き、固有名詞にする（ハガクレ・クレナイと同じ扱い）。
+    ヨミガエリは**敵側で初めての回復**。倒す順番を考えさせる相手になる。 */
+ {id:'hinowa',  name:'ヒノワ',  kind:'magic',type:'atk', scope:'all',mp:22,power:0.9,needs:'phoenix',
+  desc:'敵全体に魔力×0.9の魔法ダメージ。フェニックス専用。'},
+ {id:'yomigaeri',name:'ヨミガエリ',kind:'magic',type:'heal',scope:'one',mp:20,power:2.0,needs:'phoenix',
+  desc:'味方単体のHPを魔力×2.0ぶん回復する。フェニックス専用。'},
 ];
 const SP=Object.fromEntries(SPELLS.map(s=>[s.id,s]));
 SP.none={id:'none',name:'—',type:'none',desc:'スキルなし（空き枠）。'};
@@ -1795,6 +1888,22 @@ const CLASSES=[
       +'自分に掛かったバフを味方全体へ配るのが仕事。',
   bias:{gourei:20,tazuna:14,kyoujin:14,eichi:14,makekkai:10,idaten:10,resonate:10,gunshi:8,mitodoke:6},
   spN:2, spBias:{rally:18,guardup:14,haste:12,mrally:12}},
+ /* ★ 物理系の回復役 ★
+    回復はいままで全部が魔法だったので、**封魔されると治療手段が丸ごと消えて**いた。
+    薬師の薬は特技なので封魔を素通りし、魔防にも弾かれない。
+
+    ★ 魔力20 は狙ってこの低さにしてある ★
+    rollSpells は枠ごとに 攻撃² 対 魔力² で魔法か特技かを引く。
+    46² 対 20² ＝ **魔法率16%** なので、ほぼ特技しか引かない。
+    薬師の持ち物（傷薬・解毒薬・万能薬）は全部特技なので、これで揃う。
+    斥候が踏んだ罠（説明は弱体役なのに魔法率19%）を、こちらは逆手に取っている。
+    薬は flat なので魔力に左右されず、低くても本業の性能は落ちない。 */
+ {id:'ap',n:'薬師',   c:'AP',kind:'human',hp:440,mp:60,atk:46,def:46,mat:20,mdf:58,spd:54,
+  tags:['人型'],
+  desc:'薬で治す回復役。回復量は決まった割合で、魔力に左右されない。'
+      +'封魔されても治療を続けられる唯一の職。',
+  bias:{yakkou:22,yobou:18,seijou:12,regen:10,share:8,surplus:6,gunshi:5},
+  spN:2, spBias:{kizugusuri:24,gedoku:18,bannou:12,taiatari:6}},
  /* ★ 戦闘の外で働く職 ★
     数値はどれも平凡で、7枠を1つ食うぶんは確実に弱くなる。**それがコスト。**
     見返りは戦闘ではなく「魔物が仲間になる」こと。
@@ -1868,6 +1977,46 @@ const CLASSES=[
   desc:'何が出るか分からない。奪取と気分屋を持ちやすく、スキルは完全にランダム。剣も持たないのに剣技を使い、他種族の専用スキルまで出る。',
   bias:{steal:20,kibunya:16,kouun:12,tekiou:8,ishikudaki:6},
   spN:2},
+
+ /* ★ ここから追加の4体 ★ */
+
+ /* 敵側で初めて `射手` タグを持つ。通常攻撃が列を無視するので、
+    **プレイヤーの後列が構造的に安全**という前提がここで崩れる。
+    《狙い撃ち》は「後列を撃てる」ではなく「後列を撃つと痛い」を足す個性。 */
+ {id:'centaur',n:'ケンタウロス', c:'CT',kind:'monster',hp:520,mp:30,atk:76,def:48,mat:28,mdf:36,spd:74,
+  tags:['獣','四足','射手'],
+  desc:'後列を直接射抜いてくる。速く、狙いが正確で、前に出て守る意味を薄れさせる。',
+  bias:{nerai:24,shissou:16,iotoshi:14,mekiki:12,sakigake:10,tsuitou:8,kemonogari:6},
+  spN:2, spBias:{yatsugi:20,teigeki:16,kamitsuki:10,taiatari:6}},
+
+ /* 状態異常が一切効かない壁。**ただし物理に硬く魔法に脆い**（防御92／魔防30）。
+    毒・眠り・封魔で削る編成に「通じない相手」を作りつつ、
+    答え（魔法で殴る）を必ず用意しておく。
+    《無心》は fixed。確率にすると個体差になって「ゴーレムには効かない」が読めなくなる。 */
+ {id:'golem',n:'ゴーレム',     c:'GL',kind:'monster',hp:780,mp:16,atk:70,def:92,mat:18,mdf:30,spd:22,
+  tags:['無機'], fixed:['mushin'],
+  desc:'状態異常が一切効かない岩の巨人。HPと防御は全職中で最高、素早さは最低。'
+      +'そのかわり魔防は低く、魔法はよく通る。',
+  bias:{fudou:20,mitigate:18,chouhatsu:16,thorns:12,cover:10,fukutsu:8,ishikudaki:5},
+  spN:1, spBias:{fumitsubushi:20,ganseki:16,taiatari:8}},
+
+ /* 植物2体目。マンドラゴラ（魔法・紙・最低速）の正反対で、物理寄りの重い壁。
+    《落葉》は死亡後カテゴリで唯一の回復（遺志=バフ・呪詛=デバフ・執念=攻撃・転生=復活）。 */
+ {id:'treant',n:'トレント',     c:'TR',kind:'monster',hp:720,mp:40,atk:72,def:74,mat:36,mdf:50,spd:26,
+  tags:['植物'],
+  desc:'根を張って動かない巨木。倒れる時、味方を養分で立て直す。',
+  bias:{rakuyou:22,nebari:20,mitigate:14,chouhatsu:12,thorns:10,regen:8,kanjuku:5},
+  spN:2, spBias:{nagiharai:20,tsutashibari:16,taiatari:8}},
+
+ /* 敵側で初めての回復役。いま回復を持つのは僧侶と薬師だけで、
+    **敵パーティに立て直す手段が無かった**。「先にあの鳥を落とす」判断が生まれる。
+    《再誕》は fixed にしない — 復活する個体としない個体があった方が、
+    落としきったかどうかの緊張が残る。 */
+ {id:'phoenix',n:'フェニックス', c:'PX',kind:'monster',hp:480,mp:70,atk:58,def:40,mat:78,mdf:58,spd:72,
+  tags:['飛行','不死'],
+  desc:'灰から蘇る不死鳥。味方を癒やし、自らも一度だけ立ち上がる。',
+  bias:{saitan:24,regen:16,seijou:14,karuwaza:12,sakigake:10,charge:8,surplus:6},
+  spN:3, spBias:{hinowa:20,yomigaeri:18,fire:10,heal:8,mrally:6}},
 ];
 const CLS=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
 const HUMANS   = CLASSES.filter(c=>c.kind==='human');
@@ -2261,8 +2410,20 @@ const asleep=u=>!!u.ail.sleep;
    判定はここ1か所に集め、オート・手動・追唱の3つの入口から必ず通す。 */
 const canCast=(u,sp)=>!(u&&u.ail&&u.ail.seal&&sp&&!isArt(sp));
 
+/* ★ 状態異常を受け付けない ★ canCast と同じく判定を1か所に集める。
+   《首無し》（デュラハン）と《無心》（ゴーレム）が毒・眠り・休み・宣告・封魔を全部弾く。
+   以前は《首無し》だけが ailApplied で「付いた直後に消す」形だったが、
+   一瞬付いてしまうため ailApplied を拾う他の個性が反応できた。ここで止める方が正しい。
+
+   ただし**自分で自分に掛けるもの**は通す（《石化》の休み・急降下の反動）。
+   弾くと、その個性やスキルの代償だけ踏み倒せてしまう。 */
+const AIL_IMMUNE=['kubinashi','mushin'];
+const ailImmuneBy=(u,src)=>(src===u)?null:(AIL_IMMUNE.find(id=>hasT(u,id))||null);
+
 function addAil(u,name,turns,src){
   if(!u.alive)return;
+  const im=ailImmuneBy(u,src);
+  if(im){ proc(u,im,`${AIL_LABEL[name]||name}を受け付けなかった`); return; }
   // 眠りと休みは同時に付かない。後から付いた方で上書きする。
   if(name==='sleep') delete u.ail.rest;
   if(name==='rest')  delete u.ail.sleep;
@@ -2487,7 +2648,12 @@ function castSpell(a,sp,target,o={}){
 
   } else if(sp.type==='heal'){
     const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
-    tg.forEach(t=>{ if(!t.alive)return; const h=Math.round(stat(a,'mat')*sp.power*mult*(0.95+R(0.1)));
+    /* flat … 撃ち手のステータスを見ず、**受ける側の最大HPの割合**で回復する。
+       薬師の薬がこれ。魔力が伸びない職でも終盤まで一定の仕事が残り、
+       封魔されても（特技なので）撃てる。魔法の回復とは伸び方がまるで違う。 */
+    tg.forEach(t=>{ if(!t.alive)return;
+      const h=sp.flat ? Math.round(t.maxHp*sp.flat*mult*(1+sumHook(a,'healBoost')))
+                      : Math.round(stat(a,'mat')*sp.power*mult*(0.95+R(0.1))*(1+sumHook(a,'healBoost')));
       healRaw(t,h); addLog(`${a.name} が ${t.name} を ${h} 回復`,'l-heal'); });
 
   } else if(sp.type==='cure'){
@@ -5033,6 +5199,14 @@ const QKIND={
   chain:{n:'連戦',c:'k-chain'},   horde:{n:'大群',c:'k-horde'},
   duel:{n:'決闘',c:'k-duel'}, few:{n:'少数精鋭',c:'k-few'}, custom:{n:'自作',c:'k-custom'},
 };
+/* ★ 「全魔物が候補」の枠 ★
+   1枠に16種を手で並べると、書き間違え（カンマ落ちで 'vampire''slime' が
+   'vampireslime' になる等）が起きても静かに壊れるだけで気づけない。
+   MONSTERS から作れば取りこぼしが無く、**今後魔物を足したら自動で候補に入る**。
+   スタンピードの性格からして、それが正しい挙動。 */
+const ANY_MONSTER=MONSTERS.map(c=>c.id);
+const anyWave=n=>Array(n).fill(ANY_MONSTER);
+
 const QUESTS=[
  /* ---------- 難度1：最初の数分 ---------- */
  /* once:true … 一度きり。クリアしたら掲示から消え、二度と出ない。
@@ -5241,6 +5415,54 @@ const QUESTS=[
   desc:'**2日がかりの三連戦。**時給は割に合わないが、出してしまえば忘れていられる。',
   first:{gold:20000000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:1,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
+
+ /* ---------- スタンピード ----------
+    ★ 21枠すべてが全魔物からの一様抽選 ★
+    総合的な強さは**ほとんどブレない**（14体で試算した時、下位10%と上位10%の差は1.32倍）。
+    独立に何体も引くので平均に寄るため、固定の時給を付けても壊れない。
+
+    ブレるのは「**何が刺さるか**」の方。
+    《人斬り》はほぼ必ず仕事をするが、《獣狩り》《石砕き》は20回に1回空振りし、
+    状態異常を軸にした編成は11回に1回「4体以上に効かない」卓を引く。
+    だから**特化ではなく、何にでも対応できる編成**が要る。それがこの依頼の趣旨。
+
+    中身は見えないが、**結果を予想するは正しく効く**（掲示の種から実際の21体を組んで測る）。
+    「顔ぶれは分からないが、勝てるかどうかは分かる」形。 */
+ {id:'q6f',name:'スタンピード発生！',tier:6,kind:'horde',sec:25200,gph:150000,foeUnknown:true,
+  waves:[anyWave(7),anyWave(7),anyWave(7)],
+  desc:'**種を問わず魔物が溢れ出した。**何が出るかは着いてみるまで分からない。'
+      +'7体の群れが三度。**得意な相手だけを選ぶことはできない。**',
+  first:{gold:3000000,item:true,member:true,rare:true},
+  reward:{equipChance:1,memberChance:0.7,memberBias:{kn:12,pr:12,mg:12,ap:12},rareChance:0.8}},
+
+ /* ---------- 追加の魔物が出る依頼 ----------
+    ★ 新しい魔物は、依頼に置かないと一生出てこない ★
+    既存の依頼へ混ぜると、手で決めた時給と難度が狂う。
+    そこで**専用の依頼を1本ずつ足す**形にし、既存の balance には触れていない。
+    時給は同じ難度の std / horde に合わせてある。 */
+ {id:'q3j',name:'森の主',tier:3,kind:'std',sec:1500,gph:44000,
+  enemies:['treant','mandra','mandra','slime'],
+  desc:'森の奥で木が動いたという。**根を張った相手は落ちにくい。**'
+      +'倒しても、朽ちる時に周りを立て直していく。',
+  first:{gold:80000,item:true},
+  reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:14,hx:12,tm:10},rareChance:0.2}},
+ {id:'q4i',name:'草原の狩人',tier:4,kind:'std',sec:3000,gph:57000,
+  enemies:['centaur','centaur','harpy','wyvern'],
+  desc:'**後列を射抜いてくる。**前に壁を置いても、狙われるのは後ろ。'
+      +'隊列の組み方そのものを問われる。',
+  first:{gold:140000,item:true,member:true},
+  reward:{equipChance:0.6,memberChance:0.35,memberBias:{ar:16,rg:14,tm:10},rareChance:0.3}},
+ {id:'q5i',name:'動かぬ門番',tier:5,kind:'horde',sec:9000,gph:96000,
+  enemies:['golem','golem','gargoyle','gargoyle','mimic'],
+  desc:'**毒も眠りも封魔も通らない。**殴っても硬い。'
+      +'ただし魔に対しては脆いという話もある。',
+  first:{gold:700000,item:true,member:true,rare:true},
+  reward:{equipChance:0.8,memberChance:0.45,memberBias:{mg:18,hx:16},rareChance:0.4}},
+ {id:'q5j',name:'灰の巣',tier:5,kind:'horde',sec:10800,gph:99000,
+  enemies:['phoenix','phoenix','harpy','wyvern','wyvern'],
+  desc:'**倒したはずのものが起き上がる。**癒やす者を先に落とせるかどうか。',
+  first:{gold:880000,item:true,member:true,rare:true},
+  reward:{equipChance:0.85,memberChance:0.5,memberBias:{ar:16,pr:14,ap:14},rareChance:0.45}},
 
  /* ---------- 少数精鋭（3人編成の部隊がある時だけ掲示） ----------
     ★ 7枠のうち3枠しか使えない ★
@@ -5496,6 +5718,11 @@ const waveText=q=>questWaves(q).map(w=>{
    候補枠は候補それぞれを1として数えるので、出やすい種族ほど前に来る。 */
 function questFoeText(q){
   const w=questWaves(q); if(!w.length) return '戦闘なし';
+  /* ★ 全種族が候補の依頼は、種類を出さない ★
+     この関数は候補の出現回数で上位3つを出すが、全部が同数だと
+     **配列の先頭3つが機械的に並ぶだけ**になり、その3種が出やすいかのように読める。
+     スタンピードの売りは「何が出るか分からない」ことなので、そう書く。 */
+  if(q.foeUnknown) return '何が出るか分からない';
   const c={};
   w.forEach(wave=>wave.forEach(s=>{
     (Array.isArray(s)?s:[s]).forEach(id=>{ if(id&&CLS[id]) c[id]=(c[id]||0)+1; });
