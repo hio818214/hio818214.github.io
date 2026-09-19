@@ -281,6 +281,11 @@ body.mobile .cslots{grid-template-columns:repeat(4,1fr)}
   border-radius:2px;padding:1px 5px;margin-left:6px;vertical-align:middle}
 .gman{font-style:normal;background:var(--ally-dim);color:var(--ally);font-size:9.5px;
   border-radius:2px;padding:1px 5px;margin-left:6px;vertical-align:middle}
+/* 負傷者を連れ帰った時の知らせ。失敗の警告（.warn）ではないので、
+   同じ「傷」の話でも色を分けて“収穫だが手当てが要る”に見せる */
+.grescue{background:#1b2a33;border-left:2px solid #4d8fa8;border-radius:0 2px 2px 0;
+  padding:8px 11px;margin-top:6px;font-size:11.5px;color:#bcd8e4;line-height:1.75}
+.grescue b{color:#8fd6ff;font-weight:700}
 /* --- 報告の再生 ---
    検証盤の盤面を借りる。コントロール・凡例・コマンド欄は出さない。 */
 .rvbar{display:none}
@@ -508,7 +513,10 @@ body.mobile .mask.dlg{padding:16px;align-items:center}
 .rmain b{font-weight:500} .rmain i{font-style:normal;color:var(--muted);font-size:10px;margin-left:6px}
 .rsub{font-size:10.5px;color:var(--muted)}
 .rsub em{font-style:normal;color:#96d8b0}
-.rbtn{display:flex;gap:3px;flex:0 0 auto}
+.rbtn{display:flex;gap:3px;flex:0 0 auto;align-items:center}
+/* 受けられない理由。押せないボタンの代わりに置くので、ボタンと同じ高さに座らせる */
+.rwhy{font-size:10.5px;color:var(--muted);line-height:1.5;text-align:right;
+  max-width:132px;padding:4px 2px}
 .rbtn button{background:#2a2538;border:1px solid var(--line2);border-radius:2px;padding:5px 7px;
   font-size:10.5px;color:var(--muted);cursor:pointer}
 .rbtn button:hover{border-color:var(--gold);color:var(--gold)}
@@ -4984,10 +4992,14 @@ const QUESTS=[
   desc:'羽の生えたものが2体。**こちらより速い。**先手を取られる前提で組む。',
   first:{gold:12000},
   reward:{equipChance:0.4,memberChance:0.25,memberBias:{ar:16,rg:12,tm:8}}},
+ /* 負傷加入の見本。**奥に囚われていた者を助け出す**という筋を、
+    既にある療養の仕組みだけで出している（hurt は秒）。
+    30分にしてあるのは、寺院を使う動機を作るため。待てるが、待ちたくはない長さ。 */
  {id:'q3',name:'洞窟の調査',tier:2,kind:'std',sec:600,gph:28000,
   enemies:['goblin','goblin','slime'],
-  desc:'奥に何かいるらしい。粘体は物理が通りにくい。',
-  first:{gold:14000,item:true},
+  desc:'奥に何かいるらしい。粘体は物理が通りにくい。'
+      +'**先に潜った隊が戻っていない**という話もある。',
+  first:{gold:14000,item:true,member:true,hurt:1800},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{rg:12,mg:12,hx:8,tm:10},rareChance:0.15}},
  {id:'q2c',name:'沼の毒気',tier:2,kind:'std',sec:900,gph:30000,
   enemies:['slime','slime','mandra','mandra'],
@@ -5681,6 +5693,15 @@ const TUT=[
   h:'「ゴブリンの連戦訓練」を達成する。ギルドランクが上がります'},
  {id:'expand',  t:'枠を広げよう！',
   h:'「ギルド管理」→ どれかの枠の <b>広げる</b>'},
+ /* ★ 寺院は「負傷者が出てから」でないと教えられない ★
+    自分の部隊が倒れるのを待つと、いつ来るか分からない上に
+    「失敗した時の画面」で新しい施設を教えることになる。
+    洞窟の調査は**必ず負傷者を連れ帰る**ので、達成という良い場面で寺院へ送り込める。 */
+ {id:'rescue',  t:'洞窟の奥を調べよう！',
+  h:'「依頼を見る」→「洞窟の調査」の <b>受ける</b> → <b>送り出す</b> → <b>報告を聞く</b>'
+   +'（すでに療養中の仲間がいれば、この手順は済んだことになります）'},
+ {id:'temple',  t:'傷を治そう！',
+  h:'「寺院」→ 療養中の仲間の <b>治療</b>（金か宝石。待てば時間でも明けます）'},
 ];
 const tutStep=()=>(G&&G.tut&&+G.tut.step)||0;
 const tutCur =()=>(G&&G.tut&&tutStep()<TUT.length)?TUT[tutStep()]:null;
@@ -5727,8 +5748,10 @@ function firstText(q){
   if(f.item) a.push(`装備${f.item===true?1:f.item}つ`);
   if(f.member){
     const n=f.count||1;
-    a.push(f.member===true?`${f.rare?'レア個性持ちの仲間':'仲間'} ${n}人`
-                          :`${CLS[f.member]?CLS[f.member].n:f.member}${f.blank?'（個性・スキルなし）':''} ${n}人`);
+    // 負傷加入は隠さない。受ける前から「すぐには戦力にならない」と分かる方がいい
+    const hurt=f.hurt>0?'（負傷している）':'';
+    a.push(f.member===true?`${f.rare?'レア個性持ちの仲間':'仲間'} ${n}人${hurt}`
+                          :`${CLS[f.member]?CLS[f.member].n:f.member}${f.blank?'（個性・スキルなし）':''} ${n}人${hurt}`);
   }
   return a.join('・');
 }
@@ -5993,14 +6016,19 @@ function rollPending(q,ok,men,met){
     const f=q.first;
     pending.first=true;
     pending.gold+=f.gold||0;
+    /* hurt … 秒。0 より大きいと「負傷した状態で加入」する。
+       助け出して連れ帰った、という体にできる。療養が明けるまで出撃できない。 */
     if(f.member) pending.firstMember=(f.member===true)
-      ?{rare:!!f.rare,count:f.count||1}
-      :{clsId:f.member,blank:!!f.blank,count:f.count||1};
+      ?{rare:!!f.rare,count:f.count||1,hurt:f.hurt||0}
+      :{clsId:f.member,blank:!!f.blank,count:f.count||1,hurt:f.hurt||0};
     if(f.item) pending.firstItem=(f.item===true?1:(+f.item||0));   // 個数も書ける
   }
   return pending;
 }
-/* 仲間を入れる。席が無ければ応援金に化ける。count で複数人。 */
+/* 仲間を入れる。席が無ければ応援金に化ける。count で複数人。
+   m.hurt（秒）があると**負傷した状態で加入**する。
+   「囚われていた者を助け出して連れ帰った」を、既にある療養の仕組みだけで表現できる。
+   療養が明けるまで出撃できないので、寺院を使う動機にもなる。 */
 function joinFromPending(rep,q,m){
   const n=Math.max(1,m.count||1);
   for(let i=0;i<n;i++){
@@ -6012,7 +6040,13 @@ function joinFromPending(rep,q,m){
     const u=m.clsId
       ? (()=>{ const x=guildUnit(m.clsId,{blank:m.blank}); G.roster.push(x); return x; })()
       : gainMember(q,m.rare);
-    rep.gained.push(`${memberLabel(u)} が仲間になった。`);
+    if(m.hurt>0){
+      u.healAt=now()+m.hurt*1000;
+      rep.hurtJoin=(rep.hurtJoin||[]).concat(u.name);
+      rep.gained.push(`${memberLabel(u)} を助け出した。`);
+    }else{
+      rep.gained.push(`${memberLabel(u)} が仲間になった。`);
+    }
   }
 }
 /* テイムで連れ帰った魔物。**装備はできないが、種族専用の個性とスキルを持ってくる。** */
@@ -6060,6 +6094,7 @@ function claimReport(rep){
       refreshOffers();
     }
     if(q.id==='qt') tutDone('keyclear');
+    if(q.id==='q3') tutDone('rescue');     // 負傷者を連れ帰った ＝ 寺院の出番
   }
   tutDone('report');     // 「結果を聞こう！」はここで達成
   saveGuild();
@@ -6367,6 +6402,12 @@ function renderGuild(){
   const offers=(G.offers||[]).filter(o=>!G.parties.some(p=>p.offerId===o.oid)).length;
   const hurt=G.roster.filter(showHurt).length;   // 開封前の負傷は数に入れない
   const idle=G.parties.filter(p=>!p.questId&&!p.report).length;
+  /* ★ 「洞窟の奥を調べよう」の逃げ道 ★
+     初回達成報酬は一度きりなので、この案内が出る前に洞窟の調査を済ませていると
+     二度と達成できず、案内がそこで止まってしまう。
+     目的は「療養中の仲間を作って寺院へ送ること」なので、
+     **どんな理由であれ療養中の仲間がいれば済んだ扱い**にする。 */
+  if(hurt) tutDone('rescue');
   const tc=tutCur();
   host.innerHTML=`
     ${tc?`<div class="gtut">
@@ -6399,6 +6440,7 @@ function renderGuild(){
       <button class="btn sm dbg" id="dbgR">仲間（レア確定）</button>
       <button class="btn sm dbg" id="dbgT">テイマーを1人</button>
       <button class="btn sm dbg" id="dbgB">魔物を1体（テイム）</button>
+      <button class="btn sm dbg" id="dbgH" title="寺院と負傷加入を試すため。療養30分の状態で入ります">負傷した仲間を1人</button>
       <button class="btn sm dbg" id="dbgE">装備ドロップ</button>
       <button class="btn sm dbg" id="dbgG">金をカンストさせる</button>
       <button class="btn sm dbg" id="dbgJ">宝石をカンストさせる</button>
@@ -6431,6 +6473,12 @@ function renderGuild(){
     if(G.roster.length>=maxRoster()){ GMSG='【検証】'+gEsc(overflowMember().text); return; }
     const u=guildUnit(pick(MONSTERS).id); G.roster.push(u);
     GMSG=`【検証】${gEsc(memberLabel(u))} が心を許した`;
+  });
+  /* 負傷加入と寺院を試すのに、本来は洞窟の調査を10分待つ必要がある。 */
+  dbg('#dbgH',()=>{
+    if(G.roster.length>=maxRoster()){ GMSG='【検証】'+gEsc(overflowMember().text); return; }
+    const u=gainMember(null,false); u.healAt=now()+1800*1000;
+    GMSG=`【検証】${gEsc(memberLabel(u))} を負傷状態で加入させた（療養30分）`;
   });
   dbg('#dbgE',()=>{ GMSG='【検証】'+gEsc(gainItem().text); });
   /* 少しずつ足すと、最上位の拡張（7億G）を試すまでに何十回も押すことになる。
@@ -6801,6 +6849,19 @@ function gQuest(){
   const b=$('#gbody');
   const free=G.parties.filter(p=>!partyBusy(p)&&!p.report&&partyUnits(p).length
     &&partyUnits(p).every(u=>!injured(u)));
+  /* ★ 出せない理由を1行で言う ★
+     free は「待機中・空でない・全員健康」で絞り込んだ結果なので、
+     0件になる原因が4つある。どれで落ちたかを上から順に見て、その言葉を返す。
+     「出せる部隊がいません」だけでは、部隊を作ればいいのか治せばいいのか分からない。 */
+  const whyNone=q=>{
+    if(!G.parties.length)            return '部隊がまだありません';
+    const staffed=G.parties.filter(p=>partyUnits(p).length);
+    if(!staffed.length)              return '仲間を置いた部隊がありません';
+    const idle=staffed.filter(p=>!partyBusy(p)&&!p.report);
+    if(!idle.length)                 return '待機中の部隊がありません';
+    if(!free.length)                 return '療養中の仲間がいる部隊しかありません';
+    return questCondText(q)?`${questCondText(q)}の部隊がいません`:'条件に合う部隊がありません';
+  };
   /* 編成の条件がある依頼は、条件を満たす部隊しか出せない。 */
   const eligible=q=>free.filter(p=>{
     const men=partyUnits(p);
@@ -6837,8 +6898,13 @@ function gQuest(){
         ${p?`<button data-a="skip"${G.gems<skipCost(p.returnAt-now())?' disabled':''
           }>呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`:''}
         ${DEBUG?'<button class="dbg" data-a="dbg" title="戦闘も待ち時間も無しで、この依頼の報酬だけを引きます（検証用）">報酬だけ引く</button>':''}
-        ${p||rp?'':`<button data-a="go"${el.length?''
-          :` disabled title="${questCondText(q)?questCondText(q)+'の部隊が出せません':'出せる部隊がいません'}"`}>受ける</button>`}</span>
+        ${p||rp?'':(el.length
+          ? '<button data-a="go">受ける</button>'
+          /* ★ 押せないボタンは置かない ★
+             灰色の「受ける」だけが並んでいると、なぜ押せないのかが分からない。
+             掲示そのものは残したい（次の目標が見えなくなる）ので、
+             ボタンを消して**理由を言葉で**置き換える。 */
+          : `<span class="rwhy">${whyNone(q)}</span>`)}</span>
     </div>`;
   };
   const held=G.parties.filter(x=>x.report).map(x=>x.report);
@@ -7251,6 +7317,10 @@ function gReportResult(){
     ${r.gained.length?`<div class="gtodo">${r.gained.map(gEsc).join('<br>')}</div>`:''}
     ${r.items.length?`<div class="gtodo">${r.items.map(gEsc).join('<br>')}</div>`:''}
     ${r.injured.length?`<div class="warn">${r.injured.map(gEsc).join('・')} が負傷した。寺院で治療できる。</div>`:''}
+    ${(r.hurtJoin||[]).length?`<div class="grescue">
+      <b>${r.hurtJoin.map(gEsc).join('・')}</b> は<b>深手を負っていた。</b><br>
+      ギルドへ運び込んだが、傷が癒えるまでは依頼に出せない。
+      <b>寺院</b>で金を払えばすぐに治せる。放っておいても時間で明ける。</div>`:''}
     <div class="seghint">${DEBUG?`<br>各戦闘の種：${(r.rounds||[]).map(x=>x.seed).join(' / ')||'—'}`:''}</div>
     ${again.why?`<div class="seghint">${again.why}</div>`:''}
     <div class="cmds">
@@ -7798,10 +7868,19 @@ function gTemple(){
     const u=G.roster.find(x=>x.gid==r.dataset.u); if(!u)return;
     r.querySelectorAll('button').forEach(btn=>{ if(btn.disabled)return;
       btn.onclick=()=>{
-        if(btn.dataset.a==='gem'){ useSkip('heal',u); return; }
+        /* 宝石の方は useSkip が足りない時に何もせず戻るので、
+           先に tutDone すると「治していないのに達成」になる。治った後で見る。 */
+        if(btn.dataset.a==='gem'){
+          const t=tutCur();
+          useSkip('heal',u);
+          if(!u.healAt&&t&&t.id==='temple'){ tutDone('temple'); renderGuild(); }
+          return;
+        }
         const c=cost(u); if(G.gold<c)return;
         G.gold-=c; u.healAt=0; resetUnit(u);
-        GMSG=`${gEsc(u.name)} の傷が癒えた。`; saveGuild(); renderGuild();
+        GMSG=`${gEsc(u.name)} の傷が癒えた。`;
+        tutDone('temple');     // 金でも宝石でも「治療した」で達成
+        saveGuild(); renderGuild();
       };
     });
   });
