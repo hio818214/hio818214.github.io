@@ -1916,63 +1916,63 @@ const CLASSES=[
   spN:1, spBias:{taiatari:10,guardup:8,rally:8}},
 
  /* ---------- 魔物（敵の既定） ---------- */
- {id:'vampire',n:'ヴァンパイア',c:'VP',kind:'monster',hp:500,mp:60,atk:74,def:48,mat:70,mdf:54,spd:64,
+ {id:'vampire',n:'ヴァンパイア',c:'VP',kind:'monster',lv:3,hp:500,mp:60,atk:74,def:48,mat:70,mdf:54,spd:64,
   tags:['人型','不死','飛行'],
   desc:'与えたダメージを糧に立ち直る。吸血を持ちやすい。',
   bias:{drain:24,yaten:20,hitokiri:18,juso:9,tensei:8,shokei:6,kouun:5},
   spN:2, spBias:{chisusuri:18,kurenai:14,tsumesaki:12,weaken:8,fire:6}},
- {id:'slime',n:'スライム',      c:'SL',kind:'monster',hp:620,mp:52,atk:52,def:60,mat:58,mdf:44,spd:30,
+ {id:'slime',n:'スライム',      c:'SL',kind:'monster',lv:1,hp:620,mp:52,atk:52,def:60,mat:58,mdf:44,spd:30,
   tags:['粘体'],
   desc:'鈍いが硬く、毒を撒く。ドヨドと毒血を持ちやすい。',
   bias:{dokuchi:24,futeikei:20,yokai:18,mitigate:12,shouki:10,fukutsu:8,thorns:6},
   spN:2, spBias:{venom:26,nomikomu:18,numeri:14,taiatari:8}},
- {id:'skeleton',n:'スケルトン', c:'SK',kind:'monster',hp:430,mp:26,atk:66,def:52,mat:24,mdf:30,spd:56,
+ {id:'skeleton',n:'スケルトン', c:'SK',kind:'monster',lv:2,hp:430,mp:26,atk:66,def:52,mat:24,mdf:30,spd:56,
   tags:['人型','不死','剣所持'],
   desc:'倒れても立ち上がる。不屈と転生を持ちやすい。',
   bias:{fukutsu:22,honemi:20,ensa:16,tensei:14,shuunen:10,hitokiri:8,haisui:6},
   spN:1, spBias:{honenage:20,zenryoku:14,hicchuu:8,weaken:4}},
- {id:'goblin',n:'ゴブリン',     c:'GB',kind:'monster',hp:380,mp:20,atk:60,def:40,mat:20,mdf:26,spd:66,
+ {id:'goblin',n:'ゴブリン',     c:'GB',kind:'monster',lv:1,hp:380,mp:20,atk:60,def:40,mat:20,mdf:26,spd:66,
   tags:['人型','剣所持'],
   desc:'単体では弱いが群れる。隣接と追撃を持ちやすい。',
   bias:{rinsetsu:22,kazu:20,koukatsu:16,tsuigeki:12,timid:9,sakigake:7,share:6},
   spN:1, spBias:{ishinage:16,fuiuchi:14,hayabusa:10,taiatari:8}},
- {id:'wyvern',n:'ワイバーン',   c:'WY',kind:'monster',hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
+ {id:'wyvern',n:'ワイバーン',   c:'WY',kind:'monster',lv:4,hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
   tags:['獣','飛行'],
   desc:'最速級の飛竜。疾走と先導で手数を稼ぐ。',
   bias:{shissou:22,ryuurin:20,kasoku:14,sakigake:12,tsuigeki:10,hitokiri:8,iatsu:6},
   spN:2, spBias:{obigeki:18,kyuukouka:16,kamitsuki:14,tsumesaki:10}},
- {id:'lich',n:'リッチ',         c:'LC',kind:'monster',hp:400,mp:92,atk:30,def:36,mat:92,mdf:70,spd:46,
+ {id:'lich',n:'リッチ',         c:'LC',kind:'monster',lv:3,hp:400,mp:92,atk:30,def:36,mat:92,mdf:70,spd:46,
   tags:['人型','不死'],
   desc:'魔力が全体で最高。呪詛と遺志で死後も削る。',
   bias:{juso:22,shireijutsu:18,konbaku:16,ishi:14,tsuishou:10,mekiki:8,seimei:7},
   spN:3, spBias:{horobi:18,inferno:16,mfkiri:14,blast:12,mrally:10,venom:8,sleep:8}},
- {id:'gargoyle',n:'ガーゴイル', c:'GG',kind:'monster',hp:660,mp:24,atk:58,def:86,mat:22,mdf:52,spd:32,
+ {id:'gargoyle',n:'ガーゴイル', c:'GG',kind:'monster',lv:3,hp:660,mp:24,atk:58,def:86,mat:22,mdf:52,spd:32,
   tags:['無機','飛行'],
   desc:'防御が全体で最高の石像。軽減と棘返しで攻撃を跳ね返す。',
   bias:{mitigate:22,fudou:20,sekika:18,thorns:16,nirami:12,chouhatsu:10,cover:7},
   spN:1, spBias:{noshikakari:18,guardup:12,taiatari:8}},
- {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
+ {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',lv:3,hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
   tags:['獣','四足'],
   desc:'追い詰めるほど強くなる猟犬。追撃と処刑を持ちやすい。',
   bias:{mikubi:22,tsuigeki:20,tsuisou:16,kajiba:14,shokei:12,hitokiri:10,sakigake:8,haisui:8},
   spN:2, spBias:{kamikudaki:18,houkou:14,kamitsuki:14,tsumesaki:10}},
- {id:'harpy',n:'ハーピィ',      c:'HP',kind:'monster',hp:360,mp:36,atk:62,def:34,mat:44,mdf:40,spd:86,
+ {id:'harpy',n:'ハーピィ',      c:'HP',kind:'monster',lv:1,hp:360,mp:36,atk:62,def:34,mat:44,mdf:40,spd:86,
   tags:['人型','飛行'],
   desc:'最速。脆いが先手を取って掻き乱す。眠りの霧を使う唯一の種族。',
   bias:{shissou:22,kazematoi:20,karuwaza:18,fukitobasu:16,kasoku:12,timid:12,sonae:10,kouun:6},
   spN:2, spBias:{kiri:16,kamaitachi:14,habataki:12,blur:10,tsumesaki:8}},
- {id:'mandra',n:'マンドラゴラ', c:'MD',kind:'monster',hp:470,mp:66,atk:34,def:46,mat:74,mdf:64,spd:24,
+ {id:'mandra',n:'マンドラゴラ', c:'MD',kind:'monster',lv:2,hp:470,mp:66,atk:34,def:46,mat:74,mdf:64,spd:24,
   tags:['植物'],
   desc:'最も遅い。動かないが毒と呪いを撒き続ける。専用スキル3つと専用個性《悲鳴》を持つ。'
       +'遅くて手番が回らないぶんを、殴られた時の悲鳴で取り返す。',
   bias:{himei:26,nebari:18,dokuchi:18,shouki:14,juso:12,regen:8,recoil:5},
   spN:3, spBias:{sakebu:16,houshi:14,nemuribana:12,otakebi:10,leafdance:10,venom:10}},
- {id:'dullahan',n:'デュラハン', c:'DH',kind:'monster',hp:600,mp:40,atk:80,def:66,mat:34,mdf:48,spd:54,
+ {id:'dullahan',n:'デュラハン', c:'DH',kind:'monster',lv:5,hp:600,mp:40,atk:80,def:66,mat:34,mdf:48,spd:54,
   tags:['人型','不死','四足','剣所持'],
   desc:'首無しの騎士。威圧と処刑で確実に落としにくる。',
   bias:{kubinashi:22,iatsu:20,senkoku:16,shokei:14,hitokiri:12,mustHit:10,nirami:9,cover:8,shuunen:8},
   spN:2, spBias:{kubikari:18,kokubatotsu:16,zenryoku:12,hicchuu:10,weaken:6}},
- {id:'mimic',n:'ミミック',      c:'MM',kind:'monster',hp:520,mp:48,atk:68,def:58,mat:52,mdf:44,spd:40,
+ {id:'mimic',n:'ミミック',      c:'MM',kind:'monster',lv:1,hp:520,mp:48,atk:68,def:58,mat:52,mdf:44,spd:40,
   tags:['無機','擬態'],
   desc:'何が出るか分からない。奪取と気分屋を持ちやすく、スキルは完全にランダム。剣も持たないのに剣技を使い、他種族の専用スキルまで出る。',
   bias:{steal:20,kibunya:16,kouun:12,tekiou:8,ishikudaki:6},
@@ -1983,7 +1983,7 @@ const CLASSES=[
  /* 敵側で初めて `射手` タグを持つ。通常攻撃が列を無視するので、
     **プレイヤーの後列が構造的に安全**という前提がここで崩れる。
     《狙い撃ち》は「後列を撃てる」ではなく「後列を撃つと痛い」を足す個性。 */
- {id:'centaur',n:'ケンタウロス', c:'CT',kind:'monster',hp:520,mp:30,atk:76,def:48,mat:28,mdf:36,spd:74,
+ {id:'centaur',n:'ケンタウロス', c:'CT',kind:'monster',lv:4,hp:520,mp:30,atk:76,def:48,mat:28,mdf:36,spd:74,
   tags:['獣','四足','射手'],
   desc:'後列を直接射抜いてくる。速く、狙いが正確で、前に出て守る意味を薄れさせる。',
   bias:{nerai:24,shissou:16,iotoshi:14,mekiki:12,sakigake:10,tsuitou:8,kemonogari:6},
@@ -1993,7 +1993,7 @@ const CLASSES=[
     毒・眠り・封魔で削る編成に「通じない相手」を作りつつ、
     答え（魔法で殴る）を必ず用意しておく。
     《無心》は fixed。確率にすると個体差になって「ゴーレムには効かない」が読めなくなる。 */
- {id:'golem',n:'ゴーレム',     c:'GL',kind:'monster',hp:780,mp:16,atk:70,def:92,mat:18,mdf:30,spd:22,
+ {id:'golem',n:'ゴーレム',     c:'GL',kind:'monster',lv:5,hp:780,mp:16,atk:70,def:92,mat:18,mdf:30,spd:22,
   tags:['無機'], fixed:['mushin'],
   desc:'状態異常が一切効かない岩の巨人。HPと防御は全職中で最高、素早さは最低。'
       +'そのかわり魔防は低く、魔法はよく通る。',
@@ -2002,7 +2002,7 @@ const CLASSES=[
 
  /* 植物2体目。マンドラゴラ（魔法・紙・最低速）の正反対で、物理寄りの重い壁。
     《落葉》は死亡後カテゴリで唯一の回復（遺志=バフ・呪詛=デバフ・執念=攻撃・転生=復活）。 */
- {id:'treant',n:'トレント',     c:'TR',kind:'monster',hp:720,mp:40,atk:72,def:74,mat:36,mdf:50,spd:26,
+ {id:'treant',n:'トレント',     c:'TR',kind:'monster',lv:3,hp:720,mp:40,atk:72,def:74,mat:36,mdf:50,spd:26,
   tags:['植物'],
   desc:'根を張って動かない巨木。倒れる時、味方を養分で立て直す。',
   bias:{rakuyou:22,nebari:20,mitigate:14,chouhatsu:12,thorns:10,regen:8,kanjuku:5},
@@ -2012,7 +2012,7 @@ const CLASSES=[
     **敵パーティに立て直す手段が無かった**。「先にあの鳥を落とす」判断が生まれる。
     《再誕》は fixed にしない — 復活する個体としない個体があった方が、
     落としきったかどうかの緊張が残る。 */
- {id:'phoenix',n:'フェニックス', c:'PX',kind:'monster',hp:480,mp:70,atk:58,def:40,mat:78,mdf:58,spd:72,
+ {id:'phoenix',n:'フェニックス', c:'PX',kind:'monster',lv:5,hp:480,mp:70,atk:58,def:40,mat:78,mdf:58,spd:72,
   tags:['飛行','不死'],
   desc:'灰から蘇る不死鳥。味方を癒やし、自らも一度だけ立ち上がる。',
   bias:{saitan:24,regen:16,seijou:14,karuwaza:12,sakigake:10,charge:8,surplus:6},
@@ -5199,13 +5199,46 @@ const QKIND={
   chain:{n:'連戦',c:'k-chain'},   horde:{n:'大群',c:'k-horde'},
   duel:{n:'決闘',c:'k-duel'}, few:{n:'少数精鋭',c:'k-few'}, custom:{n:'自作',c:'k-custom'},
 };
-/* ★ 「全魔物が候補」の枠 ★
-   1枠に16種を手で並べると、書き間違え（カンマ落ちで 'vampire''slime' が
-   'vampireslime' になる等）が起きても静かに壊れるだけで気づけない。
-   MONSTERS から作れば取りこぼしが無く、**今後魔物を足したら自動で候補に入る**。
-   スタンピードの性格からして、それが正しい挙動。 */
+/* =====================================================
+   候補枠をデータから作る
+
+   ★ 種族を手で並べない ★
+   1枠に16種を手で書くと、カンマを1つ落として 'vampire''slime' が
+   'vampireslime' に化けても、**エラーも出ずにその枠が消えるだけ**で気づけない。
+   CLASSES から引けば取りこぼしが無く、**魔物を足したら自動で候補に入る**。
+
+     ANY_MONSTER        … 全魔物
+     MONSTER_TAG('飛行') … そのタグを持つ魔物すべて
+     MONSTER_TAG('獣','不死') … どれかを持つ（和集合）
+     MONSTER_TAG_ALL('獣','飛行') … 全部を持つ（積集合。飛ぶ獣＝ワイバーンだけ、など）
+
+   ★ 最後に {max:n} を付けると難度で絞れる ★
+     MONSTER_TAG('人型',{max:2}) … ゴブリン・ハーピィ・スケルトン
+   タグだけで引くと、**低難度の依頼にデュラハンやフェニックスが混ざる**。
+   魔物には `lv`（何難度から出てよいか）を持たせてあり、max はそれを見る。
+   lv は思いつきではなく、**既存の依頼で実際に出ていた最低難度**をそのまま写したもの。
+
+   タグ名を書き間違えると候補が空になり、その枠は無言で消える。
+   空なら F12 に警告を出す。
+   ===================================================== */
 const ANY_MONSTER=MONSTERS.map(c=>c.id);
 const anyWave=n=>Array(n).fill(ANY_MONSTER);
+
+function tagPool(all,args,label){
+  const opt=(args.length&&typeof args[args.length-1]==='object')?args.pop():{};
+  const tags=args;
+  const ids=MONSTERS.filter(c=>{
+    if(opt.max&&(c.lv||1)>opt.max) return false;
+    const t=c.tags||[];
+    return all ? tags.every(x=>t.includes(x)) : tags.some(x=>t.includes(x));
+  }).map(c=>c.id);
+  if(!ids.length) console.warn(`MONSTER_TAG${label}: 該当する魔物がいません`,tags,opt);
+  else if(ids.length===1) console.info(`MONSTER_TAG${label}: 候補が1体だけなので抽選になりません`,tags,opt,ids);
+  return ids;
+}
+const MONSTER_TAG     = (...args)=>tagPool(false,args,'');
+const MONSTER_TAG_ALL = (...args)=>tagPool(true ,args,'_ALL');
+const tagWave=(n,...args)=>Array(n).fill(MONSTER_TAG(...args));
 
 const QUESTS=[
  /* ---------- 難度1：最初の数分 ---------- */
@@ -5415,6 +5448,85 @@ const QUESTS=[
   desc:'**2日がかりの三連戦。**時給は割に合わないが、出してしまえば忘れていられる。',
   first:{gold:20000000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:1,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
+
+ /* ---------- 特効の効く依頼（1タグ1色の大群） ----------
+    ★ タグ特効に「刺さる場所」を用意する ★
+    倍率をそろえた（どれも+40% → §タグ特効）ので、
+    珍しいタグの特効が報われるのは**単一種族の依頼を選べる時だけ**になった。
+    ところが実際に1タグで固まっている依頼は 屍の行進・七つの石像 くらいしか無く、
+    《獣狩り》《石砕き》はほぼ死に枠のままだった。
+
+    そこで**5つの特効タグそれぞれに、低い難度と高い難度で1本ずつ**用意する。
+    tagWave なので中身は抽選で、**魔物を足せば自動で候補に入る**。
+    {max:n} は「その難度までに出てよい魔物」で絞る指定（魔物の lv を見る）。
+
+    低い方を作れないタグがある：
+      獣  … 難度3以下だとケルベロス1体しかおらず抽選にならないので、最低が4
+      無機 … 難度2以下だとミミック1体だけなので、最低が3
+    候補が1体になると F12 に info が出る。 */
+ {id:'k2h',name:'人まがいの群れ',tier:2,kind:'horde',sec:720,gph:31000,
+  waves:[tagWave(4,'人型',{max:2})],
+  desc:'**相手は全員が「人型」。**似た形のものばかりが4体。'
+      +'人を相手取る心得があるなら、そのまま通じる。',
+  first:{gold:18000,item:true},
+  reward:{equipChance:0.5,memberChance:0.3,memberBias:{sw:14,rg:12}}},
+ {id:'k5h',name:'人の形をしたもの',tier:5,kind:'horde',sec:9000,gph:95000,
+  waves:[tagWave(7,'人型')],
+  desc:'**7体すべてが「人型」。**首無しの騎士から小鬼まで、形だけが揃っている。'
+      +'《人斬り》を持つ者を並べれば、相手の顔ぶれを問わず削り切れる。',
+  first:{gold:680000,item:true,member:true,rare:true},
+  reward:{equipChance:0.8,memberChance:0.45,memberBias:{sw:16,kn:14},rareChance:0.4}},
+
+ {id:'k3u',name:'墓地の夜',tier:3,kind:'horde',sec:1500,gph:45000,
+  waves:[tagWave(5,'不死',{max:3})],
+  desc:'**5体すべてが「不死」。**倒しても起き上がるものが混じる。'
+      +'《不死狩り》がそのまま答えになる。',
+  first:{gold:82000,item:true},
+  reward:{equipChance:0.55,memberChance:0.3,memberBias:{pr:16,ap:12}}},
+ {id:'k6u',name:'不滅の軍勢',tier:6,kind:'horde',sec:21600,gph:155000,
+  waves:[tagWave(7,'不死'),tagWave(7,'不死')],
+  desc:'**7体の不死が二度。**フェニックスもデュラハンも混じる。'
+      +'削り切れない相手をどう畳むか。',
+  first:{gold:2800000,item:true,member:true,rare:true},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{pr:14,ap:14,sw:12},rareChance:0.7}},
+
+ {id:'k3f',name:'空からの影',tier:3,kind:'horde',sec:1500,gph:44000,
+  waves:[tagWave(5,'飛行',{max:3})],
+  desc:'**5体すべてが「飛行」。**速く、前に出ても捕まえにくい。'
+      +'《射落とし》と弓兵が本領を発揮する。',
+  first:{gold:80000,item:true},
+  reward:{equipChance:0.55,memberChance:0.3,memberBias:{ar:18,rg:12}}},
+ {id:'k5f',name:'制空権',tier:5,kind:'horde',sec:9000,gph:96000,
+  waves:[tagWave(7,'飛行')],
+  desc:'**7体すべてが「飛行」。**空を取られたまま押し切られるか、先に落とすか。',
+  first:{gold:690000,item:true,member:true,rare:true},
+  reward:{equipChance:0.8,memberChance:0.45,memberBias:{ar:18,rg:14},rareChance:0.4}},
+
+ {id:'k4b',name:'獣道の待ち伏せ',tier:4,kind:'horde',sec:3000,gph:60000,
+  waves:[tagWave(6,'獣')],
+  desc:'**6体すべてが「獣」。**どれも速く、攻撃が重い。'
+      +'《獣狩り》が初めて全員に刺さる依頼。',
+  first:{gold:150000,item:true,member:true},
+  reward:{equipChance:0.65,memberChance:0.35,memberBias:{rg:14,ar:14,tm:12},rareChance:0.3}},
+ {id:'k6b',name:'暴走する牙',tier:6,kind:'horde',sec:21600,gph:158000,
+  waves:[tagWave(7,'獣'),tagWave(7,'獣')],
+  desc:'**7体の獣が二度。**ワイバーンとケルベロスとケンタウロスしかいない。'
+      +'速度で押し込まれる前に何を通すか。',
+  first:{gold:2900000,item:true,member:true,rare:true},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{ar:16,kn:14},rareChance:0.7}},
+
+ {id:'k3m',name:'動く石たち',tier:3,kind:'horde',sec:1500,gph:43000,
+  waves:[tagWave(5,'無機',{max:3})],
+  desc:'**5体すべてが「無機」。**硬く、殴り返してくる。'
+      +'《石砕き》を持っていれば景色が変わる。',
+  first:{gold:78000,item:true},
+  reward:{equipChance:0.55,memberChance:0.3,memberBias:{mg:14,hx:12}}},
+ {id:'k5m',name:'無音の列',tier:5,kind:'horde',sec:9000,gph:97000,
+  waves:[tagWave(7,'無機')],
+  desc:'**7体すべてが「無機」。**ゴーレムが混じれば状態異常は通らない。'
+      +'硬さを正面から削れる編成でないと、手数だけが尽きる。',
+  first:{gold:700000,item:true,member:true,rare:true},
+  reward:{equipChance:0.85,memberChance:0.45,memberBias:{mg:18,hx:14},rareChance:0.4}},
 
  /* ---------- スタンピード ----------
     ★ 21枠すべてが全魔物からの一様抽選 ★
@@ -6842,6 +6954,36 @@ function tickLabels(){
     el.textContent=fmtLeft(+el.dataset.until-now());
   });
 }
+/* ★ 帰ってきたのに「呼び戻す」が残らないようにする ★
+   サブ画面を開いている間は画面を凍らせている（guildBusy）ので、
+   その最中に部隊が帰ると、行には「呼び戻す 宝石N」が残ったままになる。
+   useSkip は残り時間が0なら何もせず戻るので宝石は減らないが、
+   **押せるのに何も起きないボタン**は置かない決まりなので、その1つだけ差し替える。
+
+   ★ 描き直さない ★
+   renderGuild を呼ぶと、開いている画面もスクロール位置も飛ぶ。
+   該当のボタンだけを置き換えるので、見ている場所は動かない。 */
+function syncRecallButtons(){
+  if(!G)return;
+  document.querySelectorAll('button[data-a="skip"][data-pid]').forEach(btn=>{
+    const p=G.parties.find(x=>x.pid==btn.dataset.pid);
+    if(!p||p.questId)return;                    // まだ出ている。そのまま
+    if(!p.report){ btn.remove(); return; }      // 帰ったが報告も無い（＝待機中）。ボタンごと消す
+    const nb=document.createElement('button');
+    nb.dataset.a='rep';
+    nb.textContent=repLabel(p.report);
+    nb.onclick=()=>gReport(p);
+    btn.replaceWith(nb);
+  });
+  /* 行の文が「受注中：残り 完了」のまま残るので、そこも書き換える。
+     ボタンだけ直すと、隣の文と食い違って見える。 */
+  document.querySelectorAll('[data-st]').forEach(el=>{
+    const p=G.parties.find(x=>x.pid==el.dataset.st);
+    if(!p||p.questId||!p.report)return;
+    const t=`${gEsc(p.name)} ${repPending(p.report)?'が現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}`;
+    if(el.innerHTML.indexOf(t)<0) el.innerHTML=`<b class="gwait">${t}</b>`;
+  });
+}
 function startGuildTick(){
   if(GTIMER)clearInterval(GTIMER);
   GTIMER=setInterval(()=>{
@@ -6856,6 +6998,7 @@ function startGuildTick(){
     }
     if(maybeRestock()&&GVIEW==='shop'&&!guildBusy()){ renderGuild(); return; }
     tickLabels();
+    syncRecallButtons();   // 凍らせている間に帰ってきた部隊のボタンだけ直す
   },1000);
 }
 /* 時短。残り時間を消して即座に終わらせる。 */
@@ -6917,14 +7060,14 @@ function gParty(){
     const skip=p.questId?skipCost(p.returnAt-now()):0;
     return `<div class="rrow" data-p="${p.pid}">
       <span class="rpos">${men.length}人</span>
-      <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub">${st}</span><br>
+      <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub" data-st="${p.pid}">${st}</span><br>
         <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
           u.slot<3?'前':'後'}${gEsc(u.name)}</span>`
           +(showHurt(u)?'<em class="ghurt">負傷</em>':'')).join('・')||'誰もいない'}</span></span>
       <span class="rbtn">
         ${p.report?`<button data-a="rep">${repLabel(p.report)}</button>`:''}
         ${p.questId?btnOr(G.gems>=skip,
-          `<button data-a="skip">呼び戻す 宝石${skip}</button>`,
+          `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skip}</button>`,
           `呼び戻すには宝石${skip}（いま ${G.gems}）`):''}
         ${(partyBusy(p)||p.report)?''
           :'<button data-a="edit">編成</button><button data-a="del">解散</button>'}
@@ -7213,6 +7356,7 @@ function gQuest(){
     const p=G.parties.find(x=>x.offerId===o.oid);
     const rp=G.parties.find(x=>x.report&&x.report.questId===q.id);   // 開封待ち
     const pend=rp&&repPending(rp.report);
+    const stId=p?p.pid:(rp?rp.pid:'');
     const st=p?`${gEsc(p.name)} が受注中：残り <b class="gleft" data-until="${p.returnAt}">—</b>`
             :rp?`<b class="gwait">${gEsc(rp.name)} ${pend?'が現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}</b>`
               :'<span class="rnone">未受注</span>';
@@ -7229,11 +7373,11 @@ function gQuest(){
         <i>報酬 ${q.gold.toLocaleString()}G${q.sec?`　／　時給 ${goldPerHour(q).toLocaleString()}G`:''}</i><br>
         ${ft?`<span class="qfirst">初回達成報酬　<b>${ft}</b></span><br>`:''}
         <span class="rsub">${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
-        <span class="rsub">${questFoeText(q)}　／　${foeSummary(q)}　／　${st}</span></span>
+        <span class="rsub">${questFoeText(q)}　／　${foeSummary(q)}　／　<span data-st="${stId}">${st}</span></span></span>
       <span class="rbtn">
         ${rp?`<button data-a="rep">${repLabel(rp.report)}</button>`:''}
         ${p?btnOr(G.gems>=skipCost(p.returnAt-now()),
-          `<button data-a="skip">呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`,
+          `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`,
           `呼び戻すには宝石${skipCost(p.returnAt-now())}（いま ${G.gems}）`):''}
         ${DEBUG?'<button class="dbg" data-a="dbg" title="戦闘も待ち時間も無しで、この依頼の報酬だけを引きます（検証用）">報酬だけ引く</button>':''}
         ${p||rp?'':(el.length
