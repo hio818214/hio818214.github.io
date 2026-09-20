@@ -1020,9 +1020,13 @@ haisui:{name:'背水',cat:'瀕死',desc:'HPが50%以下の時、減った分に�
 kajiba:{name:'火事場',cat:'瀕死',desc:'HPが25%以下の時、威力と素早さが+50%。',
   mod(s,k){ if(!['atk','mat','spd'].includes(k))return 1; if(hpR(s)>0.25)return 1;
     s.fired.kajiba=2; return 1.5;}},
-fukutsu:{name:'不屈',cat:'瀕死',desc:'致死ダメージを1度だけ耐え、HP1で踏み止まる。',
-  lethal(s,c){ if(c.unit!==s||s.cnt.fukutsu)return; s.cnt.fukutsu=1; c.prevented=true; s.hp=1;
-    proc(s,'fukutsu','致死を耐えHP1で踏み止まった');}},
+/* ★ 以前は HP1 で踏み止まる形だった ★
+   7人編成では**1手番の猶予にしかならず**、bias に載せている4職すべてで外れ枠になっていた。
+   最大HPの20%まで戻すことで、耐えたあとに何かできるようにしてある。 */
+fukutsu:{name:'不屈',cat:'瀕死',desc:'致死ダメージを1度だけ耐え、最大HPの20%で踏み止まる。',
+  lethal(s,c){ if(c.unit!==s||c.prevented||s.cnt.fukutsu)return;
+    s.cnt.fukutsu=1; c.prevented=true; s.hp=Math.max(1,Math.round(s.maxHp*0.20));
+    proc(s,'fukutsu',`致死を耐え HP${s.hp} で踏み止まった`);}},
 regen:{name:'微回復',cat:'瀕死',desc:'自分の手番終了時、最大HPの6%を回復する。',
   turnEnd(s,c){ if(c.unit!==s||hpR(s)>=1||!s.alive)return; const h=Math.round(s.maxHp*0.06);
     healRaw(s,h); proc(s,'regen',`${h}回復`);}},
@@ -1367,6 +1371,21 @@ senkoku:{name:'死の宣告',cat:'専用',needs:'dullahan',
     proc(s,'senkoku',`${c.target.name}に死を宣告した`);
     addAil(c.target,'doom',3,s);}},
 
+/* ★ 主人公だけが必ず持つ個性 ★
+   主人公は1人しかいないのに、個性3枠が全部ランダムだった。
+   72個から3枠＝59,640通りで、しかも**除名も引き直しもできない**ので、
+   悪い出目がそのまま一生固定される。指揮官には《共有》という芯があるのに、
+   主人公には芯が無かった。
+
+   heroOnly は traitAllowed で弾くので、**抽選にも防具の付与にも絶対に出ない**
+   （《擬態》のミミックにも出ない）。付くのは guildUnit の opt.fixed 経由だけ。 */
+hosei:{name:'主人公補正',cat:'専用',needs:'hero',heroOnly:true,
+  desc:'全ステータス+15%。さらに致死ダメージを1度だけ耐え、最大HPの50%で踏み止まる。主人公専用。',
+  mod(){ return 1.15; },
+  lethal(s,c){ if(c.unit!==s||c.prevented||s.cnt.hosei)return;
+    s.cnt.hosei=1; c.prevented=true; s.hp=Math.max(1,Math.round(s.maxHp*0.50));
+    proc(s,'hosei',`主人公はここで倒れない（HP${s.hp}）`);}},
+
 /* ---------- 追加分（薬師・ケンタウロス・ゴーレム・トレント・フェニックス） ---------- */
 
 /* 薬師。**回復量は撃ち手の魔力を見ない**ので、《薬効》は healBoost フックで足す。
@@ -1423,7 +1442,11 @@ const hasT=(u,id)=>u.traits.includes(id)||(typeof eqTraits==='function'&&eqTrait
 /* 個性の needs（種族専用）。スキルの skillAllowed と同じ考え方。
    ミミックは《擬態》で全部素通しにする（スキル側と揃える）。 */
 function traitAllowed(t,cls){
-  if(!t||!t.needs)return true;
+  if(!t)return true;
+  /* heroOnly は擬態でも素通しにしない。抽選で出てはいけないものなので、
+     《擬態》の例外より先に弾く。付けるのは guildUnit の opt.fixed だけ。 */
+  if(t.heroOnly)return false;
+  if(!t.needs)return true;
   if(!cls)return true;
   if(cls.tags&&cls.tags.includes('擬態'))return true;
   const need=Array.isArray(t.needs)?t.needs:[t.needs];
@@ -5806,7 +5829,7 @@ const QUESTS=[
   enemies:['kn','sw','sw','ar','pr','mg','hx'],
   desc:'先の決闘の返礼。向こうは**7人全員**で来る。**主人公の出撃が条件。**'
       +'こちらも手で指揮を執る。（**指揮官を部隊に置いている間だけ掲示されます。**）',
-  // 指揮官は HUMAN_POOL から外してあるので bias では出ない。ここはレア確定枠で返す
+  // 指揮官はまれに他の依頼からも来るが、ここは確定枠。狙って取る手段として残す
   first:{gold:200000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:1,rareChance:1}},
 
@@ -6030,7 +6053,13 @@ const foeSummary=q=>{
    ★ 指揮官はどの依頼でも加入しない ★
    《共有》を必ず持つ特別な職なので、入手経路を分けておく。
    対人戦の報酬など、後から別の導線を用意する場所として空けてある。 */
-const HUMAN_POOL=HUMANS.filter(c=>c.id!=='cm').map(c=>c.id);
+/* ★ 指揮官も加入プールに入れてある ★
+   以前は外していたので、**果たし状を達成するまで一生出てこない**一点物だった。
+   一点物なのに個性2枠がランダムで、悪い出目を引き直す手段も無い。
+   重み1（bias に載せない）でどの依頼からもまれに来るようにして、
+   「2人目の指揮官」で妥協できる逃げ道を作る。
+   果たし状の確定加入は残してあるので、**狙って取る手段**としての価値は変わらない。 */
+const HUMAN_POOL=HUMANS.map(c=>c.id);
 
 /* --- レア個性 ---
    難しい依頼で加入する仲間は、3枠のうち1枠がここから確定で埋まる。
@@ -6210,6 +6239,9 @@ function guildUnit(clsId,opt={}){
   const u=makeUnit('ally',0,cls,opt.name||'');
   u.gid=++G.gidc;
   u.traits=opt.blank?['none','none','none']:rollTraits(cls);
+  /* 個体ごとの確定枠。職業の fixed（指揮官の《共有》など）とは別で、
+     **その1人にだけ**付けたい時に使う。いまは主人公の《主人公補正》だけ。 */
+  (opt.fixed||[]).forEach((id,i)=>{ if(TRAITS[id]&&!u.traits.includes(id)) u.traits[i]=id; });
   /* レア加入 … 3枠のうち1つをレア個性で確定させる。
      「難しい依頼ほど良い仲間が来る」を、確率の底上げではなく確定枠で表現する。 */
   if(opt.rare){
@@ -6933,13 +6965,14 @@ function applyGuild(d){
   // ランクの実装前の保存には既読が無い。いまのランクを既読扱いにして、古い報せを出さない
   if(G.rankSeen==null) G.rankSeen=rankIdx();
 }
-function newGuild(name,hero){
+function newGuild(name,hero,clsId){
   G={gold:0,gems:10,ext:{parties:0,roster:0,inv:0,custom:0},custom:[],cidc:0,rankSeen:0,
      tut:{step:0},rev:0,
      gidc:0,oidc:0,name:name,hero:hero,done:{},price:{},stockAt:0,offers:[],
      roster:[],parties:[],logs:[],stock:[]};
   INV=[]; iidc=0;
-  const h=guildUnit('sw',{name:hero}); h.hero=true; G.roster.push(h);
+  const hc=(CLS[clsId]&&clsId!=='cm')?clsId:'sw';
+  const h=guildUnit(hc,{name:hero,fixed:['hosei']}); h.hero=true; G.roster.push(h);
   G.parties.push({pid:1,name:freshPartyName(),slots:[h.gid,null,null,null,null,null,null],
     questId:null,offerId:null,returnAt:null,report:null});
   restock(); refreshOffers(); saveGuild();
@@ -7306,7 +7339,17 @@ function useSkip(kind,obj){
   saveGuild(); renderGuild();
 }
 
+/* ★ 主人公の職業を選ばせる ★
+   以前は剣士で固定だった。主人公は一点物で除名もできないので、
+   **せめて職業だけは自分で決められる**ようにする。
+   個性までは選ばせない — 始めたばかりで72個から3つ選べる材料が無い。
+   指揮官だけ外してある（あちらは「向こうから移ってくる参謀」なので、主人公にすると筋が通らない）。 */
+const HERO_CLASSES=()=>HUMANS.filter(c=>c.id!=='cm');
+let GNEWCLS='sw';
 function renderGuildStart(){
+  const list=HERO_CLASSES().map(c=>`<button class="fchip${GNEWCLS===c.id?' on':''}" data-hc="${c.id}"
+    title="${gEsc(c.desc)}">${c.n}</button>`).join('');
+  const cur=CLS[GNEWCLS];
   $('#gwrap').innerHTML=`
     <div class="ghead"><h1><small>NEW GAME</small>一旗揚げに来た</h1></div>
     <div class="gpanel">
@@ -7315,11 +7358,23 @@ function renderGuildStart(){
         <label>ギルドの名前</label><input id="gnName" value="かけだし団" maxlength="16">
         <label>あなたの名前</label><input id="gnHero" value="レイ" maxlength="12">
       </div>
-      <div class="cmds"><button class="btn" id="gnGo">はじめる</button></div>
-      <div class="seghint">ギルド名は、いずれ他のプレイヤーから見える名前になります。</div>
+      <div class="sechead">あなたの職業</div>
+      <div class="fchips" id="gnCls">${list}</div>
+      <div class="tdesc">${gEsc(cur.desc)}<br>${clsSummary(cur)}</div>
+      <div class="cmds"><button class="btn big" id="gnGo">はじめる</button></div>
+      <div class="seghint">主人公は<b>《主人公補正》</b>を必ず持ちます（全ステータス+15%／致死を1度だけ耐える）。
+        残り2枠の個性とスキルは職業の傾向で引きます。<br>
+        <b>主人公は除名できません。</b>職業はここでしか決められないので、好みで選んでください。<br>
+        ギルド名は、いずれ他のプレイヤーから見える名前になります。</div>
     </div>`;
+  const keep=()=>{ const a=$('#gnName'),b=$('#gnHero');
+    return {n:a?a.value:'',h:b?b.value:''}; };
+  $('#gnCls').onclick=e=>{ const b=e.target.closest('[data-hc]'); if(!b)return;
+    const k=keep(); GNEWCLS=b.dataset.hc; renderGuildStart();
+    $('#gnName').value=k.n; $('#gnHero').value=k.h; };
   $('#gnGo').onclick=()=>{
-    newGuild(($('#gnName').value||'').trim()||'かけだし団',($('#gnHero').value||'').trim()||'レイ');
+    newGuild(($('#gnName').value||'').trim()||'かけだし団',
+             ($('#gnHero').value||'').trim()||'レイ', GNEWCLS);
     GVIEW='quest'; GMSG='まずは依頼を見てみよう。'; renderGuild(); startGuildTick();
   };
 }
