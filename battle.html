@@ -1219,11 +1219,55 @@ mekiki:{name:'強者崩し',cat:'開幕',desc:'戦闘開始時、敵で最も威
     const t=e.reduce((a,b)=>pw(b)>pw(a)?b:a);
     proc(s,'mekiki',`${t.name}を最大の脅威と見た`);
     addBuff(t,{label:'強者崩し',stat:['atk','mat'],value:-0.30,turns:3,kind:'debuff'},s);}},
-gunshi:{name:'軍資',cat:'開幕',desc:'戦闘開始時、味方全体のMPを最大値の15%ぶん回復する。',
+/* ★ 以前は「戦闘開始時にMPを15%回復」だった ★
+   戦闘開始時は全員が満タンなので**1戦目では必ず空振り**し、
+   1波だけの依頼（63件）では完全に無言の個性になっていた。
+   最大MPを上げる形にすれば、1波でも連戦でも効く。
+
+   ★ 上げたぶんは即座に回復する ★
+   上限だけ増えても、その時点では減った状態（満タンの88%）になってしまう。
+   増えた枠をそのまま埋めて、**満タンのまま器が大きくなる**ようにする。
+
+   ★ 波をまたぐ複利を止める ★
+   carryOver は maxMp を戻さないので、素直に掛けると2波目で 1.12² になる。
+   前の波で足したぶんを控えて（gunshiMp）、掛け直す前に戻す。
+   resetUnit ではこの控えを消す（あちらは maxMp を職業から組み直すため）。 */
+gunshi:{name:'軍資',cat:'開幕',
+  desc:'戦闘開始時、味方全体の最大MPを+12%し、増えたぶんのMPを回復する。'
+      +'器が大きくなるので、連戦でも1戦目でも効く。',
   battleStart(s){ if(!s.alive)return; let n=0;
-    allies(s).forEach(t=>{ if(!t.alive)return; const g=Math.max(1,Math.round(t.maxMp*0.15));
-      gainMp(t,g); n++; });
-    if(n) proc(s,'gunshi',`味方${n}人にMPを配った`);}},
+    allies(s).forEach(t=>{ if(!t.alive||!t.maxMp)return;
+      if(t.gunshiMp){ t.maxMp=Math.max(1,t.maxMp-t.gunshiMp); t.mp=Math.min(t.mp,t.maxMp); }
+      const add=Math.max(1,Math.round(t.maxMp*0.12));
+      t.gunshiMp=add; t.maxMp+=add; gainMp(t,add); n++; });
+    if(n) proc(s,'gunshi',`味方${n}人の兵站を整えた（最大MP+12%）`);}},
+
+/* 汎用。戦闘が長いほど効く、じわじわ型のMP供給。
+   いちばん減っている1人だけなので、**尽きた術者を拾い続ける**役になる。
+   《軍資》が器を広げる側、こちらが注ぎ足す側。 */
+hokyuu:{name:'補給',cat:'資源',
+  desc:'自分の手番終了時、MPがいちばん減っている味方1人のMPを最大値の5%ぶん回復する。',
+  turnEnd(s,c){ if(c.unit!==s||!s.alive)return;
+    // 割合で見る（最大MPの大きい術者が埋もれないように）。同率は並び順で決まるので乱数を使わない
+    const t=allies(s).filter(x=>x.alive&&x.maxMp>0&&x.mp<x.maxMp)
+                     .sort((a,b)=>a.mp/a.maxMp-b.mp/b.maxMp)[0];
+    if(!t)return;
+    const g=Math.max(1,Math.round(t.maxMp*0.05));
+    if(gainMp(t,g)>0) proc(s,'hokyuu',`${t.name} へ補給 MP+${g}`);}},
+
+/* ★ 連戦の「回復を挟めない」を部分的に崩す唯一のカード ★
+   1戦目には働かない（carryOver を通った＝2波目以降の時だけ）。
+   最大値は上げず、**その場の回復だけ**。
+   連戦依頼の難しさが直接変わるので、入れたあとは chain の勝率を見ること。 */
+ryouyou:{name:'療養',cat:'専用',needs:['pr','cm'],
+  desc:'連戦の切れ目で、味方全体のHPとMPを最大値の20%ぶん回復する。1戦目には働かない。僧侶・指揮官専用。',
+  battleStart(s){ if(!s.alive||!s.carried)return; let n=0;
+    allies(s).forEach(t=>{ if(!t.alive||!t.carried)return;
+      const h=Math.max(1,Math.round(t.maxHp*0.20));
+      if(t.hp<t.maxHp) healRaw(t,h);
+      gainMp(t,Math.max(1,Math.round(t.maxMp*0.20)));
+      n++; });
+    if(n) proc(s,'ryouyou',`戦いの合間に${n}人を手当てした`);}},
 
 /* ---------- 持続の操作 ---------- */
 tazuna:{name:'自律清流',cat:'持続',desc:'自分にバフ・デバフが掛かった時、自分のバフを1ターン延長し、デバフを1ターン縮める。状態異常には効かない。',
@@ -1503,11 +1547,11 @@ const SPELLS=[
  {id:'blast',  name:'ダホヤキ',    kind:'magic',type:'atk',   scope:'one', mp:16, power:2.8,
   desc:'単体に魔力×${power}の大魔法ダメージ。単体火力の最上位。'},
  {id:'heal',   name:'キーヤ',      kind:'magic',type:'heal',  scope:'one', mp:8,  power:1.6,
-  desc:'単体のHPを魔力×${power}ぶん回復。最大HP超過分は《余剰変換》でMPになる。'},
+  desc:'単体のHPを魔力×${power}ぶん回復。'},
  {id:'mheal',  name:'ミナキーヤ',  kind:'magic',type:'heal',  scope:'all', mp:56, power:0.9,
-  desc:'味方全体のHPを魔力×${power}ぶん回復。消費が重く、連発はできない。'},
+  desc:'味方全体のHPを魔力×${power}ぶん回復。'},
  {id:'cure',   name:'ヨドーヤ',    kind:'magic',type:'cure',  scope:'one', mp:12,
-  desc:'味方単体の状態異常をすべて解除する。毒・眠り・休みのどれでも治る。'},
+  desc:'味方単体の状態異常をすべて解除する。'},
  /* 魔薬の魔法版。**誰でも引ける汎用**にしてある。
     自分に撃っても得をしないので、汎用でも壊れない ——
     魔導士(MP78)の20%は15.6で、ダホヤキ1発(16)とほぼ同じ。
@@ -2414,6 +2458,8 @@ function newUnit(side,slot){
 }
 function resetUnit(u){
   refreshVitals(u);                       // 強靭・叡智を反映してから満タンにする
+  u.gunshiMp=0;                           // maxMpを職業から組み直したので《軍資》の控えも消す
+  u.carried=false;                        // 持ち越しではない＝連戦の1戦目
   u.hp=u.maxHp; u.mp=u.maxMp; u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0;
   u.alive=true; u.guard=false; u.lastAct=null; u.ct=time+10000/stat(u,'spd');
 }
@@ -2623,7 +2669,17 @@ function tickBuffs(u){
 /* =========================================================
    6. ダメージ / 回復
    ========================================================= */
-function gainMp(u,v){ u.mp=clamp(u.mp+v,0,u.maxMp); pop(u,'+'+v,'mp'); }
+/* ★ 実際に増えたぶんだけ出す ★
+   以前は満タンでも「+11」と表示していたので、何も起きていないのに
+   働いたように見えていた（《軍資》が7人ぶん空振りしても7個の数字が飛ぶ）。
+   戻り値は実際の増加量。 */
+function gainMp(u,v){
+  const before=u.mp;
+  u.mp=clamp(u.mp+v,0,u.maxMp);
+  const g=u.mp-before;
+  if(g>0) pop(u,'+'+g,'mp');
+  return g;
+}
 
 /* HPを減らす唯一の入口。《魔盾》はここでMPに肩代わりさせる。
    《生命転用》のMP不足支払いはここを通さない（互いに肩代わりし合って循環するため）。 */
@@ -4131,6 +4187,7 @@ let SIMPOS=null;
 /* 連戦の持ち越し。HPとMPはそのまま、一時的な状態だけを整える。
    倒れた者は起き上がらない — これが「回復なしの連戦」の重さになる。 */
 function carryOver(u){
+  u.carried=true;                 // 2波目以降の目印（《療養》がこれを見る）
   u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0;
   u.guard=false; u.lastAct=null; u.ct=10000/stat(u,'spd');
 }
@@ -8253,6 +8310,7 @@ function mSnapshot(){
     logs:logs.slice(-200),
     units:U.map(u=>({cls:u.clsId,name:u.name,name0:u.name0,slot:u.slot,
       maxHp:u.maxHp,maxMp:u.maxMp,hp:u.hp,mp:u.mp,evade:u.evade||0,alive:u.alive,
+      gunshiMp:u.gunshiMp||0,carried:!!u.carried,   // 波をまたぐ控え（軍資・療養）
       ct:u.ct,guard:!!u.guard,lastAct:(typeof u.lastAct==='string'?u.lastAct:null),
       buffs:(u.buffs||[]).map(b=>({...b})),ail:{...u.ail},cnt:{...u.cnt},fired:{...u.fired}}))};
 }
@@ -8266,6 +8324,7 @@ function mApply(rec){
     if(o.cls&&o.cls!==u.clsId&&CLS[o.cls]) applyClass(u,CLS[o.cls],{keepRatio:true});
     u.name=o.name; u.name0=o.name0; u.slot=o.slot;
     u.maxHp=o.maxHp; u.maxMp=o.maxMp; u.hp=o.hp; u.mp=o.mp;
+    u.gunshiMp=o.gunshiMp||0; u.carried=!!o.carried;   // 復帰後の波で+12%が二重に乗らないように
     u.evade=o.evade; u.alive=o.alive; u.ct=o.ct; u.guard=o.guard; u.lastAct=o.lastAct;
     u.buffs=o.buffs; u.ail=o.ail; u.cnt=o.cnt; u.fired=o.fired;
   });
