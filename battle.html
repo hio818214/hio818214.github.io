@@ -1936,7 +1936,7 @@ function invName(it){
 function invDescText(it,opt={}){
   const d=invDef(it); if(!d)return EQ.none.desc;
   const sp=it.spell&&SP[it.spell], tr=it.trait&&TRAITS[it.trait];
-  const b=sp?`　付与スキル: ${sp.name} — ${spText(sp)}`
+  const b=sp?`　付与スキル: ${spBase(sp)} — ${spText(sp)}`
         :tr?`　付与個性: 《${tr.name}》${tr.desc}`
         :'';
   return (opt.noStats?'':eqStatText(d)+'　')+d.desc+b;
@@ -3212,7 +3212,11 @@ function resolveAction(u,act){
     if(!canPay(u,cost)) addLog(`${u.name} はMPが足りない`,'l-sys');
     else{
       attacked=sp.type==='atk'; markAct(u,'sp'+sp.id); pay(u,cost);
-      addLog(`${u.name} は ${sp.name} を唱えた`,'l-sys');
+      /* 魔法は「唱えた」、特技は「〇〇 の 全力斬！」。
+         特技は詠唱ではないので、同じ言い回しにすると気持ち悪い。
+         名前は spName を通す（レベルで変わるので sp.name を直接出すと配列が並ぶ）。 */
+      addLog(isArt(sp)?`${u.name} の ${spName(sp,u)}！`
+                      :`${u.name} は ${spName(sp,u)} を唱えた`,'l-sys');
       castSpell(u,sp,act.target||pickTarget(u));
     }
   }
@@ -3407,7 +3411,7 @@ function unitHTML(u){
   const spells=ss.length
     ? ss.map(x=>{ const s=SP[x.id];
         const cls=['schip',isArt(s)?'art':'',x.src==='eq'?'eq':'',x.live?'':'dup'].filter(Boolean).join(' ');
-        const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${skillTip(s)}`;
+        const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${skillTip(s,u)}`;
         return `<span class="${cls}" data-tip="${tip}">${spName(s,u)}</span>`;}).join('')
     : '<span class="schip off">スキルなし</span>';
   const states=[...u.buffs.map(b=>`<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}${b.perm?'':'·'+b.turns}</span>`),
@@ -3502,7 +3506,7 @@ function renderCmd(u){
          場所も大きさも同じなので並びは動かず、押せるかどうかは見て分かる。 */
       const why=!x.live?'重複':sealed?'封魔':`MP不足`;
       const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${
-        sealed?'【封魔で唱えられない】':''}${poor&&!sealed&&x.live?`【MPが ${cost} 要ります】`:''}${skillTip(s)}`;
+        sealed?'【封魔で唱えられない】':''}${poor&&!sealed&&x.live?`【MPが ${cost} 要ります】`:''}${skillTip(s,u)}`;
       const cls=['sp',isArt(s)?'art':'',ok?'':'spoff'].filter(Boolean).join(' ');
       return ok
         ? `<button class="${cls}" data-sp="${x.id}" data-tip="${tip}"><b>${spName(s,u)}</b><i>${
@@ -3531,13 +3535,13 @@ function renderCmd(u){
       const to=sp.multi?`届く範囲の${sp.multi}体`
         :(['heal','buff','cure','evade'].includes(sp.type)?'味方全体':'敵全体');
       return confirmAction(u,'sp:'+sp.id,()=>send({cmd:'spell',sp}),
-        {el:b,title:sp.name,
+        {el:b,title:spName(sp,u),
          desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／<b>${to}</b>／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`});
     }
     const phys=isPhysSingle(sp);
     chooseTarget(u,['heal','buff','cure','evade'].includes(sp.type)?MY():OP(),
       t=>send({cmd:'spell',sp,target:t}),
-      {el:b,title:sp.name,
+      {el:b,title:spName(sp,u),
        desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／単体／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`
            +(phys?'　※前列に生存者がいる間は前列しか狙えません':'')},phys);
   });
@@ -5879,7 +5883,7 @@ const QUESTS=[
   /* =========================================================
      追加分：難度4（1〜2時間〜長時間の放置）
      ========================================================= */
-  {id:'q4e',name:'単独飛竜の撃墜',tier:4,kind:'short',sec:1800,gph:54000,
+  {id:'q4e',name:'飛竜の撃墜',tier:4,kind:'short',sec:1800,gph:54000,
    enemies:['wyvern','wyvern','wyvern','wyvern','wyvern'],
    desc:'飛竜を仕留める。**最速かつ《竜鱗》持ち。**短期決戦で被害を抑える。',
    first:{gold:95000},
@@ -7767,6 +7771,7 @@ function gQuest(){
       <span>検証用</span>
       <button class="btn sm dbg" id="qReopen">クリア履歴を消す（${doneList.length}件・初回報酬をもう一度）</button>
       <button class="btn sm dbg" id="qReroll">掲示中の敵を引き直す</button>
+      <button class="btn sm dbg" id="qDiag" title="出ていない依頼の理由をF12へ書き出します">掲示の診断</button>
     </div>
     <div class="sechead">加入の傾向（検証用の表示）</div>
     <div class="seghint">${QUESTS.filter(q=>(q.reward||{}).memberChance).map(q=>
@@ -7817,6 +7822,40 @@ function gQuest(){
     allQuests().forEach(q=>{ if(G.done[q.id]) delete G.done[q.id]; });
     refreshOffers(); GMSG='【検証】クリア履歴を消しました（初回報酬が再び出ます）。';
     saveGuild(); renderGuild();
+  };
+  /* ★ 「あの依頼が出てこない」を自力で切り分けられるようにする ★
+     掲示に出ない理由は4系統ある（難度・一度きり・編成の条件・絞り込み）が、
+     画面からはどれなのか分からない。ここで全部まとめて書き出す。 */
+  const qd=$('#qDiag');
+  if(qd) qd.onclick=()=>{
+    const mx=maxTier();
+    const tab={};
+    allQuests().forEach(q=>{
+      const posted=(G.offers||[]).some(o=>o.qid===q.id);
+      let why;
+      if(!posted){
+        why = q.tier>mx ? `掲示されない：難度${q.tier}はまだ開いていない（いま難度${mx}まで）`
+            : (q.once&&G.done[q.id]) ? '掲示されない：一度きりの依頼で達成済み'
+            : '★掲示されるはずなのに無い（要調査）';
+      }else if(!questVisible(q)){
+        why=`掲示はあるが隠れている：${questCondText(q)||'編成の条件'}を満たす部隊がいない`;
+      }else{
+        const f=[];
+        if(GQF.tier!=='all'&&q.tier!==+GQF.tier) f.push(`難度タブが${GQF.tier}`);
+        if(GQF.kind.length&&!GQF.kind.includes(q.kind)) f.push(`種別の絞り込み(${GQF.kind.join('・')})`);
+        if(GQF.newOnly&&cleared(q)) f.push('「未クリアのみ」で達成済み');
+        if(GQF.keyOnly&&!q.key) f.push('「キークエストのみ」でキーでない');
+        why=f.length?('絞り込みで隠れている：'+f.join('／')):'表示中';
+      }
+      tab[q.id]={名前:q.name,難度:q.tier,種別:q.kind,状態:why};
+    });
+    console.log('=== 掲示の診断 ===');
+    console.log('ランク',rankNow().n,'／ 受けられる難度は',mx,'まで');
+    console.log('絞り込み',JSON.stringify(GQF));
+    console.table(tab);
+    const ng=Object.values(tab).filter(r=>r.状態.startsWith('★'));
+    GMSG=`【検証】掲示の診断を F12 のコンソールへ出しました（説明のつかないもの ${ng.length} 件）。`;
+    renderGuild();
   };
   const qr=$('#qReroll');
   if(qr) qr.onclick=()=>{
