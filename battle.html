@@ -6358,11 +6358,25 @@ function firstText(q){
 const offerOf=oid=>(G.offers||[]).find(o=>o.oid===oid)||null;
 /* 掲示に紐づいた敵を作る。**本流の乱数は汚さない** —
    ここで進めてしまうと、同じ依頼に挑み直すたび戦闘まで同じになってしまう。 */
+/* ★ 顔ぶれを決めた抽選ぶんを巻き戻してから作る ★
+   候補枠（['ハーピィ','ゴブリン','']、tagWave、anyWave）は resolveWave が
+   1枠につき1回 pick() を引く。その**引いたぶんだけ乱数が進む**ので、
+   そのまま makeFoes に入ると「枠の数だけ進んだ位置」から個性とスキルを引くことになる。
+
+   ところが再生（playRound / simRound）は、控えてある**確定後のid列**を使うので
+   resolveWave を通らず、makeFoes が**位置0**から始まる。
+   結果、同じ種なのに**本番と再生で別の個体**が出て、勝敗まで食い違っていた。
+   候補枠が多い依頼（tagWave 5枠など）ほど派手にずれる。
+
+   ここで setSeed をやり直し、**makeFoes は必ず位置0から**始める。
+   こうすると再生側と完全に一致する。 */
 function foesFor(offer,w){
   const q=questOf(offer.qid); if(!q)return [];
-  const save=RSTATE;
-  setSeed(offer.seeds[w]||offer.seeds[0]);
-  const f=makeFoes(resolveWave(questWaves(q)[w]));
+  const save=RSTATE, s=offer.seeds[w]||offer.seeds[0];
+  setSeed(s);
+  const ids=resolveWave(questWaves(q)[w]);
+  setSeed(s);                      // 枠の抽選ぶんを巻き戻す
+  const f=makeFoes(ids);
   RSTATE=save;
   return f;
 }
