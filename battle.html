@@ -1035,8 +1035,8 @@ cover:{name:'肩代わり',cat:'受け渡し',desc:'同列で隣接する味方�
   incoming(s,c){ if(c.target===s||c.target.side!==s.side||!s.alive||c.redirected)return;
     if(!adjacent(s,c.target)||hpR(s)<0.3)return;
     c.redirected=s; proc(s,'cover',`${c.target.name}の被弾を肩代わり`);}},
-surplus:{name:'余剰変換',cat:'受け渡し',desc:'最大HPを超えた回復量の70%をMPへ変換する。',
-  healed(s,c){ if(c.unit!==s||c.over<=0)return; const g=Math.round(c.over*0.7); if(g<1)return;
+surplus:{name:'余剰変換',cat:'受け渡し',desc:'最大HPを超えた回復量の25%をMPへ変換する。',
+  healed(s,c){ if(c.unit!==s||c.over<=0)return; const g=Math.round(c.over*0.25); if(g<1)return;
     gainMp(s,g); proc(s,'surplus',`超過回復${c.over}をMP+${g}へ変換`);}},
 
 /* ---------- ダメージ・被弾 ---------- */
@@ -1598,13 +1598,13 @@ const SPELLS=[
  {id:'fire',   name:['ホヤキ','ホヤキ・強','ホヤキ・極'],
   kind:'magic',type:'atk',   scope:'one', mp:8, power:[1.7,2.1,2.6],
   desc:'単体に魔力×${power}の魔法ダメージ。魔防で軽減される。'},
- {id:'inferno',name:'ミナホヤキ',  kind:'magic',type:'atk',   scope:'all', mp:24, power:1.0,
+ {id:'inferno',name:['ミナホヤキ','ミナホヤキ・強'],  kind:'magic',type:'atk',   scope:'all', mp:24, power:[1.0,1.1],
   desc:'敵全体に魔力×${power}の魔法ダメージ。敵が多いほど総ダメージが伸びる。'},
- {id:'blast',  name:'ダホヤキ',    kind:'magic',type:'atk',   scope:'one', mp:16, power:2.8,
+ {id:'blast',  name:['ダホヤキ','ダホヤキ・強'],    kind:'magic',type:'atk',   scope:'one', mp:16, power:[2.8,3.0],
   desc:'単体に魔力×${power}の大魔法ダメージ。単体火力の最上位。'},
- {id:'heal',   name:'キーヤ',      kind:'magic',type:'heal',  scope:'one', mp:8,  power:1.6,
+ {id:'heal',   name:['キーヤ','キーヤ・強'],      kind:'magic',type:'heal',  scope:'one', mp:8,  power:[1.6,1.8],
   desc:'単体のHPを魔力×${power}ぶん回復。'},
- {id:'mheal',  name:'ミナキーヤ',  kind:'magic',type:'heal',  scope:'all', mp:56, power:0.9,
+ {id:'mheal',  name:['ミナキーヤ','ミナキーヤ・強'],  kind:'magic',type:'heal',  scope:'all', mp:56, power:[0.9,1.0],
   desc:'味方全体のHPを魔力×${power}ぶん回復。'},
  {id:'cure',   name:'ヨドーヤ',    kind:'magic',type:'cure',  scope:'one', mp:12,
   desc:'味方単体の状態異常をすべて解除する。'},
@@ -1613,7 +1613,7 @@ const SPELLS=[
     魔導士(MP78)の20%は15.6で、ダホヤキ1発(16)とほぼ同じ。
     つまり「1ターン充電して1発撃つ」は「そのまま1発撃つ」と同じ。
     尽きた後だけ意味が出る。 */
- {id:'manacharge',name:'マナーヤ',kind:'magic',type:'mp',scope:'one',mp:0, flat:0.20,
+ {id:'manacharge',name:['マナーヤ','マナーヤ・改'],kind:'magic',type:'mp',scope:'one',mp:0, flat:[0.20,0.25],
   desc:'味方単体のMPを、その人の最大MPの${flat}ぶん回復する。消費MPは無い。'},
  {id:'rally',  name:'ワマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
   desc:'味方単体の攻撃${value}（${turns}ターン）。魔力には乗らない。'},
@@ -1654,9 +1654,9 @@ const SPELLS=[
  {id:'zenryoku',name:['全力斬','全力斬・改','剛全力斬'],
   kind:'art',type:'atk',scope:'one',mp:10,power:[1.5,1.8,2.2],needs:'剣所持',
   desc:'対象へ攻撃×${power}の一撃。'},
- {id:'samidare',name:'五月雨斬',kind:'art',type:'atk',scope:'one',mp:16,power:0.55,hits:4,randomTarget:true,needs:'剣所持',
+ {id:'samidare',name:['五月雨斬','五月雨斬・改'],kind:'art',type:'atk',scope:'one',mp:16,power:[0.55,0.55],hits:[4,6],randomTarget:true,needs:'剣所持',
   desc:'${hits}回攻撃。毎回ランダムに対象を選び直す。集団戦向けで、単体には火力が散る。'},
- {id:'hicchuu', name:'必中撃',  kind:'art',type:'atk',scope:'one',mp:8, power:0.8,alwaysHit:true,needs:'剣所持',
+ {id:'hicchuu', name:['必中撃','必中撃・改',  kind:'art',type:'atk',scope:'one',mp:8, power:[0.8,1.0],alwaysHit:true,needs:'剣所持',
   desc:'攻撃×${power}。ダメージは低いが必ず当たる。回避の高い相手に通す手。'},
  /* ★ レベルが上がるスキルの書き方（見本） ★
     name を配列にすると、その**長さが最大レベル**になる。
@@ -7377,7 +7377,7 @@ function newGuild(name,hero,clsId){
      roster:[],parties:[],stock:[]};
   INV=[]; iidc=0;
   const hc=(CLS[clsId]&&clsId!=='cm')?clsId:'sw';
-  const h=guildUnit(hc,{name:hero,fixed:['hosei']}); h.hero=true; G.roster.push(h);
+  const h=guildUnit(hc,{name:hero,fixed:['hosei','kasoku','tensei']}); h.hero=true; G.roster.push(h);
   G.parties.push({pid:1,name:freshPartyName(),slots:[h.gid,null,null,null,null,null,null],
     questId:null,offerId:null,returnAt:null,report:null});
   restock(); refreshOffers(); saveGuild();
