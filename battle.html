@@ -9707,8 +9707,10 @@ async function arenaSend(p){
   ARENA_SENDING.add(p.pid);
   GSUB=true; GMSG=''; renderGuild();
   try{
+    /* guild / name はシートを人が見る時のための列。
+       クライアントが読むのは json の中（そちらが元）。 */
     await arenaPost({action:'enter',pid:arenaKey(p),cid:arenaCid(),rev:ARENA_REV,
-                     name:p.name,json:arenaSerParty(p)});
+                     guild:(G.name||''),name:p.name,json:arenaSerParty(p)});
     p.arena=true; p.questId=null; p.offerId=null; p.report=null;
     p.returnAt=now()+ARENA_SEC*1000;
     GMSG=`${gEsc(p.name)} を闘技場へ送り出した。`;
