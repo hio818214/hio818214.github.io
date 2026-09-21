@@ -363,6 +363,24 @@ body.guildmode.replaying.manualplay #cmdBox{display:block}
 .pcell .grow-cls{margin-top:1px}
 .pcell .grow-cls i{margin-right:1px}
 .gchips .tchip,.gchips .schip,.gchips .echip{cursor:help}
+/* 闘技場：相手の部隊を**1人ずつ**並べる。
+   全員のチップをひと続きに出すと、誰の個性なのか読めない。 */
+.aparty{background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+  padding:8px 10px;margin-bottom:8px}
+.ahead{display:flex;align-items:center;gap:9px}
+.ahead .amain{flex:1 1 auto;min-width:0}
+.amain i{display:block;font-style:normal;font-size:10.5px;color:var(--muted)}
+.amain b{font-size:13.5px;font-weight:500}
+.aunit{display:flex;align-items:baseline;gap:6px;padding:5px 0 4px;
+  border-top:1px dotted var(--line);margin-top:5px}
+.apos{flex:0 0 auto;font-size:9.5px;color:var(--muted);border:1px solid var(--line2);
+  border-radius:3px;padding:0 4px;line-height:1.6}
+.apos.f{color:var(--gold);border-color:var(--gold)}
+.aname{flex:0 0 auto;font-size:12px;min-width:5.5em}
+.acls{flex:0 0 auto;font-size:10.5px;color:var(--muted);min-width:4.5em}
+.aunit .gchips{flex:1 1 220px;margin-top:0}
+body.mobile .aunit{flex-wrap:wrap}
+body.mobile .aunit .gchips{flex-basis:100%}
 .gname{cursor:help;border-bottom:1px dotted var(--line2)}
 .gname:hover{color:var(--gold);border-bottom-color:var(--gold)}
 .ghero{font-style:normal;background:var(--gold);color:#1a1526;font-size:8.5px;
@@ -9758,20 +9776,35 @@ async function gArenaStart(p){
   gArenaPick();
 }
 
+/* ★ 相手の装備を読む間だけ INV を差し替える ★
+   装備そのものは出さないが、**武器由来のスキル**と**防具由来の個性**は
+   実際に戦闘で効くので出す。spellSlots / traitSlots はその枠を
+   **グローバルの INV** から iid で引くので、差し替えないと消える。
+   戦闘では arenaBout / arenaPlay が同じことをしている。描画でも要る。 */
+function withFoeInv(fn){
+  const save=INV; if(ARENA_INV) INV=ARENA_INV;
+  try{ return fn(); } finally{ INV=save; }
+}
 /* 相手の顔ぶれを見せて選ばせる。**Aの勝敗は出さない。** */
 function gArenaPick(){
   const S=ARENA; if(!S)return;
   const b=$('#gbody'); if(!b)return;
-  b.innerHTML=`<h2>闘技場</h2>
+  b.innerHTML=withFoeInv(()=>`<h2>闘技場</h2>
     <div class="gtodo"><b>どの部隊と戦いますか？</b><br>
       顔ぶれを見て決めてください。<b>勝てば宝石が2個上積み</b>されます。</div>
-    ${S.foes.map((f,i)=>`<div class="rrow" data-af="${i}">
-      <span class="rmain">${f.guild?`<span class="rsub">${gEsc(f.guild)}</span><br>`:''}<b>${gEsc(f.party)}</b><br>
-        <span class="rsub">${f.units.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
-          u.slot<3?'前':'後'}${gEsc(u.name)}</span>`).join('・')}</span>
-        <span class="rsub">${f.units.map(u=>unitChips(u)).join(' ')}</span></span>
-      <span class="rbtn"><button data-a="pick">戦う</button></span></div>`).join('')}`;
-  b.querySelectorAll('.rrow').forEach(row=>{
+    ${S.foes.map((f,i)=>`<div class="aparty" data-af="${i}">
+      <div class="ahead">
+        <span class="amain">${f.guild?`<i>${gEsc(f.guild)}</i>`:''}<b>${gEsc(f.party)}</b></span>
+        <button data-a="pick">戦う</button>
+      </div>
+      ${f.units.map(u=>`<div class="aunit">
+        <span class="apos${u.slot<3?' f':''}">${u.slot<3?'前':'後'}</span>
+        <span class="aname gname" data-tip="${unitTip(u)}">${gEsc(u.name)}</span>
+        <span class="acls">${gEsc(u.clsName)}</span>
+        <span class="gchips">${traitChips(u)}${spellChips(u)}</span>
+      </div>`).join('')}
+    </div>`).join('')}`);
+  b.querySelectorAll('.aparty').forEach(row=>{
     const i=+row.dataset.af;
     row.querySelector('[data-a="pick"]').onclick=()=>{
       const S2=ARENA; if(!S2||S2.step!=='pick')return;
