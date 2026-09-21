@@ -572,7 +572,7 @@ select{flex:1;background:var(--panel2);color:var(--text);border:1px solid var(--
 .grow.dead{opacity:.35}
 .grow.bad select{border-color:#c0663a}
 .grow.bad .gno::after{content:'!';color:#e08a3c}
-/* 出払っている隊員。見えるが触れない */
+/* 出払っている仲間。見えるが触れない */
 .frozen{pointer-events:none;opacity:.55}
 .grow.dead .gno::after{content:'×';color:var(--foe)}
 .warn{font-size:10.5px;color:#f0b48a;background:#3a2418;border-left:2px solid var(--warn,#e08a3c);
@@ -1695,7 +1695,7 @@ const SPELLS=[
  /* ★ ケルベロスの2つだけは攻撃・防御のまま ★
     プレイヤー側のボマシ／ミナボソギが両対応になったので、
     ここも揃えたくなるが**あえて物理だけに残してある**。
-    **物理パーティの天敵**という役割を持たせるため。
+    **物理部隊の天敵**という役割を持たせるため。
     噛み砕きで防御だけを削り、咆哮で攻撃だけを落とすので、
     殴り合いの編成は正面から崩れるが、魔法型は素通りできる。
     「この相手には型を変えて当たる」が生まれる数少ない敵。 */
@@ -1954,13 +1954,16 @@ function rollEqSpellFor(def){
   return pool.length?pick(pool):null;
 }
 /* slot を渡すと武器／防具を指定して作る（生成ボタンは指定なし＝16種から1種）。 */
-function invCreate(slot){
+/* opt.force … 付与（武器のスキル・防具の個性）を**確定で**付ける。
+   闘技場の報酬がこれ。確率で「付与なし」が出ると報酬として成立しない。 */
+function invCreate(slot,opt){
   const def=pick(slot?EQUIPS.filter(e=>e.slot===slot):EQUIPS);
   const it={iid:++iidc,id:def.id,slot:def.slot,spell:null,trait:null};
+  const force=!!(opt&&opt.force);
   // 付与は生成時に確定する。あとから引き直せると「良い個体を探す」意味が消えるため。
-  if(def.slot==='w'){ if(R(1)<EQ_SPELL_CHANCE) it.spell=rollEqSpellFor(def); }
+  if(def.slot==='w'){ if(force||R(1)<EQ_SPELL_CHANCE) it.spell=rollEqSpellFor(def); }
   // 防具は誰が着けるか分からないので、種族専用（needs 付き）の個性は付けない
-  else             { if(R(1)<EQ_TRAIT_CHANCE) it.trait=pick(TRAIT_IDS.filter(id=>!TRAITS[id].needs)); }
+  else             { if(force||R(1)<EQ_TRAIT_CHANCE) it.trait=pick(TRAIT_IDS.filter(id=>!TRAITS[id].needs)); }
   INV.push(it);
   return it;
 }
@@ -2270,7 +2273,7 @@ const CLASSES=[
   spN:2, spBias:{nagiharai:20,tsutashibari:16,houshi:10,nemuribana:6,taiatari:8}},
 
  /* 敵側で初めての回復役。いま回復を持つのは僧侶と薬師だけで、
-    **敵パーティに立て直す手段が無かった**。「先にあの鳥を落とす」判断が生まれる。
+    **敵の部隊に立て直す手段が無かった**。「先にあの鳥を落とす」判断が生まれる。
     《再誕》は fixed にしない — 復活する個体としない個体があった方が、
     落としきったかどうかの緊張が残る。 */
  {id:'phoenix',n:'フェニックス', c:'PX',kind:'monster',lv:5,hp:480,mp:70,atk:58,def:40,mat:78,mdf:58,spd:72,
@@ -4075,7 +4078,7 @@ function openEditor(u){
      プレイヤーが決めるのは **装備とオート行動** だけ。
      検証盤（?guild=1 なし）では今までどおり全部いじれる。 */
   const LOCK=GUILD;
-  /* ★ 出払っている隊員は装備もオート行動も触れない ★
+  /* ★ 出払っている仲間は装備もオート行動も触れない ★
      装備は部隊ごと持ち出しているし、依頼の最中に指示を書き換えられるのはおかしい。
      報告待ちの部隊も同じ扱い（まだ帰ってきていない）。 */
   const own=LOCK&&G?partyOf(u):null;
@@ -4171,7 +4174,7 @@ function openEditor(u){
         ?'<div class="sechead">除名</div><div class="seghint">主人公は除名できません。</div>'
         :`<div class="sechead">除名</div>
           <div class="seghint">ギルドから外します。<b>装備は外して置いていくので、所持品には残ります。</b>
-            元には戻せません。出払っている部隊の隊員は除名できません。</div>
+            元には戻せません。出払っている部隊の仲間は除名できません。</div>
           <div class="cmds"><button class="btn danger" id="gFire">${gEsc(u.name)} を除名する</button></div>`):''}
 
       ${LOCK?'':`<div class="sechead">一括操作</div>
@@ -4274,7 +4277,7 @@ function openEditor(u){
   on('#gFire',async()=>{
     const from=partyOf(u);
     if(from&&partyBusy(from)){
-      await gNotice('出払っている部隊の隊員は除名できません。',{title:'除名できません'});
+      await gNotice('出払っている部隊の仲間は除名できません。',{title:'除名できません'});
       return;
     }
     const ok=await gConfirm(
@@ -6506,7 +6509,15 @@ function skipCost(ms){
 }
 const injured=u=>u.healAt>now();
 
-/* --- パーティ名の自動生成 ---
+/* ★ 画面に出す言葉の決まり（集団と個人）★
+     部隊 … 依頼へ送り出す単位。「パーティ」は使わない（9/21 に統一）
+     編成 … その部隊の中身を並べる**操作と画面**の名前
+     仲間 … 個人。「隊員」「メンバー」は使わない
+     隊列 … 前列3枠・後列4枠の並びそのもの
+   メニューの字（部隊を編成する）は**チュートリアルの案内が引用している**ので、
+   変える時は h:'「…」' の側も一緒に直すこと。
+
+   --- 部隊名の自動生成 ---
    「第一部隊」は番号でしかなく、盤面に出しても誰の隊か覚えられない。
    3つの型を混ぜて、それらしい名前を無限に引けるようにする。
      和風  … 《修飾》の《名詞》   例：女神の威光
@@ -6680,13 +6691,13 @@ const TUT=[
  {id:'q0take',  t:'依頼を受けよう！',
   h:'「依頼を見る」→「ギルド登録の手続き」の <b>受ける</b> → <b>送り出す</b>'},
  {id:'report',  t:'結果を聞こう！',
-  h:'「パーティを編成する」→ <b>報告を聞く</b>'},
+  h:'「部隊を編成する」→ <b>報告を聞く</b>'},
  {id:'place',   t:'増えた仲間を編成しよう！',
-  h:'「パーティを編成する」→ <b>編成</b> → 仲間の <b>選ぶ</b> → 置きたい枠をタップ'},
+  h:'「部隊を編成する」→ <b>編成</b> → 仲間の <b>選ぶ</b> → 置きたい枠をタップ'},
  {id:'q1take',  t:'次の依頼を受けよう！',
   h:'「依頼を見る」→「ゴブリン退治」の <b>受ける</b> → <b>送り出す</b>'},
  {id:'watch',   t:'戦いを見てみよう！',
-  h:'「パーティを編成する」→ まだ帰っていなければ宝石で <b>呼び戻す</b> → <b>報告を聞く</b> → <b>この戦闘を見る</b>'},
+  h:'「部隊を編成する」→ まだ帰っていなければ宝石で <b>呼び戻す</b> → <b>報告を聞く</b> → <b>この戦闘を見る</b>'},
  {id:'result',  t:'結果を確かめよう！',
   h:'再生が終わったら <b>次へ</b> → <b>結果を見る</b>'},
  {id:'equip',   t:'装備させよう！',
@@ -6952,6 +6963,8 @@ function checkReturns(){
   if(!G)return false;
   let any=false;
   G.parties.forEach(p=>{
+    // 闘技場は帰還＝「着いた」だけ。通信も戦闘も「報告を聞く」を押してから（→ arenaArrive）
+    if(p.arena&&p.returnAt&&p.returnAt<=now()){ arenaArrive(p); any=true; return; }
     if(!p.questId||p.returnAt>now())return;
     const offer=offerOf(p.offerId)||makeOffer(p.questId);
     if(!offer){ p.questId=null; p.offerId=null; return; }
@@ -6997,7 +7010,6 @@ function resolveQuest(p,offer){
      一方リロードすると refreshOffers が掲示し直して報告待ちとして最上段に戻る。
      同じ状態なのに置き場所が変わってしまう。掲示を畳むのは claimReport（達成確定）で行う。 */
   p.questId=null; p.offerId=null; p.returnAt=null; p.report=rep;
-  G.logs.unshift(rep); if(G.logs.length>40) G.logs.length=40;
 }
 /* --- 戦闘の外で効く個性 ---
    TRAITS のフックは戦闘中のイベント専用なので、こちらは id を直接見る。
@@ -7233,8 +7245,8 @@ function guildData(){
     qf:{st:GQF.st,tier:GQF.tier,kind:GQF.kind.slice(),
         newOnly:!!GQF.newOnly,keyOnly:!!GQF.keyOnly},
     custom:customList().map(q=>({id:q.id,name:q.name,sec:q.sec,waves:q.waves.map(w=>w.slice())})),
-    cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,
-    done:G.done,price:G.price,parties:G.parties,logs:G.logs,stockAt:G.stockAt,offers:G.offers,
+    cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,cid:G.cid||'',
+    done:G.done,price:G.price,parties:G.parties,stockAt:G.stockAt,offers:G.offers,
     roster:G.roster.map(u=>Object.assign(serSave(u),{gid:u.gid,healAt:u.healAt||0,hero:!!u.hero,spLv:u.spLv||{}})),
     inv:INV.map(ser),stock:G.stock.map(ser)};
 }
@@ -7300,12 +7312,12 @@ function applyGuild(d){
      （途中から「依頼を受けよう！」と言われても困る）。達成した依頼があれば済み扱い。 */
   const tut={step:(d.tut&&+d.tut.step)||(Object.keys(d.done||{}).length?TUT.length:0)};
   GREV=+d.rev||0;     // この版を知っている、という記録。これより新しい保存を見たら古いタブ扱い
-  G={gold:d.gold||0,gems:d.gems==null?10:d.gems,ext,tut,rev:GREV,
+  G={gold:d.gold||0,gems:d.gems==null?10:d.gems,ext,tut,rev:GREV,cid:d.cid||'',
      custom:[],cidc:d.cidc||0,rankSeen:d.rankSeen,
      gidc:d.gidc||0,oidc:d.oidc||0,
      name:d.name||'かけだし団',hero:d.hero||'レイ',done:d.done||{},price:d.price||{},
      stockAt:d.stockAt||0,offers:d.offers||[],
-     roster:[],parties:d.parties||[],logs:d.logs||[],stock:[]};
+     roster:[],parties:d.parties||[],stock:[]};
   INV=[]; iidc=0;
   // 依頼の絞り込みを戻す。開いていない難度を指していたら「すべて」へ落とす。
   const qf=d.qf||{};
@@ -7344,7 +7356,7 @@ function newGuild(name,hero,clsId){
   G={gold:0,gems:10,ext:{parties:0,roster:0,inv:0,custom:0},custom:[],cidc:0,rankSeen:0,
      tut:{step:0},rev:0,
      gidc:0,oidc:0,name:name,hero:hero,done:{},price:{},stockAt:0,offers:[],
-     roster:[],parties:[],logs:[],stock:[]};
+     roster:[],parties:[],stock:[]};
   INV=[]; iidc=0;
   const hc=(CLS[clsId]&&clsId!=='cm')?clsId:'sw';
   const h=guildUnit(hc,{name:hero,fixed:['hosei']}); h.hero=true; G.roster.push(h);
@@ -7571,8 +7583,9 @@ function renderGuild(){
       </div>
     </div>
     <div class="gmenu">
-      ${item('party','パーティを管理する','部隊を組み、依頼へ送り出す',ret)}
+      ${item('party','部隊を編成する','部隊を組み、依頼へ送り出す',ret)}
       ${item('quest','依頼を見る','受注状況と帰還予定',offers)}
+      ${arenaOpen()?item('arena','闘技場','他のギルドの部隊と戦う'):''}
       ${item('shop','武具屋','武器と防具の売り買い')}
       ${item('temple','寺院','負傷者の治療',hurt)}
       ${item('admin','ギルド管理','ランクと枠の拡張',rankIdx()>(G.rankSeen||0)?'!':0)}
@@ -7642,7 +7655,7 @@ function renderGuild(){
       extCap()===Infinity?'無制限':extCap()+'回'} まで拡張可）`;
   });
   if(GVIEW!=='make') GMAKE=null;      // 別のタブへ移ったら下書きは捨てる
-  ({party:gParty,quest:gQuest,shop:gShop,temple:gTemple,admin:gAdmin,make:gMake}[GVIEW]||gParty)();
+  ({party:gParty,quest:gQuest,shop:gShop,temple:gTemple,admin:gAdmin,make:gMake,arena:gArena}[GVIEW]||gParty)();
   tickLabels();
 }
 
@@ -7754,7 +7767,7 @@ function renderGuildStart(){
   };
 }
 
-/* 部隊の解散。**隊員は控えに戻るだけ**で、装備も持ったまま残る。
+/* 部隊の解散。**仲間は控えに戻るだけ**で、装備も持ったまま残る。
    出払っている部隊と報告待ちの部隊は解散できない（ボタン自体を出していない）。 */
 async function dissolveParty(p){
   if(!p||partyBusy(p)||p.report)return;
@@ -7778,9 +7791,10 @@ function gParty(){
     // 成否はここに出さない。報告を聞くまで分からないようにする。
     const st=p.report?`<b class="gwait">${repPending(p.report)
         ?'現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}</b>`
+      :p.arena?`闘技場へ出場中　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :p.questId?`受注中：${gEsc(questOf(p.questId).name)}　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :'<span class="rnone">待機中</span>';
-    const skip=p.questId?skipCost(p.returnAt-now()):0;
+    const skip=(p.questId||p.arena)?skipCost(p.returnAt-now()):0;
     return `<div class="rrow" data-p="${p.pid}">
       <span class="rpos">${men.length}人</span>
       <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub" data-st="${p.pid}">${st}</span><br>
@@ -7789,7 +7803,7 @@ function gParty(){
           +(showHurt(u)?'<em class="ghurt">負傷</em>':'')).join('・')||'誰もいない'}</span></span>
       <span class="rbtn">
         ${p.report?`<button data-a="rep">${repLabel(p.report)}</button>`:''}
-        ${p.questId?btnOr(G.gems>=skip,
+        ${(p.questId||p.arena)?btnOr(G.gems>=skip,
           `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skip}</button>`,
           `呼び戻すには宝石${skip}（いま ${G.gems}）`):''}
         ${(partyBusy(p)||p.report)?''
@@ -7838,7 +7852,7 @@ function gParty(){
       同時に複数の依頼を回すなら、その数だけ装備が要ります。<br>
       作れる部隊の数は<b>ギルド管理で広げた枠</b>の分だけです（いまは ${maxParties()} 部隊まで。
       広げられる回数は【${gEsc(rankNow().n)}】の認可で決まります）。</div>
-    <div class="sechead">ギルドメンバー　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
+    <div class="sechead">ギルドの仲間　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
     <div class="fbar">
       <div class="esteps" id="fOwn">
         <button data-f="all"${GFILT.own==='all'?' class="on"':''}>すべて</button>
@@ -7951,7 +7965,7 @@ function gPartyEdit(p){
   };
   const picked=GPICK!=null?G.roster.find(x=>x.gid===GPICK):null;
   b.innerHTML=`<h2>${gEsc(p.name)} の編成</h2>
-    <div class="pname"><label>パーティ名</label>
+    <div class="pname"><label>部隊名</label>
       <b class="pnval">${gEsc(p.name)}</b>
       <button class="btn sm" id="pRoll">名前を引き直す</button>
       <i>何度でも引き直せます。戦闘盤面の味方側にもこの名前が出ます</i></div>
@@ -8036,7 +8050,7 @@ function gPartyEdit(p){
     const j=slots.indexOf(GPICK); if(j>=0) slots[j]=null;
     GPICK=null; redraw(); };
   const pc=$('#pCancel'); if(pc) pc.onclick=()=>{ GPICK=null; redraw(); };
-  /* パーティ名は引き直すだけ。手で書かせると名付けで手が止まる。 */
+  /* 部隊名は引き直すだけ。手で書かせると名付けで手が止まる。 */
   const pr=$('#pRoll');
   if(pr) pr.onclick=()=>{ p.name=freshPartyName(); saveGuild(); gPartyEdit(p); };
   $('#pBack').onclick=()=>{ GPICK=null; renderGuild(); };
@@ -8394,7 +8408,6 @@ function resolveInstant(p,q,o){
     pending:rollPending(q,true,partyUnits(p),[]),   // 戦闘が無いので魔物とは会っていない
     gold:0,injured:[],gained:[],items:[]};
   p.questId=null; p.offerId=null; p.returnAt=null; p.report=rep;   // 掲示は claimReport で畳む
-  G.logs.unshift(rep);
 }
 
 /* =========================================================
@@ -8407,11 +8420,12 @@ function resolveInstant(p,q,o){
 let REPLAY=null;   // {p,rep,q,men,idx,playing}
 
 /* 手動依頼はまだ戦っていないので、再生ではなく出撃へ回す。 */
-const repPending=r=>!!(r&&r.manual&&!r.fought);
+const repPending=r=>!!(r&&r.manual&&!r.fought&&!r.arena);
 const repLabel=r=>repPending(r)?'指揮を執る':'報告を聞く';
 
 function gReport(p){
   const r=p.report; if(!r)return;
+  if(r.arena){ gArenaStart(p); return; }      // 闘技場は別系統（→ 14. 闘技場）
   if(repPending(r)){ gManualStart(p); return; }
   claimReport(r);            // ここで初めて金・仲間・装備・負傷が確定する
   const q=questOf(r.questId);
@@ -8459,7 +8473,7 @@ function gReportStep(){
       <button class="btn" id="rvSkip1">この戦闘を飛ばす</button>
       <button class="btn" id="rvSkipAll">最後まで飛ばす</button>
     </div>
-    ${canPlay?'':`<div class="warn">当時の隊員が揃っていないので、この戦闘は再生できません。
+    ${canPlay?'':`<div class="warn">当時の仲間が揃っていないので、この戦闘は再生できません。
       （除名した・入れ替えたなどで、当時の顔ぶれを再現できません）<br>
       飛ばして結果だけ見ることはできます。</div>`}`;
   const rv=$('#rvGo'); if(rv) rv.onclick=()=>playRound();
@@ -8803,8 +8817,7 @@ function gManualFinish(ok){
   S.men.filter(u=>!u.alive).forEach(u=>
     pending.injuries.push({gid:u.gid,ms:Math.round(base*(ok?0.5:1.5))}));
   S.men.forEach(resetUnit);
-  rep.fought=true; rep.ok=ok; rep.pending=pending;
-  G.logs.unshift(rep); if(G.logs.length>40) G.logs.length=40;   // 掲示は claimReport で畳む
+  rep.fought=true; rep.ok=ok; rep.pending=pending;   // 掲示は claimReport で畳む
   claimReport(rep);
   // 結果画面は再生と共用する
   REPLAY={p,rep,q,men:S.men,idx:(rep.rounds||[]).length,playing:false};
@@ -9516,6 +9529,366 @@ fetch('/api/state').then(r=>r.json()).then(s=>{
   netLog(`ブリッジに接続しました（この PC の IP: ${s.local_ip}）`,'st');
   netStart(); netChip();
 }).catch(()=>{ NET.bridge=false; netChip(); });
+
+
+/* =========================================================
+   14. 闘技場（非同期対戦）
+
+   他のギルドの部隊とすれ違いで戦う。サーバは GAS＋スプレッドシート。
+   既存の P2P（NET）とは**完全に別物**。混ぜないこと。
+
+   ★ A と B は別系統 ★
+     A … 10部隊×10戦を裏で回し、相手それぞれの勝敗をサーバへ送る。
+          プレイヤーには見えない。100戦走っていることを知る必要がない。
+     B … DLしたうち上位3部隊の顔ぶれを見せて1つ選ばせ、その1戦を再生する。
+          **独立した1戦**で、ULしない。
+   一度この2つを混ぜて、無い問題（見せた結果とULした結果の食い違い）を作った。
+   **Aの結果をBの選択画面に出さないこと。**出すと情報ゲームになる。
+
+   ★ 自部隊の勝敗はULしない ★
+   自分の戦績は、自分が上位10に入った時に他人が書く。
+
+   ★ 0戦は勝率50%扱い（サーバ側）★
+   そうしないと新しい部隊が永久に上位10へ入れず、0戦のまま固定される。
+
+   ★ 通信を全部終えてから B に入る ★
+   途中で失敗したら何も確定させない。報酬を渡した後に戦績が消えるのを避ける。
+   ========================================================= */
+
+const ARENA_URL   = 'https://script.google.com/macros/s/AKfycbw-jGJ3OPvD-MCU-QEJ2sPhrJljM-kc6wS7yz2qLcj1BTd1HVnBt7V-M5SHquQ2ln0M/exec';
+/* ★ 保存データの語彙が変わったら上げる ★
+   スキル・個性・職業・装備の id を**足した時も**上げること。
+   古いクライアントが知らない id を受け取ると spellChips が落ちる（isArt(undefined)）。
+   竜鱗を12%→8%のようなバランス変更では上げない —
+   古い部隊も普通に読めるし、現在のルールで測り直される方が自然。 */
+const ARENA_REV   = 1;
+const ARENA_SEC   = 10*3600;   // 所要10時間
+const ARENA_BOUTS = 10;        // 1相手あたりの戦数（裏方）
+const ARENA_FOES  = 10;        // DLする部隊数
+const ARENA_PICK  = 3;         // 選ばせる数
+const ARENA_OPEN  = 2;         // 中堅ギルドから
+
+let ARENA=null;                // 進行中の闘技場（報告を聞いている最中だけ）
+let ARENA_INV=null;            // 相手の装備の実体。戦闘の間だけ INV に被せる
+
+const arenaOpen=()=>!!G&&rankIdx()>=ARENA_OPEN;
+/* ギルドごとの識別子。自分の部隊を相手として引かないために使う。 */
+function arenaCid(){
+  if(!G.cid) G.cid='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  return G.cid;
+}
+const arenaKey=p=>arenaCid()+':'+p.pid;
+const arenaBusy=p=>!!(p.arena||(p.report&&p.report.arena));
+
+/* ---- 通信 ----
+   ★ text/plain で送ること ★
+   application/json にするとプリフライト(OPTIONS)が飛び、
+   GAS のウェブアプリは OPTIONS を受け取れないので必ず失敗する。 */
+async function arenaPost(body){
+  const r=await fetch(ARENA_URL,{method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(body)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  let j; try{ j=JSON.parse(await r.text()); }
+  catch(e){ throw new Error('応答が読めません'); }
+  if(!j.ok) throw new Error(j.error||'サーバが断りました');
+  return j;
+}
+
+/* ---- 部隊の直列化 ----
+   ★ 装備は iid ではなく中身で送る ★
+   u.equip は自分の INV の iid を指しているので、そのまま送っても相手の手元では意味が無い。
+   normEquip は {w:'sword',spell:…,a:'mail',trait:…} の**文字列の形**を受け取ると
+   その場で実体を作ってくれるので、その形に落とす。 */
+function arenaSerUnit(u){
+  const w=eqItem(u,'w'), a=eqItem(u,'a');
+  const eq=(w||a)?{w:w?w.id:null,spell:w?w.spell:null,
+                   a:a?a.id:null,trait:a?a.trait:null}:null;
+  return {slot:u.slot,name:u.name0||u.name,clsId:u.clsId,varia:u.varia,
+          traits:(u.traits||[]).slice(),spells:(u.spells||[]).slice(),
+          gambits:JSON.parse(JSON.stringify(u.gambits||[])),
+          spLv:Object.assign({},u.spLv||{}),   // 鍛えたスキルはそのまま相手として出る
+          equip:eq};
+}
+const arenaSerParty=p=>JSON.stringify({men:partyUnits(p).map(arenaSerUnit)});
+
+/* 受け取った部隊をまとめて実体にする。
+   ★ INV を汚さない ★ normEquip は装備の実体を INV へ push するので、
+   一時的な複製の上で全部作り、その複製を ARENA_INV として戦闘の間だけ被せる。
+   **1部隊ずつ別々にやると、前の部隊の装備が消える。** */
+function arenaBuildAll(list){
+  const save=INV;
+  INV=INV.slice();
+  const out=[];
+  try{
+    list.forEach(f=>{
+      let d; try{ d=JSON.parse(f.json); }catch(e){ return; }
+      if(!d||!Array.isArray(d.men)||!d.men.length) return;
+      const units=[];
+      try{
+        d.men.slice(0,PSLOTS).forEach((o,i)=>{
+          const u=buildUnit(o);
+          u.side='foe'; u.slot=(o.slot==null?i:+o.slot);
+          u.spLv=o.spLv||{}; u.name0=u.name;
+          refreshVitals(u); resetUnit(u);
+          units.push(u);
+        });
+      }catch(e){ console.warn('相手の部隊が読めません',f.pid,e); return; }
+      if(units.length) out.push({pid:f.pid,name:f.name||'名もなき部隊',json:f.json,units});
+    });
+  } finally { ARENA_INV=INV; INV=save; }
+  return out;
+}
+
+/* ---- 裏方の戦闘（A系統）----
+   自部隊と相手1部隊で n 戦。勝敗だけ返す。画面は一切触らない。 */
+function arenaBout(men,foes,n){
+  const sU=U,sB=BENCH,sSIM=SIM,sPOS=SIMPOS,sCur=current,sINV=INV;
+  let win=0,lose=0;
+  try{
+    SIM=true; if(ARENA_INV) INV=ARENA_INV;
+    for(let i=0;i<n;i++){
+      foes.forEach(f=>{ f.side='foe'; });
+      U=[...men,...foes]; BENCH=[];
+      SIMPOS=posSnapshot();
+      const r=simOneBattle(300,false);
+      if(r.result==='ally') win++; else lose++;
+    }
+  } finally { U=sU; BENCH=sB; SIM=sSIM; SIMPOS=sPOS; current=sCur; INV=sINV; }
+  return {win,lose};
+}
+
+/* ---- 出撃 ---- */
+async function arenaSend(p){
+  if(GSUB)return;
+  const men=partyUnits(p);
+  if(!men.length){ GMSG='この部隊には誰もいません。'; renderGuild(); return; }
+  if(men.some(injured)){ GMSG='療養中の仲間がいるので出せません。'; renderGuild(); return; }
+  GSUB=true; GMSG='闘技場へ登録しています…'; renderGuild();
+  try{
+    await arenaPost({action:'enter',pid:arenaKey(p),cid:arenaCid(),rev:ARENA_REV,
+                     name:p.name,json:arenaSerParty(p)});
+    p.arena=true; p.questId=null; p.offerId=null; p.report=null;
+    p.returnAt=now()+ARENA_SEC*1000;
+    GMSG=`${gEsc(p.name)} を闘技場へ送り出した。`;
+  }catch(e){
+    GMSG=`通信に失敗したので再度試してください（${gEsc(String(e.message||e))}）`;
+  }finally{
+    GSUB=false; saveGuild(); renderGuild();
+  }
+}
+
+/* ---- 帰還（checkReturns から呼ぶ）----
+   ★ 手動依頼と同じ形の封筒を置くだけ ★
+   帰還＝「着いた」だけで、勝敗はまだ存在しない。
+   通信も戦闘も「報告を聞く」を押してから始める。 */
+function arenaArrive(p){
+  p.report={at:now(),quest:'闘技場',arena:true,fought:false,ok:false,
+    rounds:[],turns:0,members:partyUnits(p).map(u=>({gid:u.gid,slot:u.slot})),
+    claimed:true,pending:null,gold:0,injured:[],gained:[],items:[]};
+  partyUnits(p).forEach(resetUnit);
+  p.arena=false; p.returnAt=null;
+}
+
+/* ---- 報告を聞く（DL → A → UL → B）---- */
+async function gArenaStart(p){
+  if(ARENA)return;
+  const men=(p.report.members||[]).map((m,i)=>{
+    const u=G.roster.find(x=>x.gid===m.gid); if(!u)return null;
+    u.slot=m.slot==null?i:m.slot; u.side='ally'; return u;
+  }).filter(Boolean);
+  if(!men.length){ GMSG='当時の仲間が揃っていないので、この対戦は行えません。'; renderGuild(); return; }
+
+  GSUB=true; GMSG=''; ARENA={p,men,step:'dl'};
+  renderGuild();
+  const say=t=>{ const b=$('#gbody'); if(b) b.innerHTML=`<h2>闘技場</h2><div class="gtodo">${t}</div>`; };
+  const fail=e=>{ ARENA=null; ARENA_INV=null; GSUB=false;
+    GMSG=`通信に失敗したので再度試してください（${gEsc(String(e&&e.message||e))}）`;
+    renderGuild(); };
+
+  say('対戦相手を探しています…');
+  let list=[];
+  try{
+    const j=await arenaPost({action:'top',rev:ARENA_REV,cid:arenaCid(),n:ARENA_FOES});
+    list=j.foes||[];
+    /* 誰もいなければ自分自身と戦う。**最初の1件はこれで埋まる。** */
+    if(!list.length) list=[{pid:arenaKey(p),name:p.name+'（写し）',json:arenaSerParty(p)}];
+  }catch(e){ return fail(e); }
+
+  const built=arenaBuildAll(list);
+  if(!built.length){ ARENA=null; ARENA_INV=null; GSUB=false;
+    GMSG='相手の部隊が読めませんでした。時間をおいて試してください。'; renderGuild(); return; }
+
+  /* --- A系統：裏で 10部隊×10戦 --- */
+  const results=[];
+  for(let i=0;i<built.length;i++){
+    say(`対戦中… ${i+1} / ${built.length}`);
+    await new Promise(r=>setTimeout(r,0));      // 描き直す隙を作る（100戦で固まらせない）
+    const b=built[i];
+    const r=arenaBout(men,b.units,ARENA_BOUTS);
+    results.push({pid:b.pid,win:r.lose,lose:r.win});   // ★相手から見た勝敗に反転する
+  }
+
+  say('結果を送っています…');
+  try{ await arenaPost({action:'result',rev:ARENA_REV,results}); }
+  catch(e){ return fail(e); }
+
+  /* --- B系統：上位3部隊から選ばせる --- */
+  ARENA={p,men,step:'pick',foes:built.slice(0,ARENA_PICK)};
+  gArenaPick();
+}
+
+/* 相手の顔ぶれを見せて選ばせる。**Aの勝敗は出さない。** */
+function gArenaPick(){
+  const S=ARENA; if(!S)return;
+  const b=$('#gbody'); if(!b)return;
+  b.innerHTML=`<h2>闘技場</h2>
+    <div class="gtodo"><b>どの部隊と戦いますか？</b><br>
+      顔ぶれを見て決めてください。<b>勝てば宝石が2個上積み</b>されます。</div>
+    ${S.foes.map((f,i)=>`<div class="rrow" data-af="${i}">
+      <span class="rmain"><b>${gEsc(f.name)}</b><br>
+        <span class="rsub">${f.units.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
+          u.slot<3?'前':'後'}${gEsc(u.name)}</span>`).join('・')}</span>
+        <span class="rsub">${f.units.map(u=>unitChips(u)).join(' ')}</span></span>
+      <span class="rbtn"><button data-a="pick">戦う</button></span></div>`).join('')}`;
+  b.querySelectorAll('.rrow').forEach(row=>{
+    const i=+row.dataset.af;
+    row.querySelector('[data-a="pick"]').onclick=()=>{
+      const S2=ARENA; if(!S2||S2.step!=='pick')return;
+      S2.step='play'; S2.foe=S2.foes[i]; S2.seed=nextSeed();
+      arenaPlay(true);
+    };
+  });
+}
+
+/* 選んだ1戦を再生する。**独立した戦闘**で、ULしない。
+   grant=true の時だけ報酬を渡す（「もう一度見る」で二重に渡さないため）。 */
+async function arenaPlay(grant){
+  const S=ARENA; if(!S||!S.foe)return;
+  const sU=U,sB=BENCH,sAuto=auto,sPaused=paused,sSIM=SIM,sPOS=SIMPOS,sLogs=logs,sSpd=speedF,sINV=INV;
+  document.body.classList.add('replaying');
+  $('#rvbar').hidden=false; $('#rvNext').hidden=true;
+  $('#rvSpeed').hidden=false; $('#rvStop').hidden=true;
+  $('#rvTitle').textContent=`闘技場 — ${S.foe.name}`;
+  speedF=2;
+  let won=false;
+  try{
+    if(ARENA_INV) INV=ARENA_INV;
+    S.foe.units.forEach(x=>{ x.side='foe'; });
+    U=[...S.men,...S.foe.units]; BENCH=[];
+    SIM=false; SIMPOS=null; auto=true; paused=false; logs=[];
+    FORCE_SEED=S.seed;                 // 同じ種なので「もう一度見る」でも同じ経過
+    abortLoop(); newBattleState();
+    U.forEach(u=>{ u.name=u.name0||u.name; resetUnit(u); });
+    render(); renderLog();
+    await loop();
+    won=battleResult==='ally';
+    const res=won?'勝利':battleResult==='foe'?'敗北':'引き分け';
+    $('#rvTitle').innerHTML=`闘技場 — ${gEsc(S.foe.name)}　<b class="${
+      won?'gok':battleResult==='foe'?'gng':'gmid'}">${res}</b>`;
+    $('#rvSpeed').hidden=true;
+    const nx=$('#rvNext');
+    nx.textContent=grant?'報酬を受け取る':'結果へ戻る';
+    nx.hidden=false;
+    await new Promise(r=>{ nx.onclick=()=>r(); });
+    nx.hidden=true;
+  }catch(e){ console.error('闘技場の再生で例外',e); }
+  finally{
+    U=sU; BENCH=sB; auto=sAuto; paused=sPaused; SIM=sSIM; SIMPOS=sPOS; logs=sLogs; speedF=sSpd;
+    INV=sINV;
+    S.men.forEach(u=>{ u.name=u.name0||u.name; });
+    abortLoop();
+    document.body.classList.remove('replaying');
+    $('#rvbar').hidden=true; $('#rvSpeed').hidden=false; $('#rvStop').hidden=false;
+  }
+  if(grant) arenaGrant(won); else gArenaResult();
+}
+
+/* 報酬。勝敗に寄らず 仲間1人＋付与付き装備1つ＋宝石1個。勝てば宝石+2。 */
+function arenaGrant(won){
+  const S=ARENA; if(!S||S.got)return;
+  const got=[];
+
+  if(G.roster.length>=maxRoster()) got.push(overflowMember().text);
+  else{
+    const u=guildUnit(pick(HUMAN_POOL)); G.roster.push(u);
+    got.push(`<b>${gEsc(u.name)}</b>（${gEsc(u.clsName)}）が仲間になった。`);
+  }
+
+  const it=invCreate(null,{force:true});      // 付与は確定で付ける
+  if(INV.length>invCap()){
+    INV=INV.filter(x=>x!==it);
+    const g=Math.round(priceOf(it)*0.5/100)*100; G.gold+=g;
+    got.push(`${invName(it)} を得たが、倉庫に入りきらず ${g.toLocaleString()}G で売り払った。`);
+  } else got.push(`<b>${invName(it)}</b> を手に入れた。`);
+
+  const gem=1+(won?2:0);
+  G.gems+=gem;
+  got.push(`宝石を <b>${gem}</b> 個受け取った。${won?'（勝利のぶん +2）':''}`);
+
+  S.got=got; S.won=won;
+  S.p.report=null; S.p.arena=false; S.p.returnAt=null;
+  saveGuild();
+  gArenaResult();
+}
+
+function gArenaResult(){
+  const S=ARENA; if(!S)return;
+  const b=$('#gbody'); if(!b)return;
+  b.innerHTML=`<h2>闘技場</h2>
+    <div class="grescue"><b>${S.won?'勝利':'敗北'}</b> — ${gEsc(S.foe.name)} との一戦</div>
+    ${(S.got||[]).map(t=>`<div class="gtodo">${t}</div>`).join('')}
+    <div class="cmds">
+      <button class="btn" id="aAgain">もう一度見る</button>
+      <button class="btn" id="aDone">終える</button></div>`;
+  $('#aAgain').onclick=()=>arenaPlay(false);
+  $('#aDone').onclick=()=>{ ARENA=null; ARENA_INV=null; GSUB=false; GMSG=''; renderGuild(); };
+}
+
+/* ---- 画面 ---- */
+function gArena(){
+  const b=$('#gbody');
+  if(ARENA&&ARENA.step==='pick'){ gArenaPick(); return; }
+  if(ARENA&&ARENA.got){ gArenaResult(); return; }
+  if(!arenaOpen()){
+    b.innerHTML=`<h2>闘技場</h2><div class="gtodo">中堅ギルドになると開きます。</div>`;
+    return;
+  }
+  const idle=G.parties.filter(p=>!p.questId&&!arenaBusy(p)&&!p.report&&partyUnits(p).length);
+  const out =G.parties.filter(arenaBusy);
+  b.innerHTML=`<h2>闘技場</h2>
+    <div class="gtodo">他のギルドの部隊とすれ違いで戦います。
+      <b>${Math.round(ARENA_SEC/3600)}時間</b>で帰還し、<b>報告を聞く</b>と相手が決まります。<br>
+      報酬は<b>勝敗に関わらず 仲間1人・付与付きの装備1つ・宝石1個</b>。<b>勝てば宝石がさらに2個。</b></div>
+    ${out.length?`<div class="sechead">出場中</div>`+out.map(p=>`<div class="rrow" data-p="${p.pid}">
+      <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub">${
+        p.report?'<b class="gwait">帰還済み — 報告待ち</b>'
+                :`残り <b class="gleft" data-until="${p.returnAt}">—</b>`}</span></span>
+      <span class="rbtn">${p.report?'<button data-a="rep" data-pid="'+p.pid+'">報告を聞く</button>'
+        :btnOr(G.gems>=skipCost(p.returnAt-now()),
+          `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`,
+          `呼び戻すには宝石${skipCost(p.returnAt-now())}（いま ${G.gems}）`)}</span></div>`).join(''):''}
+    <div class="sechead">送り出す部隊</div>
+    ${idle.length?idle.map(p=>{ const men=partyUnits(p);
+      return `<div class="rrow" data-p="${p.pid}">
+        <span class="rpos">${men.length}人</span>
+        <span class="rmain"><b>${gEsc(p.name)}</b><br>
+          <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
+            u.slot<3?'前':'後'}${gEsc(u.name)}</span>`).join('・')}</span></span>
+        <span class="rbtn">${btnOr(!men.some(injured),
+          '<button data-a="go">出場する</button>','療養中の仲間がいます')}</span></div>`;}).join('')
+      : '<div class="tdesc">待機中の部隊がありません。</div>'}`;
+  b.querySelectorAll('.rrow').forEach(row=>{
+    row.querySelectorAll('[data-a]').forEach(el=>{
+      const p=G.parties.find(x=>String(x.pid)===String(el.dataset.pid||row.dataset.p));
+      if(!p)return;
+      const a=el.dataset.a;
+      if(a==='go')   el.onclick=()=>arenaSend(p);
+      if(a==='skip') el.onclick=()=>useSkip('quest',p);
+      if(a==='rep')  el.onclick=()=>gArenaStart(p);
+    });
+  });
+}
 
 /* --- 起動 ---
    保存があればそれを使う。壊れていたら黙って新規生成に落とす。 */
