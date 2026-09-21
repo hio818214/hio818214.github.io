@@ -9617,7 +9617,13 @@ function arenaSerUnit(u){
           spLv:Object.assign({},u.spLv||{}),   // 鍛えたスキルはそのまま相手として出る
           equip:eq};
 }
-const arenaSerParty=p=>JSON.stringify({men:partyUnits(p).map(arenaSerUnit)});
+/* ★ 名前は json の中に入れる ★
+   サーバの列を増やすと再デプロイと既存行の移行が要る。
+   部隊のデータはそのまま往復するので、身元も一緒に運ばせる方が素直。
+   古い行（guild が無い）は部隊名だけで出る。 */
+const arenaSerParty=p=>JSON.stringify({
+  guild:(G&&G.name)||'', party:p.name,
+  men:partyUnits(p).map(arenaSerUnit)});
 
 /* 受け取った部隊をまとめて実体にする。
    ★ INV を汚さない ★ normEquip は装備の実体を INV へ push するので、
@@ -9641,7 +9647,9 @@ function arenaBuildAll(list){
           units.push(u);
         });
       }catch(e){ console.warn('相手の部隊が読めません',f.pid,e); return; }
-      if(units.length) out.push({pid:f.pid,name:f.name||'名もなき部隊',json:f.json,units});
+      if(units.length) out.push({pid:f.pid,json:f.json,units,
+        guild:d.guild||'', party:d.party||f.name||'名もなき部隊',
+        name:(d.guild?d.guild+' / ':'')+(d.party||f.name||'名もなき部隊')});
     });
   } finally { ARENA_INV=INV; INV=save; }
   return out;
@@ -9724,7 +9732,7 @@ async function gArenaStart(p){
     const j=await arenaPost({action:'top',rev:ARENA_REV,cid:arenaCid(),n:ARENA_FOES});
     list=j.foes||[];
     /* 誰もいなければ自分自身と戦う。**最初の1件はこれで埋まる。** */
-    if(!list.length) list=[{pid:arenaKey(p),name:p.name+'（写し）',json:arenaSerParty(p)}];
+    if(!list.length) list=[{pid:arenaKey(p),name:p.name+'（写し）',json:arenaSerParty(p),self:true}];
   }catch(e){ return fail(e); }
 
   const built=arenaBuildAll(list);
@@ -9758,7 +9766,7 @@ function gArenaPick(){
     <div class="gtodo"><b>どの部隊と戦いますか？</b><br>
       顔ぶれを見て決めてください。<b>勝てば宝石が2個上積み</b>されます。</div>
     ${S.foes.map((f,i)=>`<div class="rrow" data-af="${i}">
-      <span class="rmain"><b>${gEsc(f.name)}</b><br>
+      <span class="rmain">${f.guild?`<span class="rsub">${gEsc(f.guild)}</span><br>`:''}<b>${gEsc(f.party)}</b><br>
         <span class="rsub">${f.units.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
           u.slot<3?'前':'後'}${gEsc(u.name)}</span>`).join('・')}</span>
         <span class="rsub">${f.units.map(u=>unitChips(u)).join(' ')}</span></span>
