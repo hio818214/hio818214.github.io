@@ -567,6 +567,8 @@ select{flex:1;background:var(--panel2);color:var(--text);border:1px solid var(--
 .grow select{flex:1 1 110px;min-width:0;padding:4px 6px;font-size:11.5px}
 .grow.last{opacity:.55;padding-top:6px;border-top:1px dotted var(--line)}
 .grow.dead{opacity:.35}
+.grow.bad select{border-color:#c0663a}
+.grow.bad .gno::after{content:'!';color:#e08a3c}
 /* 出払っている隊員。見えるが触れない */
 .frozen{pointer-events:none;opacity:.55}
 .grow.dead .gno::after{content:'×';color:var(--foe)}
@@ -2463,9 +2465,48 @@ function resetUnit(u){
   u.hp=u.maxHp; u.mp=u.maxMp; u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0;
   u.alive=true; u.guard=false; u.lastAct=null; u.ct=time+10000/stat(u,'spd');
 }
+/* =========================================================
+   戦闘が終わったら隊列を戦闘前へ戻す
+
+   「いれかえ」と《吹き飛ばす》（ハーピィ）で動いた位置がそのまま残ると、
+   次の戦闘の前に**手で並べ直す**ことになる。編成は自分で決めたものなので、
+   戦闘中に押し出された結果を「新しい編成」として引き継ぐ理由が無い。
+
+   ★ 自動依頼はもともとこう動いている ★
+   `runQuest` は波ごとに `SIMPOS` を控え、`simOneBattle` が頭で戻している。
+   直しているのは**手で戦う側だけ**で、挙動を自動側へ揃えた形になる。
+
+   ★ 名前は戻さない ★
+   集計用の `posRestore` は名前（転生）も一緒に戻すが、戦闘直後にそれをやると
+   結果を読んでいる最中に名前が入れ替わる。ここは**枠だけ**を戻す。
+
+   ★ 集計（SIM）では触らない ★
+   あちらは `SIMPOS` が1戦ごとに同じ仕事をしている。二重に戻す必要は無い。
+   ========================================================= */
+let LIVEPOS=null;
+/* 次の loop() に「戦闘前の並び」を外から渡す口。手動依頼だけが使う。
+   連戦の2戦目や中断復帰では、盤面の現在位置が基準になってしまうため。 */
+let LIVEBASE=null;
+const rowSnapshot=()=>U.map(u=>({u,slot:u.slot}));
+function rowRestore(){
+  if(!LIVEPOS)return 0;
+  let n=0;
+  LIVEPOS.forEach(o=>{ if(o.u.slot!==o.slot){ o.u.slot=o.slot; n++; } });
+  return n;
+}
+/* プレイヤーが自分で置き直したら、そこが新しい「戦闘前の位置」になる。
+   これが無いと、検証盤で戦闘中に配置を触った結果が決着時に巻き戻る。 */
+function rowMark(u){
+  if(!LIVEPOS)return;
+  const o=LIVEPOS.find(x=>x.u===u);
+  if(o) o.slot=u.slot; else LIVEPOS.push({u,slot:u.slot});
+}
+function rowForget(u){ if(LIVEPOS) LIVEPOS=LIVEPOS.filter(x=>x.u!==u); }
+
 /* --- 配置（出撃／なし） --- */
 function deploy(u){
   if(U.includes(u))return; BENCH=BENCH.filter(x=>x!==u); resetUnit(u); U.push(u);
+  rowMark(u);                     // 自分で置いた位置が、以後の「戦闘前の並び」になる
   addLog(`${u.name} を配置した`,'l-sys');
   if(!running && !(NET.matched&&NET.role==='guest')){ running=true; loop(); }
 }
@@ -2473,6 +2514,7 @@ function bench(u){
   if(!U.includes(u))return;
   if(current===u&&resolveCmd) send({cmd:'guard'});
   U=U.filter(x=>x!==u); u.alive=false; if(!BENCH.includes(u)) BENCH.push(u);
+  rowForget(u);                   // 控えに下げた人は戻す対象から外す
   addLog(`${u.name} を配置から外した`,'l-sys');
 }
 function unitAt(side,slot){ return U.find(u=>u.side===side&&u.slot===slot); }
@@ -2982,7 +3024,16 @@ function pay(u,c){
    1行 = [対象] の [条件] のとき → [行動]
    上から順に判定し、最初に成立した行を実行する。
    ========================================================= */
-const SUBJ={self:'自分',ally:'味方',foe:'敵'};
+/* ガンビットの「対象」。列を指定できる。
+   物理を上げるバフは殴りに行く前衛へ、魔力を上げるバフは後衛へ、と分けたい。
+   ★ 列の指定は**そのまま**の意味 ★
+   「味方前衛」に誰も居なければ、その行は不成立になって次の行へ落ちる。
+   reachable の「前列が空なら後列を狙う」ような繰り上げはしない。
+   繰り上がると「前衛だけ」と書いたのに後衛へ飛ぶことになり、指示と食い違う。 */
+const SUBJ={self:'自分',ally:'味方',allyF:'味方前衛',allyB:'味方後衛',
+            foe:'敵',foeF:'敵前衛',foeB:'敵後衛'};
+const subjSide=s=>(s==='self'||s==='ally'||s==='allyF'||s==='allyB')?'own':'opp';
+const isAllySubj=s=>subjSide(s)==='own';
 /* 行で選んだスキルが「何を掛けるものか」。掛けないものなら null で、
    その場合は条件が今までどおり「どれか1つでも」の意味になる。 */
 /* ★ 照合は「鍛えても変わらない呼び名」で行う ★
@@ -3065,6 +3116,28 @@ function traitGambits(u){
   if(hasT(u,'steal')) g.push({subj:'foe',cond:'has_buff',cnt:1,act:'attack'});
   return g;
 }
+/* ★ 強化・弱体の既定の宛先を列で分ける ★
+   攻撃を上げても後衛はほとんど殴らないし、魔力を上げても前衛は魔法を撃たない。
+   「味方」のままだと狙われ率で選ぶので、そのどちらも起きていた。
+
+     攻撃（atk）・守り（def/mdf）・回避（eva） … 殴る／殴られるのは前衛
+     魔力（mat）                              … 撃つのは後衛
+
+   速さ（spd）や命中（acc）のように列で決まらないものは、今までどおり。
+   両方に掛かるもの（atk と mat の同時強化）は、列を決めずに「味方」へ倒す。 */
+const FRONT_STATS=new Set(['atk','def','mdf','eva']);
+const BACK_STATS =new Set(['mat']);
+function statSubj(sp,own){
+  // 全体スキルは列に関係なく全員へ飛ぶ。条件の対象まで狭めると、
+  // 「前衛は弱体済みだが後衛はまだ」という盤面で撃たなくなる
+  if(sp.scope==='all')return null;
+  const ss=bStats(sp);
+  const f=ss.some(s=>FRONT_STATS.has(s)), b=ss.some(s=>BACK_STATS.has(s));
+  if(f&&b) return own?'ally':'foe';        // 両取りのものは列で絞らない
+  if(b)    return own?'allyB':'foeB';
+  if(f)    return own?'allyF':'foeF';
+  return null;                             // 速さなど。呼び側の既定に任せる
+}
 /* スキル1つに対する既定の行。装備でスキルが増えた時もここを使い回す。 */
 function rowForSpell(sp,act){
   if(!sp)return null;
@@ -3077,8 +3150,10 @@ function rowForSpell(sp,act){
                                           :{subj:'foe',cond:'hp_le50',cnt:1,act};
     case 'ail':    return {subj:'foe', cond:'no_ail', cnt:1,act};
     case 'evade':  return {subj:'self',cond:'hp_le75',cnt:1,act};
-    case 'buff':   return {subj:'self',cond:'no_buff',cnt:1,act};
-    case 'debuff': return {subj:'foe', cond:'no_deb', cnt:1,act};
+    // 強化は「上げた数字を実際に使う列」へ。決められないものは今までどおり自分へ
+    case 'buff':   return {subj:statSubj(sp,true) ||'self',cond:'no_buff',cnt:1,act};
+    // 弱体は鏡写し。攻撃を下げるなら殴ってくる前衛、魔力を下げるなら撃ってくる後衛
+    case 'debuff': return {subj:statSubj(sp,false)||'foe', cond:'no_deb', cnt:1,act};
   }
   return null;
 }
@@ -3115,14 +3190,18 @@ function resyncGambits(u,before){
     u.gambits=u.gambits.filter(g=>!isTR(g));
     const want=traitGambits(u);
     if(want.length){
-      const i=u.gambits.findIndex(g=>g.subj!=='ally');     // 回復行の直後へ
+      const i=u.gambits.findIndex(g=>!isAllySubj(g.subj)); // 回復行の直後へ
       u.gambits.splice(i<0?u.gambits.length:i,0,...want);
     }
   }
 }
 function poolFor(u,subj){
   if(subj==='self') return u.alive?[u]:[];
-  return subj==='ally'?aliveOf(u.side):aliveOf(u.side==='ally'?'foe':'ally');
+  const side=isAllySubj(subj)?u.side:(u.side==='ally'?'foe':'ally');
+  const all=aliveOf(side);
+  if(subj==='allyF'||subj==='foeF') return all.filter(isFront);
+  if(subj==='allyB'||subj==='foeB') return all.filter(t=>!isFront(t));
+  return all;
 }
 function weightedPick(list){
   const w=list.map(targetWeight), s=w.reduce((a,b)=>a+b,0); let r=R(s);
@@ -3344,9 +3423,12 @@ function abortLoop(){
   if(resolveCmd){ const r=resolveCmd; resolveCmd=null; r({cmd:'guard'}); }
   if(NET.cmdResolve){ NET.cmdResolve=null; }
 }
+
 async function loop(){
   const gen=++loopGen;
   running=true;
+  // 戦闘の頭の並びを控える。以降どう動かされても、決着したらここへ戻す
+  if(!SIM){ LIVEPOS=LIVEBASE||rowSnapshot(); LIVEBASE=null; }
   openingHooks();                // いきなり系。仕切り直すまで1回だけ飛ぶ
   while(running&&gen===loopGen){
     if(endCheck())break;
@@ -3398,7 +3480,16 @@ async function loop(){
     endTurn(u,{attacked});
     render(); netSync(false); await sleep(160);
   }
-  if(gen===loopGen){ running=false; current=null; render(); netSync(true); }
+  if(gen===loopGen){
+    running=false; current=null;
+    /* 決着した時だけ戻す。中断（abortLoop）は gen がずれるのでここへ来ない。
+       対戦中は相手の盤面と食い違うので触らない。 */
+    if(!SIM&&battleResult&&!NET.matched){
+      const n=rowRestore();
+      if(n) addLog(`隊列を戦闘前の並びに戻した（${n}人）`,'l-sys');
+    }
+    render(); netSync(true);
+  }
 }
 /* info.silent … 眠っていた手番。個性を一切動かさず、毒とバフの時間だけ進める。 */
 function endTurn(u,info){
@@ -4067,7 +4158,23 @@ function renderGambits(u){
   let blocked=-1;   // ここより下は絶対に判定されない
   u.gambits.forEach((g,i)=>{ if(blocked<0&&g.cond==='always'&&(+g.cnt||1)===1
     &&(g.act==='attack'||g.act==='guard')) blocked=i; });
-  host.innerHTML=u.gambits.map((g,i)=>`<div class="grow${blocked>=0&&i>blocked?' dead':''}" data-i="${i}">
+  /* ★ 向きが食い違う行はその場で言う ★
+     味方へ使うスキルに「敵」を指定しても、条件は通るのに対象が0件で落ちる。
+     ログにも何も残らないので、**組んだ本人にだけ分からない**という形になる。
+     列（前衛・後衛）を選べるようになって、この取り違えは起きやすくなった。 */
+  const rowWarn=g=>{
+    if(!g.act||!g.act.startsWith('sp'))return '';
+    const sid=allSpells(u)[+g.act[2]];
+    if(!sid||sid==='none')return 'この枠にスキルがありません';
+    const sp=SP[sid]; if(!sp||sp.scope==='all')return '';   // 全体スキルは対象の指定を使わない
+    const want=isAllySpell(sp)?'own':'opp';
+    if(subjSide(g.subj)===want)return '';
+    return `${spName(sp,u)} は${want==='own'?'味方':'敵'}へ使うスキルです。`
+          +`いまの対象（${SUBJ[g.subj]}）では一度も成立しません`;
+  };
+  const warns=u.gambits.map((g,i)=>({i,w:rowWarn(g)})).filter(x=>x.w);
+  const badSet=new Set(warns.map(x=>x.i));
+  host.innerHTML=u.gambits.map((g,i)=>`<div class="grow${blocked>=0&&i>blocked?' dead':''}${badSet.has(i)?' bad':''}" data-i="${i}">
       <span class="gno">${i+1}</span>
       ${sel('subj',g.subj,subjOpts)}<span class="gsep">の</span>
       ${sel('cond',g.cond,condOpts)}<span class="gsep">が</span>
@@ -4075,6 +4182,7 @@ function renderGambits(u){
       ${sel('act',g.act,actOpts)}
       <span class="gbtns"><button data-g="up" title="上へ">▲</button><button data-g="dn" title="下へ">▼</button><button data-g="del" title="削除">×</button></span>
     </div>`).join('')
+    +warns.map(x=>`<div class="warn">${x.i+1}行目：${x.w}</div>`).join('')
     +(blocked>=0?`<div class="warn">${blocked+1}行目が常に成立するため、それより下の行は判定されません。▲で上に移動してください。</div>`:'')
     +`<div class="grow last"><span class="gno">—</span><span class="hint">上の行が全て不成立なら「たたかう」</span></div>`;
   host.querySelectorAll('.grow[data-i]').forEach(row=>{
@@ -4165,6 +4273,7 @@ function matchBlocked(){
 function resetSide(side){
   if(matchBlocked())return;
   abortLoop(); closeEditor();
+  rowRestore();          // 途中で止めた場合はここが隊列を戻す受け皿になる
   const n=Math.max(1,U.filter(u=>u.side===side).length);
   U=U.filter(u=>u.side!==side);
   BENCH=BENCH.filter(u=>u.side!==side);
@@ -4178,9 +4287,10 @@ function resetSide(side){
 function healAll(){
   if(matchBlocked())return;
   abortLoop(); closeEditor();
+  const back=rowRestore();      // 決着前に押した時のための戻し
   newBattleState();
   U.forEach(u=>{ u.name=u.name0||u.name; resetUnit(u); });
-  logs=[]; addLog('敵味方を全回復（編成はそのまま）','l-turn');
+  logs=[]; addLog(`敵味方を全回復（編成はそのまま${back?'／隊列も戦闘前へ戻した':''}）`,'l-turn');
   render(); renderLog(); loop();
   if(typeof saveLocal==='function') saveLocal();
 }
@@ -8448,6 +8558,14 @@ async function playManual(resume){
     /* 中断から戻ってきた時は、手番の頭の状態を書き戻して
        控えてあった行動をそのまま実行する。乱数も戻すので結果は変わらない。 */
     if(resume){ mApply(resume); MRESUME=mDeCmd(resume.cmd||{cmd:'guard'}); }
+    /* ★ 隊列の基準は「出撃時の編成」★
+       連戦の2戦目や中断復帰では盤面の現在位置から始まるので、
+       そのまま控えると**押し出された位置が基準になってしまう。**
+       封筒に控えてある members の枠を、そのまま次の基準として渡す。 */
+    LIVEBASE=S.men.map(u=>{
+      const m=(S.rep.members||[]).find(x=>x&&typeof x==='object'&&x.gid===u.gid);
+      return {u,slot:(m&&m.slot!=null)?m.slot:u.slot};
+    });
     MBATTLE=true; MSNAP=null;
     render(); renderLog();
     await loop();
@@ -8471,6 +8589,7 @@ async function playManual(resume){
   }catch(e){ console.error('手動依頼で例外',e); }
   finally{
     U=sU; BENCH=sB; auto=sAuto; paused=sPaused; SIM=sSIM; SIMPOS=sPOS; logs=sLogs; speedF=sSpd;
+    LIVEBASE=null;                 // 途中で落ちても検証盤へ持ち越さない
     abortLoop();
     MBATTLE=false; MSNAP=null; MRESUME=null; mBattleClear();
     document.body.classList.remove('replaying','manualplay');
