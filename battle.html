@@ -4162,13 +4162,11 @@ function openEditor(u){
           return `<div class="slot"><label>${lb}</label>
             ${FROZEN?`<span class="fixv${it?'':' pk-none'}">${nm}</span>`
                     :`<button class="pk${it?'':' pk-none'}" data-eq="${s}" data-pkid="e${s}">${nm}</button>`}
-            ${dup?'<span class="duptag">付与だけ重複で無効（装備そのものは効いています）</span>':''}</div>
+            ${dup?'':''}</div>
           <div class="tdesc" data-ed="${s}">${invDescText(it,{dupBonus:dup})}</div>`;}).join('')}
         ${FROZEN?'':`<div class="seghint"><b>候補に出るのは所持していて、誰も着けていないものだけ</b>です。
           武器にはスキル、防具には個性が<b>生成時に確定で</b>付いていることがあり、どちらも本人の3枠とは<b>別枠</b>です
           （最大で個性4・スキル4）。<br>
-          <b>既に持っているものが付いた場合は付与の側が無効</b>になり、取り消し線で表示されます。
-          <b>無効になるのは付与だけで、装備そのものの数値はそのまま効きます。</b>
           付与スキルの着脱に合わせて<b>オート行動も自動で増減</b>します。</div>
         <div class="cmds"><button class="btn" id="rollEq">所持品から着け直す</button>
           <button class="btn" id="clrEq">装備を外す</button>
@@ -4176,11 +4174,6 @@ function openEditor(u){
         :'<div class="tdesc">魔物は装備できません。</div>'}
 
       <div class="sechead">オート行動（上の行から順に判定し、最初に成立した行を実行）</div>
-      <div class="seghint"><b>強化・弱体・状態異常の条件は、その行で選んだスキルと同じものだけを見ます。</b>
-        「弱体化がない → ハソギ」なら<b>ハソギが掛かっていない相手</b>が対象で、
-        ワソギが掛かっていても構いません。状態異常も同じで、毒が付いていても眠りは掛けにいきます。<br>
-        <b>スキル以外の行動（たたかう・ぼうぎょ）では、今までどおり「どれか1つでもあるか」</b>を見ます
-        （《奪取》の「相手が強化されている時にたたかう」はこちら）。</div>
       <div id="gambits"${FROZEN?' class="frozen"':''}></div>
       ${FROZEN?'':`<div class="cmds">
         <button class="btn" id="addG">＋ 行を追加（先頭へ）</button>
@@ -6733,10 +6726,9 @@ const TUT=[
     「失敗した時の画面」で新しい施設を教えることになる。
     洞窟の調査は**必ず負傷者を連れ帰る**ので、達成という良い場面で寺院へ送り込める。 */
  {id:'rescue',  t:'洞窟の奥を調べよう！',
-  h:'「依頼を見る」→「洞窟の調査」の <b>受ける</b> → <b>送り出す</b> → <b>報告を聞く</b>'
-   +'（すでに療養中の仲間がいれば、この手順は済んだことになります）'},
+  h:'「依頼を見る」→「洞窟の調査」の <b>受ける</b> → <b>送り出す</b> → <b>報告を聞く</b>'},
  {id:'temple',  t:'傷を治そう！',
-  h:'「寺院」→ 療養中の仲間の <b>治療</b>（金か宝石。待てば時間でも明けます）'},
+  h:'「寺院」→ 療養中の仲間をGOLDか宝石を使って <b>治療</b>しよう。'},
 ];
 const tutStep=()=>(G&&G.tut&&+G.tut.step)||0;
 const tutCur =()=>(G&&G.tut&&tutStep()<TUT.length)?TUT[tutStep()]:null;
@@ -6744,8 +6736,8 @@ function tutDone(id){
   const c=tutCur(); if(!c||c.id!==id)return;
   G.tut.step=tutStep()+1; G.gems+=1;
   GMSG=(G.tut.step>=TUT.length)
-    ? `チュートリアルはここまで。あとは自由に回してください（宝石 ${G.gems}）`
-    : `「${c.t}」を達成。宝石を1つ受け取った（${G.gems}）`;
+    ? `チュートリアルはここまで。あとは自由に回してください`
+    : `「${c.t}」を達成。宝石を1つ受け取った`;
   saveGuild();
 }
 
@@ -8141,8 +8133,7 @@ function gQuest(){
         q.key?'<i class="gtag k-key">キー</i>':''}${
         questCondText(q)?`<i class="gmust">${questCondText(q)}</i>`:''}${
         q.manual?'<i class="gman">手動戦闘</i>':''}</b>
-        <i>報酬 ${q.gold.toLocaleString()}G${q.sec?`　／　時給 ${goldPerHour(q).toLocaleString()}G`:''}</i><br>
-        ${ft?`<span class="qfirst">初回達成報酬　<b>${ft}</b></span><br>`:''}
+        <i>報酬 ${q.gold.toLocaleString()}G</i><br>
         <span class="rsub">${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
         <span class="rsub">${questFoeText(q)}　／　${foeSummary(q)}　／　<span data-st="${stId}">${st}</span></span></span>
       <span class="rbtn">
@@ -8376,18 +8367,11 @@ function gDispatch(o,free){
     <div class="gtodo">${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}<br>
       敵：${questFoeText(q)}（${foeSummary(q)}）${
         questWaves(q).length>1?`　<b>回復なし</b>`:''}　／
-      所要 ${fmtDur(q.sec)}　／　報酬 ${q.gold.toLocaleString()}G${
-        q.sec?`（時給 ${goldPerHour(q).toLocaleString()}G）`:''}<br>
-      倒れた仲間の療養は依頼の長さに比例します。
-      失敗で <b>${fmtDur(Math.round(Math.max(30,q.sec)*1.5))}</b>、成功でも ${fmtDur(Math.round(Math.max(30,q.sec)*0.5))}。</div>
-    ${(!cleared(q)&&firstText(q))?`<div class="qfirst big">初回達成報酬　<b>${firstText(q)}</b>
-      <i>1度きりです。2回目以降は通常の報酬だけになります。</i></div>`:''}
+      所要 ${fmtDur(q.sec)}　／　報酬 ${q.gold.toLocaleString()}G<br></div>
     ${q.manual?`<div class="warn"><b>この依頼は手動戦闘です。</b>
       現地に着いたら「指揮を執る」から、あなた自身がコマンドを選んで戦います。
       ${q.hero?'<b>主人公のいる部隊しか出せません。</b>':''}
       結果の予想はオート行動で回したものなので、手で指揮すれば変わります。</div>`:''}
-    <div class="seghint">相手の顔ぶれは<b>掲示された時点で確定しています</b>が、
-      詳しい内訳までは分かりません。<b>結果を予想する</b>で測ってください。</div>
     ${questCondText(q)?`<div class="warn"><b>編成の条件：${questCondText(q)}</b>
       　下の一覧には、条件を満たす部隊だけが並んでいます。</div>`:''}
     <div class="sechead">送り出す部隊</div>
@@ -9167,11 +9151,11 @@ function gTemple(){
       <span class="rpos">療養</span>
       <span class="rmain"><b>${gEsc(u.name)}</b><i>${u.clsName}</i><br>
         <span class="rsub">あと <b class="gleft" data-until="${u.healAt}">—</b> で自然に明ける</span></span>
-      <span class="rbtn"><b class="gprice">${cost(u).toLocaleString()}G</b>
-        ${btnOr(G.gold>=cost(u),'<button data-a="heal">治療</button>',
+      <span class="rbtn">
+        ${btnOr(G.gold>=cost(u),`<button data-a="heal">${cost(u).toLocaleString()}Gで治療</button>`,
           `金が ${(cost(u)-G.gold).toLocaleString()}G 足りません`)}
         ${btnOr(G.gems>=skipCost(u.healAt-now()),
-          `<button data-a="gem">宝石${skipCost(u.healAt-now())}</button>`,
+          `<button data-a="gem">宝石${skipCost(u.healAt-now())}で治療</button>`,
           `宝石${skipCost(u.healAt-now())}（いま ${G.gems}）`)}</span>
       </div>`).join('')||'<div class="tdesc">療養中の仲間はいません。</div>'}</div>`;
   b.querySelectorAll('.rrow').forEach(r=>{
@@ -9913,7 +9897,7 @@ function arenaGrant(won){
 
   const gem=1+(won?2:0);
   G.gems+=gem;
-  got.push(`宝石を <b>${gem}</b> 個受け取った。${won?'（勝利のぶん +2）':''}`);
+  got.push(`宝石を <b>${gem}</b> 個受け取った。`);
 
   S.got=got; S.won=won;
   S.p.report=null; S.p.arena=false; S.p.returnAt=null;
