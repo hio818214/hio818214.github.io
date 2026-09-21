@@ -7488,7 +7488,10 @@ const unitChips=u=>`<span class="gchips">${traitChips(u)}${spellChips(u)}${eqChi
 const unitTip=u=>`【${u.name}】${u.clsName}`
   +`　個性: ${allTraits(u).filter(t=>t!=='none').map(t=>TRAITS[t].name).join('・')||'なし'}`
   +`　スキル: ${spellsOf(u).map(id=>spName(SP[id],u)).join('・')||'なし'}`;
-const partyBusy=p=>!!p.questId;
+/* ★ 出払っているか ★ 依頼だけでなく**闘技場も**ここで見る。
+   ここを直し忘れると、闘技場へ出した部隊が「待機中」扱いになって
+   編成・解散ができてしまう（装備を持ち出しているので割り込ませてはいけない）。 */
+const partyBusy=p=>!!(p.questId||p.arena);
 /* 1人が同時に2つの部隊へ入ることはない。所属は常に1つだけ。 */
 const partyOf=u=>G.parties.find(p=>partyHas(p,u.gid))||null;
 /* 報告を聞く前の部隊にいるか。**開封前は負傷を見せない** —
@@ -7559,7 +7562,7 @@ function renderGuild(){
   const ret=G.parties.filter(p=>p.report).length;
   const offers=(G.offers||[]).filter(o=>!G.parties.some(p=>p.offerId===o.oid)).length;
   const hurt=G.roster.filter(showHurt).length;   // 開封前の負傷は数に入れない
-  const idle=G.parties.filter(p=>!p.questId&&!p.report).length;
+  const idle=G.parties.filter(p=>!partyBusy(p)&&!p.report).length;
   /* ★ 「洞窟の奥を調べよう」の逃げ道 ★
      初回達成報酬は一度きりなので、この案内が出る前に洞窟の調査を済ませていると
      二度と達成できず、案内がそこで止まってしまう。
@@ -7681,7 +7684,7 @@ function syncRecallButtons(){
   if(!G)return;
   document.querySelectorAll('button[data-a="skip"][data-pid]').forEach(btn=>{
     const p=G.parties.find(x=>x.pid==btn.dataset.pid);
-    if(!p||p.questId)return;                    // まだ出ている。そのまま
+    if(!p||p.questId||p.arena)return;           // まだ出ている。そのまま
     if(!p.report){ btn.remove(); return; }      // 帰ったが報告も無い（＝待機中）。ボタンごと消す
     const nb=document.createElement('button');
     nb.dataset.a='rep';
@@ -7693,7 +7696,7 @@ function syncRecallButtons(){
      ボタンだけ直すと、隣の文と食い違って見える。 */
   document.querySelectorAll('[data-st]').forEach(el=>{
     const p=G.parties.find(x=>x.pid==el.dataset.st);
-    if(!p||p.questId||!p.report)return;
+    if(!p||p.questId||p.arena||!p.report)return;
     const t=`${gEsc(p.name)} ${repPending(p.report)?'が現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}`;
     if(el.innerHTML.indexOf(t)<0) el.innerHTML=`<b class="gwait">${t}</b>`;
   });
@@ -7841,7 +7844,7 @@ function gParty(){
   /* ★ こちらの入力を待っている部隊を最上段へ ★
      報告（と手動依頼の指揮）は、押すまで先に進まない。
      待たせている側を下に埋もれさせない。並び順は報告待ち → 出払い中 → 待機中。 */
-  const prio=p=>p.report?0:(p.questId?1:2);
+  const prio=p=>p.report?0:(partyBusy(p)?1:2);
   const list=G.parties.slice().sort((a,b)=>prio(a)-prio(b));
   b.innerHTML=`<h2>部隊</h2>
     <div class="rlist">${list.map(row).join('')}</div>
@@ -9578,7 +9581,11 @@ function arenaCid(){
   return G.cid;
 }
 const arenaKey=p=>arenaCid()+':'+p.pid;
-const arenaBusy=p=>!!(p.arena||(p.report&&p.report.arena));
+const arenaBusy=p=>!!(p.arena||(p.report&&p.report.arena)||ARENA_SENDING.has(p.pid));
+/* ★ 送信中の目印は p に持たせない ★
+   G.parties は保存されるので、送信の途中で閉じると「送信中」のまま固まる。
+   一時的な状態なのでメモリにだけ置く。 */
+const ARENA_SENDING=new Set();
 
 /* ---- 通信 ----
    ★ text/plain で送ること ★
@@ -9660,11 +9667,15 @@ function arenaBout(men,foes,n){
 
 /* ---- 出撃 ---- */
 async function arenaSend(p){
-  if(GSUB)return;
+  if(GSUB||ARENA_SENDING.size)return;
   const men=partyUnits(p);
   if(!men.length){ GMSG='この部隊には誰もいません。'; renderGuild(); return; }
   if(men.some(injured)){ GMSG='療養中の仲間がいるので出せません。'; renderGuild(); return; }
-  GSUB=true; GMSG='闘技場へ登録しています…'; renderGuild();
+  /* ★ 押した瞬間に「出場中」側へ移してボタンを消す ★
+     GSUB だけだと二重送信は止まるが、**ボタンは押せる姿のまま残る**。
+     押しても何も起きないボタンは置かない決まりなので、先に見た目を変える。 */
+  ARENA_SENDING.add(p.pid);
+  GSUB=true; GMSG=''; renderGuild();
   try{
     await arenaPost({action:'enter',pid:arenaKey(p),cid:arenaCid(),rev:ARENA_REV,
                      name:p.name,json:arenaSerParty(p)});
@@ -9674,6 +9685,7 @@ async function arenaSend(p){
   }catch(e){
     GMSG=`通信に失敗したので再度試してください（${gEsc(String(e.message||e))}）`;
   }finally{
+    ARENA_SENDING.delete(p.pid);
     GSUB=false; saveGuild(); renderGuild();
   }
 }
@@ -9854,7 +9866,7 @@ function gArena(){
     b.innerHTML=`<h2>闘技場</h2><div class="gtodo">中堅ギルドになると開きます。</div>`;
     return;
   }
-  const idle=G.parties.filter(p=>!p.questId&&!arenaBusy(p)&&!p.report&&partyUnits(p).length);
+  const idle=G.parties.filter(p=>!partyBusy(p)&&!p.report&&partyUnits(p).length);
   const out =G.parties.filter(arenaBusy);
   b.innerHTML=`<h2>闘技場</h2>
     <div class="gtodo">他のギルドの部隊とすれ違いで戦います。
@@ -9862,9 +9874,11 @@ function gArena(){
       報酬は<b>勝敗に関わらず 仲間1人・付与付きの装備1つ・宝石1個</b>。<b>勝てば宝石がさらに2個。</b></div>
     ${out.length?`<div class="sechead">出場中</div>`+out.map(p=>`<div class="rrow" data-p="${p.pid}">
       <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub">${
-        p.report?'<b class="gwait">帰還済み — 報告待ち</b>'
+        ARENA_SENDING.has(p.pid)?'<b class="gwait">闘技場へ登録しています…</b>'
+        :p.report?'<b class="gwait">帰還済み — 報告待ち</b>'
                 :`残り <b class="gleft" data-until="${p.returnAt}">—</b>`}</span></span>
-      <span class="rbtn">${p.report?'<button data-a="rep" data-pid="'+p.pid+'">報告を聞く</button>'
+      <span class="rbtn">${ARENA_SENDING.has(p.pid)?''
+        :p.report?'<button data-a="rep" data-pid="'+p.pid+'">報告を聞く</button>'
         :btnOr(G.gems>=skipCost(p.returnAt-now()),
           `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`,
           `呼び戻すには宝石${skipCost(p.returnAt-now())}（いま ${G.gems}）`)}</span></div>`).join(''):''}
@@ -9875,8 +9889,9 @@ function gArena(){
         <span class="rmain"><b>${gEsc(p.name)}</b><br>
           <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
             u.slot<3?'前':'後'}${gEsc(u.name)}</span>`).join('・')}</span></span>
-        <span class="rbtn">${btnOr(!men.some(injured),
-          '<button data-a="go">出場する</button>','療養中の仲間がいます')}</span></div>`;}).join('')
+        <span class="rbtn">${ARENA_SENDING.size?'<span class="rwhy">登録中です</span>'
+          :btnOr(!men.some(injured),
+            '<button data-a="go">出場する</button>','療養中の仲間がいます')}</span></div>`;}).join('')
       : '<div class="tdesc">待機中の部隊がありません。</div>'}`;
   b.querySelectorAll('.rrow').forEach(row=>{
     row.querySelectorAll('[data-a]').forEach(el=>{
