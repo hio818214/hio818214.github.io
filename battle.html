@@ -9603,11 +9603,7 @@ function arenaCid(){
   return G.cid;
 }
 const arenaKey=p=>arenaCid()+':'+p.pid;
-const arenaBusy=p=>!!(p.arena||(p.report&&p.report.arena)||ARENA_SENDING.has(p.pid));
-/* ★ 送信中の目印は p に持たせない ★
-   G.parties は保存されるので、送信の途中で閉じると「送信中」のまま固まる。
-   一時的な状態なのでメモリにだけ置く。 */
-const ARENA_SENDING=new Set();
+const arenaBusy=p=>!!(p.arena||(p.report&&p.report.arena));
 
 /* ---- 通信 ----
    ★ text/plain で送ること ★
@@ -9696,30 +9692,21 @@ function arenaBout(men,foes,n){
 }
 
 /* ---- 出撃 ---- */
-async function arenaSend(p){
-  if(GSUB||ARENA_SENDING.size)return;
+/* ---- 出撃 ----
+   ★ 通信しない ★
+   以前はここで enter（自部隊の預け入れ）を送っていたが、
+   **出撃中は編成も装備も凍っている**（partyBusy）ので、
+   出撃時に送るデータと報告時に送るデータは1バイトも変わらない。
+   報告時の open にまとめたので、ここは圏外でも通る。 */
+function arenaSend(p){
+  if(GSUB)return;
   const men=partyUnits(p);
   if(!men.length){ GMSG='この部隊には誰もいません。'; renderGuild(); return; }
   if(men.some(injured)){ GMSG='療養中の仲間がいるので出せません。'; renderGuild(); return; }
-  /* ★ 押した瞬間に「出場中」側へ移してボタンを消す ★
-     GSUB だけだと二重送信は止まるが、**ボタンは押せる姿のまま残る**。
-     押しても何も起きないボタンは置かない決まりなので、先に見た目を変える。 */
-  ARENA_SENDING.add(p.pid);
-  GSUB=true; GMSG=''; renderGuild();
-  try{
-    /* guild / name はシートを人が見る時のための列。
-       クライアントが読むのは json の中（そちらが元）。 */
-    await arenaPost({action:'enter',pid:arenaKey(p),cid:arenaCid(),rev:ARENA_REV,
-                     guild:(G.name||''),name:p.name,json:arenaSerParty(p)});
-    p.arena=true; p.questId=null; p.offerId=null; p.report=null;
-    p.returnAt=now()+ARENA_SEC*1000;
-    GMSG=`${gEsc(p.name)} を闘技場へ送り出した。`;
-  }catch(e){
-    GMSG=`通信に失敗したので再度試してください（${gEsc(String(e.message||e))}）`;
-  }finally{
-    ARENA_SENDING.delete(p.pid);
-    GSUB=false; saveGuild(); renderGuild();
-  }
+  p.arena=true; p.questId=null; p.offerId=null; p.report=null;
+  p.returnAt=now()+ARENA_SEC*1000;
+  GMSG=`${gEsc(p.name)} を闘技場へ送り出した。`;
+  saveGuild(); renderGuild();
 }
 
 /* ---- 帰還（checkReturns から呼ぶ）----
@@ -9774,13 +9761,26 @@ async function gArenaStart(p){
     p.report.fought=false; p.report.arenaFoes=null;
   }
 
-  say('通信中…(1/3)');
+  say('通信中…(1/2)');
   let list=[];
   try{
-    const j=await arenaPost({action:'top',rev:ARENA_REV,cid:arenaCid(),n:ARENA_FOES});
+    /* ★ enter と top を1往復にまとめてある（open）★
+       自部隊を預けて、そのまま対戦相手を受け取る。
+       guild / name はシートを人が見る時のための列で、
+       クライアントが読むのは json の中（そちらが元）。 */
+    const j=await arenaPost({action:'open',rev:ARENA_REV,
+      pid:arenaKey(p),cid:arenaCid(),guild:(G.name||''),name:p.name,
+      json:arenaSerParty(p),n:ARENA_FOES});
     list=j.foes||[];
-    /* 誰もいなければ自分自身と戦う。**最初の1件はこれで埋まる。** */
-    if(!list.length) list=[{pid:arenaKey(p),name:p.name+'（写し）',json:arenaSerParty(p),self:true}];
+    /* 誰もいなければ自分自身と戦う。**最初の1件はこれで埋まる。**
+       ★ 名前は json の中を書き換える ★
+       表示は arenaBuildAll が json の party を読むので、
+       行の name だけ変えても「（写し）」が出ない。 */
+    if(!list.length){
+      const mine=JSON.parse(arenaSerParty(p));
+      mine.party=p.name+'（写し）';
+      list=[{pid:arenaKey(p),name:mine.party,json:JSON.stringify(mine)}];
+    }
   }catch(e){ return fail(e); }
 
   const built=arenaBuildAll(list);
@@ -9790,14 +9790,14 @@ async function gArenaStart(p){
   /* --- A系統：裏で 10部隊×10戦 --- */
   const results=[];
   for(let i=0;i<built.length;i++){
-    say(`通信中…(2/3)`);
+    say(`対戦中…`);
     await new Promise(r=>setTimeout(r,0));      // 描き直す隙を作る（100戦で固まらせない）
     const b=built[i];
     const r=arenaBout(men,b.units,ARENA_BOUTS);
     results.push({pid:b.pid,win:r.lose,lose:r.win});   // ★相手から見た勝敗に反転する
   }
 
-  say('通信中…(3/3)');
+  say('通信中…(2/2)');
   try{ await arenaPost({action:'result',rev:ARENA_REV,results}); }
   catch(e){ return fail(e); }
 
@@ -9951,11 +9951,10 @@ function gArena(){
       報酬は<b>勝敗に関わらず 仲間1人・付与付きの装備1つ・宝石1個</b>。<b>勝てば宝石がさらに2個。</b></div>
     ${out.length?`<div class="sechead">出場中</div>`+out.map(p=>`<div class="rrow" data-p="${p.pid}">
       <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub">${
-        ARENA_SENDING.has(p.pid)?'<b class="gwait">闘技場へ登録しています…</b>'
-        :p.report?'<b class="gwait">帰還済み — 報告待ち</b>'
+        p.report?'<b class="gwait">帰還済み — 報告待ち</b>'
                 :`残り <b class="gleft" data-until="${p.returnAt}">—</b>`}</span></span>
-      <span class="rbtn">${ARENA_SENDING.has(p.pid)?''
-        :p.report?'<button data-a="rep" data-pid="'+p.pid+'">報告を聞く</button>'
+      <span class="rbtn">${
+        p.report?'<button data-a="rep" data-pid="'+p.pid+'">報告を聞く</button>'
         :btnOr(G.gems>=skipCost(p.returnAt-now()),
           `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`,
           `呼び戻すには宝石${skipCost(p.returnAt-now())}（いま ${G.gems}）`)}</span></div>`).join(''):''}
@@ -9966,9 +9965,8 @@ function gArena(){
         <span class="rmain"><b>${gEsc(p.name)}</b><br>
           <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
             u.slot<3?'前':'後'}${gEsc(u.name)}</span>`).join('・')}</span></span>
-        <span class="rbtn">${ARENA_SENDING.size?'<span class="rwhy">登録中です</span>'
-          :btnOr(!men.some(injured),
-            '<button data-a="go">出場する</button>','療養中の仲間がいます')}</span></div>`;}).join('')
+        <span class="rbtn">${btnOr(!men.some(injured),
+          '<button data-a="go">出場する</button>','療養中の仲間がいます')}</span></div>`;}).join('')
       : '<div class="tdesc">待機中の部隊がありません。</div>'}`;
   b.querySelectorAll('.rrow').forEach(row=>{
     row.querySelectorAll('[data-a]').forEach(el=>{
