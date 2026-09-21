@@ -9795,7 +9795,7 @@ function gArenaPick(){
     ${S.foes.map((f,i)=>`<div class="aparty" data-af="${i}">
       <div class="ahead">
         <span class="amain">${f.guild?`<i>${gEsc(f.guild)}</i>`:''}<b>${gEsc(f.party)}</b></span>
-        <button data-a="pick">戦う</button>
+        <button class="btn sm" data-a="pick">戦う</button>
       </div>
       ${f.units.map(u=>`<div class="aunit">
         <span class="apos${u.slot<3?' f':''}">${u.slot<3?'前':'後'}</span>
