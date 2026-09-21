@@ -7633,7 +7633,11 @@ function renderGuild(){
       <a href="${location.pathname}?sim">→ 検証盤へ</a>
       　<a href="${location.pathname}">→ 検証用表示を外す</a>
     </div>`:''}`;
-  host.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{ GVIEW=b.dataset.g; GMSG=''; renderGuild(); });
+  host.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{
+    /* 闘技場の結果を見たあとメニューで移った場合、ARENA が残って
+       次の部隊の「報告を聞く」が無反応になる。済んだものはここで捨てる。 */
+    if(ARENA&&ARENA.got) arenaClear();
+    GVIEW=b.dataset.g; GMSG=''; renderGuild(); });
   /* 検証用。待ち時間も戦闘もなしで、入手だけを起こす。 */
   const dbg=(id,fn)=>{ const el=$(id); if(el) el.onclick=()=>{ fn(); saveGuild(); renderGuild(); }; };
   const dbgJoin=rare=>{
@@ -9729,8 +9733,21 @@ function arenaArrive(p){
 }
 
 /* ---- 報告を聞く（DL → A → UL → B）---- */
+/* 闘技場の後始末。**押しても無反応**を作らないよう、必ずここを通す。 */
+function arenaClear(){ ARENA=null; ARENA_INV=null; GSUB=false; }
+/* いま本当に処理中か（通信・戦闘・相手選び・再生の最中）。
+   済んだ結果が残っているだけの状態と区別する。 */
+const arenaRunning=()=>!!(ARENA&&!ARENA.got);
+
 async function gArenaStart(p){
-  if(ARENA)return;
+  /* ★ 黙って return しない ★
+     1部隊目の ARENA が残っていると2部隊目の「報告を聞く」が無反応になっていた。
+     終わっているだけなら捨てて進む。本当に処理中なら理由を出す。 */
+  if(arenaRunning()){
+    GMSG='いま別の部隊の対戦を処理しています。そちらを終えてからにしてください。';
+    renderGuild(); return;
+  }
+  if(ARENA) arenaClear();
   const men=(p.report.members||[]).map((m,i)=>{
     const u=G.roster.find(x=>x.gid===m.gid); if(!u)return null;
     u.slot=m.slot==null?i:m.slot; u.side='ally'; return u;
@@ -9740,9 +9757,20 @@ async function gArenaStart(p){
   GSUB=true; GMSG=''; ARENA={p,men,step:'dl'};
   renderGuild();
   const say=t=>{ const b=$('#gbody'); if(b) b.innerHTML=`<h2>闘技場</h2><div class="gtodo">${t}</div>`; };
-  const fail=e=>{ ARENA=null; ARENA_INV=null; GSUB=false;
+  const fail=e=>{ arenaClear();
     GMSG=`通信に失敗したので再度試してください（${gEsc(String(e&&e.message||e))}）`;
     renderGuild(); };
+
+  /* ★ A（通信と100戦）が済んでいるなら、やり直さない ★
+     相手選びの途中で別の画面へ移られると、ここへ戻ってきた時に
+     **DL→100戦→UL をもう一度やって相手の戦績を二重に書いて**しまう。
+     済んだ印と相手3部隊を封筒に控えてあるので、そこから B だけ再開する。 */
+  if(p.report.fought&&Array.isArray(p.report.arenaFoes)&&p.report.arenaFoes.length){
+    const again=arenaBuildAll(p.report.arenaFoes);
+    if(again.length){ ARENA={p,men,step:'pick',foes:again}; gArenaPick(); return; }
+    // 読めなくなっていたら作り直すしかない。印を消してやり直す
+    p.report.fought=false; p.report.arenaFoes=null;
+  }
 
   say('通信中…(1/3)');
   let list=[];
@@ -9772,7 +9800,13 @@ async function gArenaStart(p){
   catch(e){ return fail(e); }
 
   /* --- B系統：上位3部隊から選ばせる --- */
-  ARENA={p,men,step:'pick',foes:built.slice(0,ARENA_PICK)};
+  const foes=built.slice(0,ARENA_PICK);
+  /* ここまでで通信は全部終わり。**もう一度やってはいけない**ので印を残す。
+     相手3部隊（約7KB）も控えて、画面を離れても選び直せるようにする。 */
+  p.report.fought=true;
+  p.report.arenaFoes=foes.map(f=>({pid:f.pid,name:f.name,json:f.json}));
+  saveGuild();
+  ARENA={p,men,step:'pick',foes};
   gArenaPick();
 }
 
@@ -9895,7 +9929,7 @@ function gArenaResult(){
       <button class="btn" id="aAgain">もう一度見る</button>
       <button class="btn" id="aDone">閉じる</button></div>`;
   $('#aAgain').onclick=()=>arenaPlay(false);
-  $('#aDone').onclick=()=>{ ARENA=null; ARENA_INV=null; GSUB=false; GMSG=''; renderGuild(); };
+  $('#aDone').onclick=()=>{ arenaClear(); GMSG=''; renderGuild(); };
 }
 
 /* ---- 画面 ---- */
