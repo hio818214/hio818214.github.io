@@ -1053,7 +1053,9 @@ juso:{name:'呪詛',cat:'死亡後',desc:'倒れる時、敵全体に防御力-2
     t.forEach(a=>addBuff(a,{label:'呪詛',stat:['def','mdf'],value:-0.25,turns:3,kind:'debuff',gen:1},s));}},
 tensei:{name:'転生',cat:'死亡後',desc:'1度だけ、HP50%・素早さ+30%の別形態で復活する。',
   death(s,c){ if(c.unit!==s||s.cnt.tensei)return; s.cnt.tensei=1; c.revive=true;
-    s.alive=true; s.hp=Math.round(s.maxHp*0.5); s.name='真'+s.name; s.ct=time+10000/stat(s,'spd');
+    /* ★ 素の名前から組む ★ s.name に足すと、連戦で2度転生した時に「真真◯◯」になる。
+       carryOver が cnt を消すので、波をまたげばもう一度転生できる（不屈・主人公補正と同じ扱い）。 */
+    s.alive=true; s.hp=Math.round(s.maxHp*0.5); s.name='真'+(s.name0||s.name); s.ct=time+10000/stat(s,'spd');
     addBuff(s,{label:'転生',stat:'spd',value:0.30,turns:99,kind:'buff',gen:1,noSpread:true},s);
     proc(s,'tensei','別形態として転生した');}},
 
@@ -2480,6 +2482,11 @@ function newUnit(side,slot){
 }
 function resetUnit(u){
   refreshVitals(u);                       // 強靭・叡智を反映してから満タンにする
+  /* ★ 転生の「真」を落とす ★
+     carryOver は名前を戻さないので、**連戦の間は真◯◯のまま**残る（これは意図どおり）。
+     依頼が終われば resetUnit を通るので、ギルドの名簿には素の名前で戻る。
+     name0 が本当の名前で、name は戦闘中だけ動く表示名。 */
+  u.name=u.name0||u.name;
   u.gunshiMp=0;                           // maxMpを職業から組み直したので《軍資》の控えも消す
   u.carried=false;                        // 持ち越しではない＝連戦の1戦目
   u.hp=u.maxHp; u.mp=u.maxMp; u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0;
@@ -8367,6 +8374,8 @@ async function playRound(){
   }catch(e){ console.error('再生で例外',e); }
   finally{
     U=sU; BENCH=sB; auto=sAuto; paused=sPaused; SIM=sSIM; SIMPOS=sPOS; logs=sLogs; speedF=sSpd;
+    // 再生で転生した「真◯◯」を名簿へ持ち帰らない（読み終わったこの時点で戻す）
+    S.men.forEach(u=>{ u.name=u.name0||u.name; });
     abortLoop();
     document.body.classList.remove('replaying');
     $('#rvbar').hidden=true;
