@@ -3000,6 +3000,16 @@ const hasAilLike=(t,sp)=>{
   const k=ailKeyOf(sp);
   return k?!!t.ail[k]:Object.keys(t.ail).length>0;
 };
+/* ★ 味方へ向くスキルの種別 ★
+   同じ列挙を3か所（AIの対象選び・手動戦闘の対象選び・範囲スキルの表示）に手で書いていて、
+   **MP回復（mp）だけ3か所とも漏れていました。**
+   そのため マナーヤ・魔薬 の行は「味方の中から敵を探す」ことになり、
+   候補が必ず0件 → 行が不成立 → たたかう に落ちていました。
+   手動戦闘では敵を選ばされ、範囲版を作れば「敵全体」と表示されるところでした。
+   種別を足すたびに3か所直す形だったのが原因なので、ここ1か所に集約します。 */
+const ALLY_SPELL=new Set(['heal','buff','cure','evade','mp']);
+const isAllySpell=sp=>!!sp&&ALLY_SPELL.has(sp.type);
+
 const CONDS=[
  {id:'always',   label:'常時',                 test:()=>true},
  {id:'hp_full',  label:'HPが全快',             test:t=>hpR(t)>=1},
@@ -3120,6 +3130,9 @@ function weightedPick(list){
   return list[list.length-1];
 }
 const lowestHp=l=>l.reduce((a,b)=>hpR(b)<hpR(a)?b:a);
+/* MP回復の相手は「割合でいちばん減っている人」。絶対値で見ると最大MPの大きい術者が埋もれる。 */
+const mpR=t=>t.maxMp?t.mp/t.maxMp:1;
+const lowestMp=l=>l.reduce((a,b)=>mpR(b)<mpR(a)?b:a);
 const strongest=l=>l.reduce((a,b)=>stat(b,'atk')>stat(a,'atk')?b:a);
 
 function evalGambit(u,row){
@@ -3150,12 +3163,13 @@ function evalGambit(u,row){
   }
   const sp=rowSp; if(!sp)return null;
   if(!canPay(u,mpCost(u,sp))||!canCast(u,sp))return null;   // 封魔なら魔法の行は飛ばす
-  const wantAlly=['heal','buff','cure','evade'].includes(sp.type);
+  const wantAlly=isAllySpell(sp);
   if(sp.scope==='all') return {cmd:'spell',sp};
   let cand=hit.filter(t=>wantAlly?t.side===u.side:t.side!==u.side);
   if(isPhysSingle(sp)) cand=cand.filter(t=>canReach(u,t));   // 単体特技も列に縛られる
   if(!cand.length)return null;
   const t = (sp.type==='heal'||sp.type==='cure') ? lowestHp(cand)
+          : (sp.type==='mp')                     ? lowestMp(cand)
           : (sp.type==='buff'||sp.type==='evade') ? strongest(cand)
           : weightedPick(cand);
   return {cmd:'spell',sp,target:t};
@@ -3612,13 +3626,13 @@ function renderCmd(u){
       // 範囲スキルも「押しただけで発動」にはしない。単体と同じく一度止めて説明を出す。
       // multi（黒馬突）は対象を選ばず届く範囲から自動で取るので、こちら側で扱う。
       const to=sp.multi?`届く範囲の${sp.multi}体`
-        :(['heal','buff','cure','evade'].includes(sp.type)?'味方全体':'敵全体');
+        :(isAllySpell(sp)?'味方全体':'敵全体');
       return confirmAction(u,'sp:'+sp.id,()=>send({cmd:'spell',sp}),
         {el:b,title:spName(sp,u),
          desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／<b>${to}</b>／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`});
     }
     const phys=isPhysSingle(sp);
-    chooseTarget(u,['heal','buff','cure','evade'].includes(sp.type)?MY():OP(),
+    chooseTarget(u,isAllySpell(sp)?MY():OP(),
       t=>send({cmd:'spell',sp,target:t}),
       {el:b,title:spName(sp,u),
        desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／単体／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`
@@ -5331,9 +5345,11 @@ let GVIEW='party', GMSG='';
    上限は**枠ごとに独立**なので、中堅でも部隊枠だけ据え置きという選び方ができる。
    「認可は下りているが、どこへ使うかは自分で決める」という形にしたかった。
 
-   ★ 装備枠は常に仲間枠の2倍より多い ★
-   全員が武器と防具を着けた状態（＝仲間×2）で、なお選り好みできる余地を残す。
-   base/step をいじってもこの規則が破れないよう、invCap 側で底上げしている。
+   ★ 枠どうしは干渉しない ★
+   以前は「装備枠は常に仲間枠の2倍より多い」という底上げを invCap に入れていたが、
+   それだと倉庫枠が仲間枠に飲まれて**買っても増えない枠**になっていた（→ invCap のコメント）。
+   いまは4枠とも独立で、買った枠だけが伸びる。
+   そのぶん「仲間は増えたが装備が置けない」は起こりうる。それが倉庫枠を買う動機になる。
    ========================================================= */
 const RANKS=[
   {n:'無名ギルド',     extCap:0,  hint:'看板も出していない。'},
@@ -5344,7 +5360,9 @@ const RANKS=[
   {n:'伝説のギルド',   extCap:Infinity, hint:'名は大陸中に知れている。もう誰も止めない。'},
 ];
 /* 枠ごとの基準値と1回あたりの伸び。
-   部隊は1ずつ、仲間は10ずつ、装備は20ずつ（＝仲間×2を割らない刻み）。 */
+   部隊は1ずつ、仲間は10ずつ、倉庫は20ずつ。
+   初期値は 仲間10人・倉庫20個＝**ちょうど全員が武器と防具を1つずつ**で余りが無い。
+   ここから片方だけ伸ばすと必ず歪むようにしてある。 */
 const EXT_DEF={
   parties:{n:'部隊枠',  base:1,  step:1},
   roster: {n:'仲間枠',  base:10, step:10},
@@ -5393,9 +5411,17 @@ const maxRoster=()=>extValue('roster');
 const QMAX_TIER=6;
 const maxTierOf=rank=>Math.min(QMAX_TIER,Math.max(0,rank|0)+1);
 const maxTier=()=>maxTierOf(rankIdx());
-/* 装備の上限。検証盤（G が無い）では従来どおり INV_MAX。
-   仲間枠の2倍＋4 を下回らないよう、ここで底上げする。 */
-const invCap=()=>(GUILD&&G)?Math.max(extValue('inv'),maxRoster()*2+4):INV_MAX;
+/* 装備の上限。検証盤（G が無い）では INV_MAX（拡張の概念が無いので固定）。
+
+   ★ 以前は「仲間枠×2+4 を下回らない」底上げが掛かっていた ★
+   だが底上げの初項が 24、倉庫枠の初項が 20 だったので**底上げが最初から勝って**おり、
+   倉庫枠を仲間枠と同じ回数しか買っていない限り、倉庫枠の素の値は一度も表に出なかった。
+   実際には「仲間枠を買うと倉庫も+20ついてくる」「倉庫枠は1,000G払って+0」という状態で、
+   拡張の4枠目が**金を捨てるだけのボタン**になっていた。底上げを外して独立させた。
+
+   代わりに **仲間枠だけ伸ばすと装備が置けなくなる**（仲間30人・倉庫20個など）。
+   これは意図した選択で、倉庫枠を買う理由がここに生まれる。 */
+const invCap=()=>(GUILD&&G)?extValue('inv'):INV_MAX;
 
 /* --- 上限にぶつかった時 ---
    ★ 黙って消さない ★ 何も出ないと「報酬が出なかった」と読めてしまう。
@@ -8541,10 +8567,8 @@ function gAdmin(){
     const d=EXT_DEF[k], lv=extLv(k), left=extLeft(k);
     // まだ開いていない枠は行ごと出さない。**あることすら伏せる**
     if(!extOpen(k)) return '';
-    // 倉庫は仲間枠×2+4 の底上げが掛かるので、次の値もその規則を通して出す
-    const rawNext=d.base+d.step*(lv+1);
-    const nextVal=(k==='inv')?Math.max(rawNext,maxRoster()*2+4)
-                 :(k==='roster')?rawNext:rawNext;
+    // 4枠とも独立になったので、次の値は素直に base+step*(lv+1)
+    const nextVal=d.base+d.step*(lv+1);
     const cost=extCost(lv), can=canBuyExt(k);
     const money=left<=0?'<b class="gng">認可の上限です</b>'
       :can?`<b class="gok">${cost.toLocaleString()}G</b>`
