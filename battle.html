@@ -147,6 +147,9 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 /* 重複して無効になった枠。消さずに「引きが無駄になった」ことを見せる */
 .tchip.dup,.schip.dup{opacity:.35;border-style:dashed;text-decoration:line-through}
 .pk.dup{opacity:.5;border-style:dashed;text-decoration:line-through}
+/* 装備の「付与だけ」が死んでいる時。装備そのものの数値は生きているので、
+   名前ではなく付与の部分にだけ線を引く（→ §F-33） */
+.dupb{opacity:.5;text-decoration:line-through}
 .sp.dup{opacity:.35;border-style:dashed}
 .duptag{color:var(--foe);font-size:10px;margin-left:4px}
 /* 編集できない値。押せるものと押せないものを見た目で分ける */
@@ -1992,21 +1995,38 @@ function spellSlots(u){
 }
 const allSpells=u=>spellSlots(u).map(x=>x.live?x.id:'none');
 
-/* 個体の表示名。付与があれば併記する（同じ種類でも中身が違うため） */
+/* 装備の**付与だけ**が重複で死んでいるか。
+   武器の攻撃や防具の防御はそのまま効いているので、これは付与に限った話。 */
+function eqBonusDead(u,slot){
+  if(!u)return false;
+  if(slot==='w'){ const x=spellSlots(u)[3]; return !!(x&&x.id&&x.id!=='none'&&!x.live); }
+  const x=traitSlots(u).find(y=>y.src==='eq'); return !!(x&&!x.live);
+}
+
+/* 個体の表示名。付与があれば併記する（同じ種類でも中身が違うため）
+
+   ★ 取り消し線は付与の部分だけ ★
+   付与が重複で無効になっても、**装備そのものの数値は効いている。**
+   名前ごと消すと「この装備は着けるだけ無駄」と読めてしまう。
+   opt.dupBonus を渡した時だけ、付与に <s> を巻く。
+   data-tip のような**属性へ入れる時は渡さない**こと（タグが壊れる）。 */
 const invBonusText=it=>!it?'':(it.spell?`スキル《${SP[it.spell]?spBase(SP[it.spell]):it.spell}》`
   :it.trait?`個性《${TRAITS[it.trait]?TRAITS[it.trait].name:it.trait}》`:'');
-function invName(it){
+function invName(it,opt){
   const d=invDef(it); if(!d)return '— なし —';
   const b=invBonusText(it);
-  return d.n+(b?` ＋${b}`:'');
+  if(!b) return d.n;
+  return d.n+' ＋'+((opt&&opt.dupBonus)?`<s class="dupb">${b}</s>`:b);
 }
 /* 呼び出し側が既に効果値を出しているなら {noStats:true} で省く。
-   同じ数字を1画面に二度出さないため。 */
+   同じ数字を1画面に二度出さないため。
+   dupBonus は**素のテキスト**なので、属性の中でも使える。 */
 function invDescText(it,opt={}){
   const d=invDef(it); if(!d)return EQ.none.desc;
   const sp=it.spell&&SP[it.spell], tr=it.trait&&TRAITS[it.trait];
-  const b=sp?`　付与スキル: ${spBase(sp)} — ${spText(sp)}`
-        :tr?`　付与個性: 《${tr.name}》${tr.desc}`
+  const dead=opt.dupBonus?'【重複のため無効】':'';
+  const b=sp?`　付与スキル: ${dead}${spBase(sp)} — ${spText(sp)}`
+        :tr?`　付与個性: ${dead}《${tr.name}》${tr.desc}`
         :'';
   return (opt.noStats?'':eqStatText(d)+'　')+d.desc+b;
 }
@@ -3589,7 +3609,8 @@ function unitHTML(u){
     : '<span class="tchip off">個性なし</span>';
   const eq=eqOn(u)
     ? `<div class="traits eqrow">${[['w','⚔'],['a','🛡']].map(([s,ic])=>{ const it=eqItem(u,s); const d=invDef(it);
-        return d?`<span class="echip" data-tip="【${invName(it)}】${invDescText(it)}">${ic}${d.n}</span>`:'';}).join('')}</div>`
+        // 属性の中なのでタグは入れられない。素のテキストで断る方を使う
+        return d?`<span class="echip" data-tip="【${invName(it)}】${invDescText(it,{dupBonus:eqBonusDead(u,s)})}">${ic}${d.n}</span>`:'';}).join('')}</div>`
     : '';
   const ss=spellSlots(u).filter(x=>x.id&&x.id!=='none');
   const spells=ss.length
@@ -3997,16 +4018,20 @@ function openEditor(u){
       <div class="sechead">装備${canEquip(u)?'':'（人間職のみ・この職業は装備できません）'}</div>
       ${canEquip(u)?`
         ${[['w','武器'],['a','防具']].map(([s,lb])=>{ const it=eqItem(u,s);
+          /* ★ 取り消し線は付与にだけ ★ 装備そのものの数値は生きている。
+             だから dup を**ボタンのクラスには付けない**（名前ごと消えてしまう）。 */
           const dup=s==='w'?(eqS&&eqS.id!=='none'&&!eqS.live):(eqT&&!eqT.live);
+          const nm=invName(it,{dupBonus:dup});
           return `<div class="slot"><label>${lb}</label>
-            ${FROZEN?`<span class="fixv${it?'':' pk-none'}${dup?' dup':''}">${invName(it)}</span>`
-                    :`<button class="pk${it?'':' pk-none'}${dup?' dup':''}" data-eq="${s}" data-pkid="e${s}">${invName(it)}</button>`}
-            ${dup?'<span class="duptag">付与が重複のため無効</span>':''}</div>
-          <div class="tdesc" data-ed="${s}">${invDescText(it)}</div>`;}).join('')}
+            ${FROZEN?`<span class="fixv${it?'':' pk-none'}">${nm}</span>`
+                    :`<button class="pk${it?'':' pk-none'}" data-eq="${s}" data-pkid="e${s}">${nm}</button>`}
+            ${dup?'<span class="duptag">付与だけ重複で無効（装備そのものは効いています）</span>':''}</div>
+          <div class="tdesc" data-ed="${s}">${invDescText(it,{dupBonus:dup})}</div>`;}).join('')}
         ${FROZEN?'':`<div class="seghint"><b>候補に出るのは所持していて、誰も着けていないものだけ</b>です。
           武器にはスキル、防具には個性が<b>生成時に確定で</b>付いていることがあり、どちらも本人の3枠とは<b>別枠</b>です
           （最大で個性4・スキル4）。<br>
-          <b>既に持っているものが付いた場合は後ろ側が無効</b>になり、取り消し線で表示されます。
+          <b>既に持っているものが付いた場合は付与の側が無効</b>になり、取り消し線で表示されます。
+          <b>無効になるのは付与だけで、装備そのものの数値はそのまま効きます。</b>
           付与スキルの着脱に合わせて<b>オート行動も自動で増減</b>します。</div>
         <div class="cmds"><button class="btn" id="rollEq">所持品から着け直す</button>
           <button class="btn" id="clrEq">装備を外す</button>
@@ -4224,8 +4249,8 @@ function openViewer(u){
       <div class="sechead">スキル</div>
       ${list(spellsOf(u),id=>`<div class="tdesc"><b>${spName(SP[id],u)}</b>（${skillKind(SP[id])}・MP${mpCost(u,SP[id])}・${scopeLabel(SP[id])}） — ${spText(SP[id],u)}</div>`)}
       ${eqOn(u)?`<div class="sechead">装備</div>
-        ${[['w','武器'],['a','防具']].map(([s,lb])=>{const it=eqItem(u,s);
-          return it?`<div class="tdesc"><b>${invName(it)}</b>（${lb}） — ${invDescText(it)}</div>`:'';}).join('')}`:''}
+        ${[['w','武器'],['a','防具']].map(([s,lb])=>{const it=eqItem(u,s); const dup=eqBonusDead(u,s);
+          return it?`<div class="tdesc"><b>${invName(it,{dupBonus:dup})}</b>（${lb}） — ${invDescText(it,{dupBonus:dup})}</div>`:'';}).join('')}`:''}
       <div class="seghint">対戦中は相手のユニットを編集できません。</div>
     </div></div></div>`;
   $('#closeM').onclick=closeEditor;
@@ -5232,7 +5257,12 @@ function renderInv(){
   const rows=INV.slice().sort((x,y)=> (x.slot===y.slot?0:(x.slot==='w'?-1:1)) || x.iid-y.iid );
   list.innerHTML=rows.map(it=>{
     const d=invDef(it), by=equippedBy(it.iid);
-    const b=invBonusText(it)?`<em>${invBonusText(it)}</em>`:'<span class="rnone">付与なし</span>';
+    // 持ち主が既に同じものを持っていると、この付与だけが死ぬ（装備の数値は効く）
+    const dead=by?eqBonusDead(by,it.slot):false;
+    const b=invBonusText(it)
+      ? `<em${dead?' class="dupb"':''}>${invBonusText(it)}</em>`
+        +(dead?'<span class="rnone">（持ち主と重複のため無効）</span>':'')
+      : '<span class="rnone">付与なし</span>';
     return `<div class="rrow${by?' dep':''}" data-iid="${it.iid}">
       <span class="rpos">${it.slot==='w'?'武器':'防具'}</span>
       <span class="rmain">
@@ -6454,9 +6484,23 @@ function guildUnit(clsId,opt={}){
    ★ 種を先に固定してから作る ★
    こうすると「同じ種 → 同じ敵 → 同じ戦闘」になり、報告の再生が成立する。 */
 function makeFoes(list){
+  /* ★ 通し番号は「同じ種族が2体以上いる時」だけ ★
+     以前は並び順の i をそのまま付けていたので、
+     ゴブリン・スケルトン・リッチ が「ゴブリン／スケルトン 2／リッチ 3」になっていた。
+     種類が違えば名前で見分けられるので、番号を出す理由が無い。
+     数え方と表記（Ⅱ Ⅲ…）は検証盤の monsterName に揃える。
+     ROMAN[0] は空文字なので、1体だけの種族は自動的に素の名前になる。
+
+     ★ 数えるのは先読みせず、作りながら ★
+     ROMAN[0] が空なので「1体目は素、2体目から Ⅱ」が数えるだけで出る。
+     先に全部のクラスを確定させる書き方もあるが、未知IDの pick(MONSTERS) が
+     乱数を1つ進めるので、**引く順番が変わって再生とずれる**。ここは触らない。 */
+  const seen={};
   return list.map((cid,i)=>{
     const cls=CLS[cid]||pick(MONSTERS);
-    const u=makeUnit('foe',i,cls,cls.n+(i?' '+(i+1):''));
+    const same=seen[cls.id]||0; seen[cls.id]=same+1;
+    const nm=cls.n+(same?' '+(ROMAN[same]||(same+1)):'');
+    const u=makeUnit('foe',i,cls,nm);
     u.traits=rollTraits(cls); u.equip=null; u.gambits=defaultGambits(u);
     refreshVitals(u); resetUnit(u); return u;
   });
@@ -7286,7 +7330,7 @@ function spellChips(u){
 }
 function eqChips(u){
   return ['w','a'].map(s=>{ const it=eqItem(u,s); if(!it)return '';
-    return `<span class="echip" data-tip="【${invName(it)}】${invDescText(it)}">${
+    return `<span class="echip" data-tip="【${invName(it)}】${invDescText(it,{dupBonus:eqBonusDead(u,s)})}">${
       s==='w'?'⚔':'🛡'}${invDef(it).n}</span>`; }).join('');
 }
 const unitChips=u=>`<span class="gchips">${traitChips(u)}${spellChips(u)}${eqChips(u)}</span>`;
