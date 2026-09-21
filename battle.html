@@ -905,6 +905,32 @@ const R=n=>rnd()*n, RI=n=>Math.floor(rnd()*n);
 const pick=a=>a[RI(a.length)], clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const SN={atk:'攻撃',def:'防御',mat:'魔力',mdf:'魔防',spd:'素早',eva:'回避',acc:'命中'};
 
+/* =========================================================
+   説明文（desc）の用語ルール ── 個性・スキルを足す時は必ずこれに合わせる
+
+   ★ 言葉は「コードのどこを触っているか」で決まる ★
+
+     攻撃   … ステータスの攻撃だけ      stat(u,'atk') / {stat:'atk'}
+     魔力   … ステータスの魔力だけ      stat(u,'mat') / {stat:'mat'}
+     威力   … 攻撃と魔力へ同値          mod が atk と mat を両方返すもの / ampMult
+     ダメージ … 相手のHPへの最終的な増減  outgoing / incoming / dealt の c.dmg
+     防御   … ステータスの防御だけ      {stat:'def'}
+     魔防   … ステータスの魔防だけ      {stat:'mdf'}
+     防御力 … 防御と魔防へ同値          mod が def と mdf を両方返すもの
+
+   ・ステータス名は**画面の表記（上の SN）と同じ字**を使う。
+     「攻撃力」「防御力」を単独ステータスの意味では使わない
+   ・**行動としての攻撃**は必ず「通常攻撃」「その攻撃」と書き、ステータスと読み分ける
+   ・数値は **% に一本化**。「倍」を許すのは
+       狙われ率（臆病0.35倍・挑発3倍）と 支払いコスト（生命転用の2倍）だけ。
+     「割」は使わない
+   ・スキルの係数は **攻撃×1.5 / 魔力×1.7** の形。「威力50%」とは書かない
+
+   ★ スキルの desc に数字を直接書かない ★
+   ${power} ${hits} のように埋め込み、spText が実数へ差し替える（→ spNum / SP_LEVELED）。
+   レベルで数字が変わるので、直接書くと Lv2 以降で嘘になる。
+   ========================================================= */
+
 /* 個性が「効いた」ことを記録する。チップを光らせ、集計の発動回数を数える。
    ログを出さない地味な効果（軽減・適応・蓄勢など）もここを通すので、
    集計の数字が実態と合う。
@@ -1201,6 +1227,9 @@ iotoshi:  killer('iotoshi','射落とし','飛行'),
 fujigari: killer('fujigari','不死狩り','不死'),
 kemonogari:killer('kemonogari','獣狩り','獣'),
 ishikudaki:killer('ishikudaki','石砕き','無機'),
+/* 竜を獣から切り離した時に足した。タグが1つ増えたら特効も1つ増やす、で揃えている。
+   該当は3体（ドレイク・ワイバーン・古竜）で、無機・植物と同じくらいの狭さ。 */
+ryugoroshi:killer('ryugoroshi','竜殺し','竜'),
 
 /* ---------- いきなり（戦闘開始時） ---------- */
 sakigake:{name:'先駆け',cat:'開幕',desc:'戦闘開始時、自分の威力+40%（3ターン）。',
@@ -1360,8 +1389,10 @@ koukatsu:{name:'狡猾',cat:'専用',needs:'goblin',
     if(stat(c.target,'atk')>=stat(s,'atk'))return;
     c.dmg*=1.30; c.tags.push('狡猾'); fire(s,'koukatsu');}},
 
-ryuurin:{name:'竜鱗',cat:'専用',needs:'wyvern',
-  desc:'1回に受けるダメージが最大HPの12%を超えない。大技ほど効く。ワイバーン専用。',
+/* ★ ドレイクには渡していない ★ needs を '竜' にすると幼竜まで壁になる。
+   HP520に12%上限＝1発62では、難度2〜3の編成では抜けない。種族idで絞る。 */
+ryuurin:{name:'竜鱗',cat:'専用',needs:['wyvern','wyrm'],
+  desc:'1回に受けるダメージが最大HPの12%を超えない。大技ほど効く。ワイバーンと古竜のみ。',
   incoming(s,c){ if(c.target!==s)return;
     const cap=Math.max(1,Math.round(s.maxHp*0.12));
     if(c.dmg<=cap)return;
@@ -1619,9 +1650,11 @@ const SPELLS=[
   desc:'同じ対象へ攻撃×${power}を${hits}回。命中判定も${hits}回行う。'},
  {id:'taiatari',name:'体当たり',kind:'art',type:'atk',scope:'one',mp:6, power:1.3,recoil:0.1,
   desc:'対象へ攻撃×${power}。反動で与えたダメージの${recoil}を自分も受ける。'},
- {id:'kamitsuki',name:'噛みつき',kind:'art',type:'atk',scope:'one',mp:7,power:1.45,needs:'獣',
+ /* ワイバーンから獣を外したので、牙と爪は竜にも開けてある。
+    これが無いと、ワイバーンが**自分の候補から噛みつきを失う**。 */
+ {id:'kamitsuki',name:'噛みつき',kind:'art',type:'atk',scope:'one',mp:7,power:1.45,needs:['獣','竜'],
   desc:'対象へ攻撃×${power}。牙を持つ者の一撃。'},
- {id:'tsumesaki',name:'爪裂き', kind:'art',type:'atk',scope:'one',mp:8, power:0.7,hits:2,needs:['獣','飛行'],
+ {id:'tsumesaki',name:'爪裂き', kind:'art',type:'atk',scope:'one',mp:8, power:0.7,hits:2,needs:['獣','飛行','竜'],
   desc:'同じ対象へ攻撃×${power}を${hits}回。爪や鉤爪を持つ者の技。'},
  {id:'otakebi', name:'雄たけび',kind:'art',type:'atk',scope:'one',mp:10,power:1.2,ail:'rest',needs:'mandra',
   desc:'対象へ攻撃×${power}。命中すると相手の体勢を崩して休み状態にする。マンドラゴラ専用。'},
@@ -1649,8 +1682,10 @@ const SPELLS=[
   desc:'攻撃×${power}。列を無視して後列を直接狙える。ゴブリン専用。'},
  {id:'fuiuchi', name:'不意打ち',kind:'art',type:'atk',scope:'one',mp:10,power:1.6,frontHalf:true,needs:'goblin',
   desc:'攻撃×${power}。ただし自分が前列にいると攻撃×${frontPower}になる。後列から刺す技。ゴブリン専用。'},
- {id:'obigeki', name:'尾撃',kind:'art',type:'atk',scope:'all',mp:16,power:0.6,needs:'wyvern',
-  desc:'敵全体へ攻撃×${power}。数少ない範囲物理。ワイバーン専用。'},
+ /* 尾は竜なら誰にでもある。急降下は**飛び込む技**なのでワイバーンに残す
+    （古竜も飛ぶが、あれは速さ36で急降下する体型ではない）。 */
+ {id:'obigeki', name:'尾撃',kind:'art',type:'atk',scope:'all',mp:16,power:0.6,needs:'竜',
+  desc:'敵全体へ攻撃×${power}。数少ない範囲物理。竜だけが使う。'},
  {id:'kyuukouka',name:'急降下',kind:'art',type:'atk',scope:'one',mp:14,power:2.0,selfRest:true,needs:'wyvern',
   desc:'攻撃×${power}の大技。撃つと自分が休み状態になり、次の手番を失う。ワイバーン専用。'},
  {id:'horobi',  name:'ホロビ',kind:'magic',type:'atk',scope:'all',mp:20,ratio:0.12,needs:'lich',
@@ -1693,9 +1728,13 @@ const SPELLS=[
  {id:'kizugusuri',name:['傷薬','上傷薬','秘伝の傷薬'],
   kind:'art',type:'heal',scope:'one',mp:8, flat:[0.25,0.33,0.42],alwaysHit:true,needs:'ap',
   desc:'味方単体のHPを、その人の最大HPの${flat}ぶん回復する。使い手の魔力には左右されない。薬師専用。'},
- {id:'gedoku',   name:'解毒薬',kind:'art',type:'cure',scope:'one',mp:10,alwaysHit:true,needs:'ap',
+ /* ★ 名前だけ1つずつ繰り上げた ★
+    単体版は「解毒薬」なのに毒以外も解除していて、効果と名前が食い違っていた。
+    単体＝万能薬、全体＝みんなに万能薬（全体魔法の「ミナ」と同じ考え方）。
+    id は gedoku / bannou のまま。**保存データがスキルidで持っている**ので変えられない。 */
+ {id:'gedoku',   name:'万能薬',kind:'art',type:'cure',scope:'one',mp:10,alwaysHit:true,needs:'ap',
   desc:'味方単体の状態異常をすべて解除する。特技なので、封魔されていても使える。薬師専用。'},
- {id:'bannou',   name:'万能薬',kind:'art',type:'cure',scope:'all',mp:26,alwaysHit:true,needs:'ap',
+ {id:'bannou',   name:'みんなに万能薬',kind:'art',type:'cure',scope:'all',mp:26,alwaysHit:true,needs:'ap',
   desc:'味方全体の状態異常をすべて解除する。薬師専用。'},
  /* ★ 消費0のMP回復 ★
     **尽きた後に使うもの**なので、MPを払わせては意味がない（mpCost が0を返す）。
@@ -2104,7 +2143,7 @@ const CLASSES=[
     ★ 魔力20 は狙ってこの低さにしてある ★
     rollSpells は枠ごとに 攻撃² 対 魔力² で魔法か特技かを引く。
     46² 対 20² ＝ **魔法率16%** なので、ほぼ特技しか引かない。
-    薬師の持ち物（傷薬・解毒薬・万能薬）は全部特技なので、これで揃う。
+    薬師の持ち物（傷薬・万能薬・みんなに万能薬）は全部特技なので、これで揃う。
     斥候が踏んだ罠（説明は弱体役なのに魔法率19%）を、こちらは逆手に取っている。
     薬は flat なので魔力に左右されず、低くても本業の性能は落ちない。 */
  {id:'ap',n:'薬師',   c:'AP',kind:'human',hp:440,mp:60,atk:46,def:46,mat:20,mdf:58,spd:54,
@@ -2145,8 +2184,11 @@ const CLASSES=[
   desc:'単体では弱いが群れる。隣接と追撃を持ちやすい。',
   bias:{rinsetsu:22,kazu:20,koukatsu:16,tsuigeki:12,timid:9,sakigake:7,share:6},
   spN:1, spBias:{ishinage:16,fuiuchi:14,hayabusa:10,taiatari:8}},
+ /* ★ 獣 を外して 竜 にした ★
+    飛竜を獣として数えると、《獣狩り》1枚が「速い飛竜」まで見てしまう。
+    竜は竜として独立させ、ドレイク・古竜と3体で1つのタグにする。 */
  {id:'wyvern',n:'ワイバーン',   c:'WY',kind:'monster',lv:4,hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
-  tags:['獣','飛行'],
+  tags:['竜','飛行'],
   desc:'最速級の飛竜。疾走と先導で手数を稼ぐ。',
   bias:{shissou:22,ryuurin:20,kasoku:14,sakigake:12,tsuigeki:10,hitokiri:8,iatsu:6},
   spN:2, spBias:{obigeki:18,kyuukouka:16,kamitsuki:14,tsumesaki:10}},
@@ -2236,6 +2278,34 @@ const CLASSES=[
   desc:'灰から蘇る不死鳥。味方を癒やし、自らも一度だけ立ち上がる。',
   bias:{saitan:24,regen:16,seijou:14,karuwaza:12,sakigake:10,charge:8,surplus:6},
   spN:3, spBias:{hinowa:20,yomigaeri:18,fire:10,heal:8,mrally:6}},
+
+ /* ★ ここから竜が2体 ★
+    ワイバーンだけでは「竜」タグが1種族しかなく、抽選にならなかった。
+    レベル帯を散らして、低難度から高難度まで竜が出るようにする。
+      ドレイク lv2（地を這う幼竜） ／ ワイバーン lv4（速い飛竜） ／ 古竜 lv5（頂点） */
+
+ /* 竜の入り口。**まだ飛べない**ので、飛行タグを持たない唯一の竜。
+    低難度に竜を置くための駒なので、目立った仕掛けは持たせていない。
+    《竜鱗》は**渡さない**。HP520に12%上限＝1発62では、難度2〜3では抜けなくなる。 */
+ {id:'drake',n:'ドレイク',      c:'DK',kind:'monster',lv:2,hp:520,mp:24,atk:64,def:62,mat:26,mdf:38,spd:44,
+  tags:['竜','四足'],
+  desc:'まだ飛べない幼い竜。硬くて粘るが、それだけ。竜の中では唯一、空を飛ばない。',
+  bias:{mitigate:18,fukutsu:16,kanjuku:12,recoil:12,chouhatsu:10,thorns:8,shissou:6},
+  spN:1, spBias:{kamitsuki:18,tsumesaki:12,taiatari:10,obigeki:6}},
+
+ /* 竜の頂点。**ワイバーンの対極**に置いてある。
+      ワイバーン … 速い（80）・物理（攻撃82／魔力30）・脆い（HP560）
+      古竜       … 遅い（36）・両刀（攻撃74／魔力86）・重い（HP760）
+    HPと防御はゴーレム（780／92）を**超えないように**してある。
+    あちらの「全職中で最高」という立ち位置を崩さないため。
+    《竜鱗》は bias 14 で確定ではない。毎回壁になると倒し方が1つに決まってしまう。 */
+ {id:'wyrm',n:'古竜',           c:'WR',kind:'monster',lv:5,hp:760,mp:84,atk:74,def:70,mat:86,mdf:68,spd:36,
+  tags:['竜','飛行'],
+  desc:'竜の頂点。遅いが、攻撃と魔力の両方が高く、どちらで来るか読めない。'
+      +'まれに《竜鱗》を持ち、その時は大技が一切通らなくなる。',
+  // 《不動》は needs:['gargoyle','golem'] なので古竜には乗らない。追い詰められて強くなる《背水》に。
+  bias:{ryuurin:14,iatsu:18,nirami:14,mitigate:12,haisui:12,sakigake:10,shuunen:8,juso:6},
+  spN:3, spBias:{obigeki:18,inferno:16,kamitsuki:12,tsumesaki:10,blast:8,mrally:6}},
 ];
 const CLS=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
 const HUMANS   = CLASSES.filter(c=>c.kind==='human');
@@ -3025,6 +3095,15 @@ function castSpell(a,sp,target,o={}){
      下限 0.15 … 格上相手にもわずかに通る。0 にはしない
      上限 1.50 … 30% が 45% までしか伸びない。賭けは賭けのまま
 
+   ★ 入れた時に測った数字 ── 確定デバフ（ドヨド・ワソギ・マヨド等）が通る確率 ★
+                    → ゴブリン  重騎士  魔導士  僧侶
+     呪術師（魔力80）    100%   100%   100%  100%
+     指揮官（魔力52）    100%   100%    92%   86%
+     斥候  （魔力34）    100%    84%    74%   70%
+     ケルベロス（26）    100%    74%    65%   61%
+   **本職は据え置き、片手間の職だけが落ちる**という掛かり方になっている。
+   ミナマヨド（素30%）は最大でも45%（呪術師→ゴブリン）で、確定にはならない。
+
    ★ 特技は対象外 ★
    あちらは攻撃依存で、**命中判定という別の関門を既に通っている**。
    ここに魔力÷魔防まで足すと二重の壁になり、
@@ -3056,7 +3135,10 @@ function pay(u,c){
    ★ 列の指定は**そのまま**の意味 ★
    「味方前衛」に誰も居なければ、その行は不成立になって次の行へ落ちる。
    reachable の「前列が空なら後列を狙う」ような繰り上げはしない。
-   繰り上がると「前衛だけ」と書いたのに後衛へ飛ぶことになり、指示と食い違う。 */
+   繰り上がると「前衛だけ」と書いたのに後衛へ飛ぶことになり、指示と食い違う。
+
+   ⚠️ 裏返しとして、**3人編成で全員を後列に置くと攻撃バフの行が一度も成立しない。**
+   意図した動きだが気づきにくいので、少数精鋭の依頼を測る時は隊列も見ること。 */
 const SUBJ={self:'自分',ally:'味方',allyF:'味方前衛',allyB:'味方後衛',
             foe:'敵',foeF:'敵前衛',foeB:'敵後衛'};
 const subjSide=s=>(s==='self'||s==='ally'||s==='allyF'||s==='allyB')?'own':'opp';
@@ -3172,7 +3254,9 @@ function rowForSpell(sp,act){
     case 'heal':   return {subj:'ally',cond:'hp_le50',cnt:sp.scope==='all'?2:1,act};
     // MP回復は「尽きた人へ」。満タン相手に撃ち続けないよう mp_low を条件にする
     case 'mp':     return {subj:'ally',cond:'mp_low',cnt:1,act};
-    case 'cure':   return {subj:'ally',cond:'has_ail',cnt:1,act};
+    /* 全体の治療は「2人以上が掛かっている時」。1人のために全体を撃つと、
+       MP26（単体の2.6倍）を1人分に使うことになる。全体回復（heal/all）と同じ考え方。 */
+    case 'cure':   return {subj:'ally',cond:'has_ail',cnt:sp.scope==='all'?2:1,act};
     case 'atk':    return sp.scope==='all'?{subj:'foe',cond:'always',cnt:3,act}
                                           :{subj:'foe',cond:'hp_le50',cnt:1,act};
     case 'ail':    return {subj:'foe', cond:'no_ail', cnt:1,act};
@@ -3184,13 +3268,38 @@ function rowForSpell(sp,act){
   }
   return null;
 }
+/* ★ 既に作られたキャラの繕い ★
+   defaultGambits は**作った時に一度しか走らない**ので、
+   全体治療の行が抜けたまま保存されたキャラは、直しても行が生えない。
+   読み込み時に、持っているのに行が無い場合だけ足す。
+
+   足すのは**その枠を指す行が1つも無い時だけ**。
+   手で消した行を勝手に復活させないための条件で、
+   applySkillGain が新しく覚えたスキルの行を足す時と同じ判定にしてある。 */
+function fixCureAllRow(u){
+  if(!u||!u.gambits)return false;
+  const sps=allSpells(u);
+  const i=sps.findIndex(id=>id&&id!=='none'&&SP[id]&&SP[id].type==='cure'&&SP[id].scope==='all');
+  if(i<0)return false;
+  const act='sp'+i;
+  if(u.gambits.some(x=>x.act===act))return false;
+  const r=rowForSpell(SP[sps[i]],act); if(!r)return false;
+  u.gambits.unshift(r);          // 治療は先頭。後ろだと攻撃行に先を越される
+  return true;
+}
 function defaultGambits(u){
   const g=[];
   const sps=allSpells(u);      // 本人3枠＋武器1枠。重複で無効な枠は 'none' で返る
   const slot=(t,sc)=>{ const i=sps.findIndex(id=>id!=='none'&&SP[id].type===t&&(!sc||SP[id].scope===sc));
     return i<0?null:'sp'+i; };
   const add=act=>{ if(!act)return; const r=rowForSpell(SP[sps[+act[2]]],act); if(r)g.push(r); };
-  add(slot('heal','all')); add(slot('heal','one')); add(slot('cure'));
+  /* ★ 治療は全体と単体を別の行にする ★
+     以前は slot('cure') と範囲を指定せずに引いていたので、**先に見つかった枠1つ**しか行にならなかった。
+     薬師が万能薬（単体）と みんなに万能薬（全体）を両方覚えると、
+     枠の並び順しだいで全体の方が一度も撃たれない。
+     全体を上に置く。条件が「2人以上」なので、1人だけなら素通りして下の単体へ落ちる。 */
+  add(slot('heal','all')); add(slot('heal','one'));
+  add(slot('cure','all')); add(slot('cure','one'));
   g.push(...traitGambits(u));      // 個性が要求する行動を、スキルより先に置く
   add(slot('atk','all')); add(slot('ail')); add(slot('evade'));
   add(slot('buff')); add(slot('debuff')); add(slot('atk','one'));
@@ -5635,7 +5744,7 @@ const QKIND={
      ANY_MONSTER        … 全魔物
      MONSTER_TAG('飛行') … そのタグを持つ魔物すべて
      MONSTER_TAG('獣','不死') … どれかを持つ（和集合）
-     MONSTER_TAG_ALL('獣','飛行') … 全部を持つ（積集合。飛ぶ獣＝ワイバーンだけ、など）
+     MONSTER_TAG_ALL('竜','飛行') … 全部を持つ（積集合。飛ぶ竜＝ワイバーンと古竜）
 
    ★ 最後に {max:n} を付けると難度で絞れる ★
      MONSTER_TAG('人型',{max:2}) … ゴブリン・ハーピィ・スケルトン
@@ -5935,10 +6044,27 @@ const QUESTS=[
   reward:{equipChance:0.65,memberChance:0.35,memberBias:{rg:14,ar:14,tm:12},rareChance:0.3}},
  {id:'k6b',name:'暴走する牙',tier:6,kind:'horde',sec:21600,gph:158000,
   waves:[tagWave(7,'獣'),tagWave(7,'獣')],
-  desc:'**7体の獣が二度。**ワイバーンとケルベロスとケンタウロスしかいない。'
-      +'速度で押し込まれる前に何を通すか。',
+  // ワイバーンが竜へ移ったので、ここは**ケルベロスとケンタウロスの2種だけ**になった
+  desc:'**7体の獣が二度。**ケルベロスとケンタウロスしかいない。'
+      +'どちらも速く、追い詰めるほど強くなる。速度で押し込まれる前に何を通すか。',
   first:{gold:2900000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{ar:16,kn:14},rareChance:0.7}},
+
+ /* 竜の依頼。他のタグと同じく**中難度と最高難度の2本**立て。
+    k4d は max:4 で古竜（lv5）を外し、ドレイクとワイバーンだけにしてある。
+    k6d は3体そろうので、遅い壁（古竜）と速い一撃（ワイバーン）が混ざる。 */
+ {id:'k4d',name:'竜の寝床',tier:4,kind:'horde',sec:3000,gph:61000,
+  waves:[tagWave(5,'竜',{max:4})],
+  desc:'**5体すべてが「竜」。**地を這う幼竜と、空から落ちてくる飛竜。'
+      +'《竜殺し》が初めて全員に刺さる依頼。',
+  first:{gold:155000,item:true,member:true},
+  reward:{equipChance:0.65,memberChance:0.35,memberBias:{kn:14,ar:12,sw:12},rareChance:0.3}},
+ {id:'k6d',name:'古竜の谷',tier:6,kind:'horde',sec:21600,gph:160000,
+  waves:[tagWave(7,'竜'),tagWave(7,'竜')],
+  desc:'**7体の竜が二度。**古竜が混じれば《竜鱗》で大技が通らなくなる。'
+      +'一撃の大きさではなく、手数で削り切れる編成かどうかが問われる。',
+  first:{gold:3000000,item:true,member:true,rare:true},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{kn:14,sw:14,rg:12},rareChance:0.7}},
 
  {id:'k3m',name:'動く石たち',tier:3,kind:'horde',sec:1500,gph:43000,
   waves:[tagWave(5,'無機',{max:3})],
@@ -7122,6 +7248,10 @@ function guildData(){
    マージにしないのは、帰還処理まで二重に走るから。片方を止めるのがいちばん安全。
    （別ブラウザは localStorage が別なので、そもそも競合しない）
    ========================================================= */
+/* 複数タブの取り合い。保存のたびに G.rev を +1 し、storage イベントで
+   自分の知らない rev を見たタブは**操作を止める**（読み込み直させる）。
+   ★ マージにしない ★ 実時間の帰還処理まで二重に走るため。
+   別ブラウザは localStorage が別なので、そもそも競合しない。 */
 let GREV=0;        // このタブが最後に書いた版
 let GSTALE=false;  // 別のタブに追い越された
 function guildStale(){
@@ -7198,6 +7328,7 @@ function applyGuild(d){
   (d.roster||[]).forEach(o=>{ const u=buildUnit(o);
     u.gid=o.gid||(++G.gidc); u.healAt=o.healAt||0; u.hero=!!o.hero; u.side='ally';
     u.spLv=o.spLv||{};   // スキルidごとのレベル。古い保存には無いので空で始める
+    fixCureAllRow(u);    // 全体治療の行が抜けている保存を繕う（→ §F-36）
     G.gidc=Math.max(G.gidc,u.gid); G.roster.push(u); });
   // 実在しない gid と、二重所属を掃除する（過去の保存に混ざっている可能性がある）
   const live=new Set(G.roster.map(u=>u.gid));
@@ -7757,6 +7888,15 @@ function gParty(){
 
 /* 依頼の絞り込み。掲示が30件を超えるので難度と種別で切る。
    画面を出入りしても保つ（毎回やり直すほうが煩わしい）。 */
+/* 依頼一覧の絞り込み。**保存される**（saveGuild の qf）。
+
+   ⚠️ 「あの依頼が出てこない」の**いちばん多い原因がこれ**。
+   難度タブや種別チップを前回そのままにしていると次に開いた時も効いたままで、
+   しかも難度タブは種類が1つしかない時に隠れるので、**効いているのに見えない**。
+   （そのケースだけ gQuest() の頭で自己修復している）
+
+   出ない理由は4系統（ランク不足／一度きり達成済み／編成条件／絞り込み）あって
+   画面からは区別できないので、?debug の「掲示の診断」が全依頼の状態を F12 へ書き出す。 */
 let GQF={st:'all',tier:'all',kind:[],newOnly:false,keyOnly:false};
 let GPICK=null;            // 「選んでから置く」の選択中の gid
 /* 控えの絞り込み。人数が増えると一覧が長くなるので、所属と職業で絞れるようにする。
