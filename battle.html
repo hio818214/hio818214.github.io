@@ -640,7 +640,9 @@ body.mobile.guildmode .wrap{padding-bottom:0}
 body.mobile{font-size:13px}
 body.mobile .wrap{padding:0 0 66px;gap:0;max-width:none}
 body.mobile .legend{display:none}
-body.mobile .tip{display:none}
+/* 携帯でも出す。以前は display:none で**一度も読めなかった**。
+   ホバーが無い端末では、下のタップ処理だけが唯一の導線になる。 */
+body.mobile .tip{max-width:min(86vw,320px);font-size:12px;padding:9px 11px}
 /* カード上のチップはタップを飲み込まない。説明は編集画面で読む */
 body.mobile .u .tchip,body.mobile .u .schip,body.mobile .u .echip{pointer-events:none}
 
@@ -3812,13 +3814,39 @@ function showTip(el){
   TIP.style.left=Math.round(clamp(x,6,innerWidth-t.width-6))+'px';
   TIP.style.top=Math.round(y)+'px';
 }
+/* ★ タップでも出す（携帯向け） ★
+   ホバーの無い端末では data-tip が一度も読めなかった。
+
+   出すのは TIP_TAP に並べた**押しても何も起きない飾りの要素**だけ。
+   カードや行そのものの操作（編集を開く・対象を選ぶ）を奪わないよう、
+   捕捉フェーズで親へ渡さないのも、この範囲に限ってある。
+   ボタンの上では固定しない（押した結果とチップが二重に出るため）。
+
+   閉じ方は3つ： 枠外を押す／同じチップをもう一度押す／Esc。
+   スクロールでも閉じる（位置が固定なので、ついてこられない）。 */
+const TIP_TAP='.tchip,.schip,.echip,.gname,.sp';
+let TIPPIN=null;                                   // 固定中の要素。null なら従来のホバー
+const hideTip=()=>{ TIP.hidden=true; TIPPIN=null; };
+const CAN_HOVER=!window.matchMedia||matchMedia('(hover:hover)').matches;
+document.addEventListener('click',e=>{
+  const el=e.target.closest&&e.target.closest(TIP_TAP);
+  // 飾り以外を押した時は「閉じるだけ」。ボタンの処理には触らない。
+  if(!el||!el.dataset.tip||el.tagName==='BUTTON'||el.closest('button')){ hideTip(); return; }
+  // ★ 対象を選んでいる最中は選択を優先する ★
+  // ここで飲み込むと「押せるのに反応しないチップ」が生まれる。
+  if(typeof selecting!=='undefined'&&selecting){ hideTip(); return; }
+  e.stopPropagation(); e.preventDefault();
+  if(TIPPIN===el){ hideTip(); return; }             // もう一度押したら閉じる
+  TIPPIN=el; showTip(el);
+},true);
 document.addEventListener('mouseover',e=>{
+  if(!CAN_HOVER||TIPPIN)return;        // 触る端末では出さない／固定中は動かさない
   const el=e.target.closest&&e.target.closest('[data-tip]');
   if(el) showTip(el); else TIP.hidden=true;
 });
-document.addEventListener('mouseleave',()=>{TIP.hidden=true},true);
+document.addEventListener('mouseleave',()=>{ if(!TIPPIN) TIP.hidden=true; },true);
 addEventListener('scroll',e=>{
-  TIP.hidden=true;
+  hideTip();
   const t=e.target;
   if(t&&t.closest&&t.closest('.pkbox'))return;   // ピッカー内のスクロールでは閉じない
   if(typeof closePicker==='function') closePicker();
@@ -7616,7 +7644,9 @@ function gNotice(msg,opt={}){
     if(!ok){ alert(msg.replace(/<[^>]+>/g,'')); res(); }
   });
 }
-document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&DLG) DLG(); }); // 正規表現の"がコードの見た目を壊すのでコメントで入れておく
+document.addEventListener('keydown',e=>{ if(e.key!=='Escape')return;
+  if(TIPPIN){ hideTip(); return; }                 // チップが開いていれば、まずそれを閉じる
+  if(DLG) DLG(); }); // 正規表現の"がコードの見た目を壊すのでコメントで入れておく
 
 /* 個性・スキル・装備をチップで並べる。検証盤のカードと同じ見た目・同じ説明チップ。
    traitSlots / spellSlots を通しているので、**装備由来の枠も重複で無効な枠もそのまま出る**。
