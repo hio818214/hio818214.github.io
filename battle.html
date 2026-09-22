@@ -5710,6 +5710,7 @@ function gainItem(){
   INV=INV.filter(x=>x!==it);
   const g=Math.round(priceOf(it)*0.5/100)*100;
   G.gold+=g;
+  shopLog(it,'sell');           // 自動売却も供給。通信せず溜めて、次の武具屋で送る
   return {over:true,gold:g,name:invName(it),
     text:`${invName(it)} を持ち帰ったが、倉庫に入りきらず ${g.toLocaleString()}G で売り払った。`};
 }
@@ -6936,12 +6937,25 @@ const OMEN=[
 const omenOf=v=>OMEN.find(o=>v<o.n)||OMEN[OMEN.length-1];
 
 /* --- 市場 ---
-   定額から始めて売買で動かす。値札がそのまま「今みんなが何を使っているか」になる。 */
+   ★ 相場は全プレイヤーで共有する（サーバ持ち）★
+   値札がそのまま「いまみんなが何を使っているか」になる。
+   サーバが持つのは **key → 倍率** だけで、装備の中身は知らない。
+   実際の値段は base（付与あり10万・なし1万）× 倍率 でこちら側が出す。
+   **倍率が来ていない品は定額**（×1.0）。
+
+   ★ 通信は「武具屋を開いた日が、前にDLした日と違う時」だけ ★
+   同じ日なら手元の表をそのまま使う。売買はログに溜めて、次の通信で送る。 */
 const priceKey=it=>it.id+':'+(it.spell||it.trait||'-');
-const priceOf=it=>Math.round(((it.spell||it.trait)?100000:10000)*(G.price[priceKey(it)]||1)/100)*100;
-function nudgePrice(it,mul){
-  const k=priceKey(it);
-  G.price[k]=clamp((G.price[k]||1)*mul,0.5,3.0);
+const priceBase=it=>(it.spell||it.trait)?100000:10000;
+const priceMult=it=>(G.mult&&G.mult[priceKey(it)])||1;
+const priceOf=it=>Math.round(priceBase(it)*priceMult(it)/100)*100;
+/* 売買を記録する。**通信しない。**次に武具屋で通信する時にまとめて送る。
+   自動売却（倉庫あふれ）もここを通るので、圏外でも取りこぼさない。 */
+function shopLog(it,kind){
+  if(!G)return;
+  if(!G.shopLog)G.shopLog={};
+  const k=priceKey(it), e=G.shopLog[k]||(G.shopLog[k]={buy:0,sell:0});
+  e[kind]++;
 }
 function restock(){
   G.stock=[];
@@ -6952,18 +6966,36 @@ function restock(){
   }
   G.stockAt=now();
 }
-/* 相場は放っておくと定価へ戻る。売買で動いた値が永久に残ると、
-   先に始めた人だけがメタ装備を持っている状態が固定してしまう。 */
-function decayPrices(){
-  for(const k in G.price){
-    const v=1+(G.price[k]-1)*0.5;
-    if(Math.abs(v-1)<0.02) delete G.price[k]; else G.price[k]=v;
-  }
-}
 const RESTOCK_MS=3*3600000;
 function maybeRestock(){
   if(now()-(G.stockAt||0)<RESTOCK_MS)return false;
-  restock(); decayPrices(); saveGuild(); return true;
+  restock(); saveGuild(); return true;
+}
+
+/* ---- 相場の取り寄せ ----
+   ★ 1往復で済ませる ★ 溜めた売買ログを送って、そのまま相場を受け取る。
+   サーバは日をまたいでいたら**昨日ぶんを締めてから**ログを今日のぶんとして足す。
+   失敗しても手元の表で続けられるので、止めない。 */
+const shopToday=()=>{ const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const shopStale=()=>!G.shopDay||G.shopDay!==shopToday();
+let SHOPSYNC=false;
+async function shopSync(){
+  if(SHOPSYNC)return false;
+  SHOPSYNC=true;
+  const sent=G.shopLog||{};
+  const list=Object.keys(sent).map(k=>({key:k,buy:sent[k].buy|0,sell:sent[k].sell|0}));
+  try{
+    const j=await arenaPost({action:'shop',log:list});
+    G.mult=j.mult||{};
+    G.shopDay=shopToday();      // 自分の暦で持つ。サーバの日付は締めの判断にだけ使われる
+    G.shopLog={};               // 送れたぶんだけ捨てる
+    saveGuild();
+    return true;
+  }catch(e){
+    console.warn('相場の取り寄せに失敗',e);
+    return false;
+  }finally{ SHOPSYNC=false; }
 }
 
 /* --- 帰還の確認 ---
@@ -7256,7 +7288,8 @@ function guildData(){
         newOnly:!!GQF.newOnly,keyOnly:!!GQF.keyOnly},
     custom:customList().map(q=>({id:q.id,name:q.name,sec:q.sec,waves:q.waves.map(w=>w.slice())})),
     cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,cid:G.cid||'',
-    done:G.done,price:G.price,parties:G.parties,stockAt:G.stockAt,offers:G.offers,
+    done:G.done,parties:G.parties,stockAt:G.stockAt,offers:G.offers,
+    mult:G.mult||{},shopDay:G.shopDay||'',shopLog:G.shopLog||{},
     roster:G.roster.map(u=>Object.assign(serSave(u),{gid:u.gid,healAt:u.healAt||0,hero:!!u.hero,spLv:u.spLv||{}})),
     inv:INV.map(ser),stock:G.stock.map(ser)};
 }
@@ -7325,7 +7358,8 @@ function applyGuild(d){
   G={gold:d.gold||0,gems:d.gems==null?10:d.gems,ext,tut,rev:GREV,cid:d.cid||'',
      custom:[],cidc:d.cidc||0,rankSeen:d.rankSeen,
      gidc:d.gidc||0,oidc:d.oidc||0,
-     name:d.name||'かけだし団',hero:d.hero||'レイ',done:d.done||{},price:d.price||{},
+     name:d.name||'かけだし団',hero:d.hero||'レイ',done:d.done||{},
+     mult:d.mult||{},shopDay:d.shopDay||'',shopLog:d.shopLog||{},
      stockAt:d.stockAt||0,offers:d.offers||[],
      roster:[],parties:d.parties||[],stock:[]};
   INV=[]; iidc=0;
@@ -7365,7 +7399,7 @@ function applyGuild(d){
 function newGuild(name,hero,clsId){
   G={gold:0,gems:10,ext:{parties:0,roster:0,inv:0,custom:0},custom:[],cidc:0,rankSeen:0,
      tut:{step:0},rev:0,
-     gidc:0,oidc:0,name:name,hero:hero,done:{},price:{},stockAt:0,offers:[],
+     gidc:0,oidc:0,name:name,hero:hero,done:{},mult:{},shopDay:'',shopLog:{},stockAt:0,offers:[],
      roster:[],parties:[],stock:[]};
   INV=[]; iidc=0;
   const hc=(CLS[clsId]&&clsId!=='cm')?clsId:'sw';
@@ -8838,6 +8872,10 @@ function gManualFinish(ok){
 /* --- 武具屋 --- */
 function gShop(){
   const b=$('#gbody');
+  /* ★ 日が変わっていたら相場を取り寄せる ★
+     同じ日なら通信しない。失敗しても手元の表で続けられるので止めない。
+     溜めた売買ログ（自動売却ぶんを含む）もこの1往復で送る。 */
+  if(shopStale()&&!SHOPSYNC){ shopSync().then(ok=>{ if(ok&&GVIEW==='shop'&&!guildBusy()) renderGuild(); }); }
   const mine=INV.filter(it=>!equippedBy(it.iid));
   const row=(it,buy)=>{
     const d=invDef(it), pr=priceOf(it), sell=Math.round(pr*0.5/100)*100, bo=invBonusText(it);
@@ -8856,7 +8894,9 @@ function gShop(){
   b.innerHTML=`<h2>武具屋</h2>
     <div class="seghint">最初はすべて定額（装備 10,000G・付与つき 100,000G）。
       <b>売れたものは値上がり、買い取られたものは値下がりします。</b>
-      値札がそのまま「今みんなが何を使っているか」になります。</div>
+      相場は<b>全プレイヤー共通</b>で、1日1回動きます。
+      値札がそのまま「いまみんなが何を使っているか」になります。
+      ${G.shopDay?`<i>（相場 ${gEsc(G.shopDay)} 版）</i>`:'<i>（まだ取り寄せていません）</i>'}</div>
     <div class="sechead">品揃え（入れ替えまで <b class="gleft" data-until="${(G.stockAt||0)+RESTOCK_MS}">—</b>）
       <i class="fcount">倉庫 ${INV.length} / ${invCap()}</i></div>
     <div class="rlist">${G.stock.map(it=>row(it,true)).join('')||'<div class="tdesc">売り切れ。</div>'}</div>
@@ -8870,12 +8910,12 @@ function gShop(){
         const it=G.stock.find(x=>x.iid===iid); if(!it)return;
         const pr=priceOf(it); if(G.gold<pr)return;
         G.gold-=pr; G.stock=G.stock.filter(x=>x!==it); INV.push(it);
-        nudgePrice(it,1.25); GMSG=`${invName(it)} を ${pr.toLocaleString()}G で買った。`;
+        shopLog(it,'buy'); GMSG=`${invName(it)} を ${pr.toLocaleString()}G で買った。`;
       }else{
         const it=INV.find(x=>x.iid===iid); if(!it||equippedBy(iid))return;
         const pr=Math.round(priceOf(it)*0.5/100)*100;
         G.gold+=pr; INV=INV.filter(x=>x!==it);
-        nudgePrice(it,0.85); GMSG=`${invName(it)} を ${pr.toLocaleString()}G で売った。`;
+        shopLog(it,'sell'); GMSG=`${invName(it)} を ${pr.toLocaleString()}G で売った。`;
       }
       saveGuild(); renderGuild();
     };
