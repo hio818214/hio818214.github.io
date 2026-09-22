@@ -1062,6 +1062,26 @@ thorns:{name:'棘返し',cat:'被弾',desc:'被弾した時、受けたダメー
     const d=Math.round(c.dmg*0.6); if(d<1)return;
     proc(s,'thorns',`${c.attacker.name}へ${d}返却`); rawDamage(c.attacker,d,'棘返し',s);}},
 
+/* ★ 殴ってくる相手を一手止める ★
+   7人が殴ってくる編成（＝物理で押し切る型）への答えが無かった。
+   《棘返し》はダメージを返すだけなので、**押し切る速度そのもの**は落とせない。
+
+   ★ 休みだけにしてある ★
+   眠りは手番を丸ごと飛ばすので、被弾のたびに判定すると
+   相手が何もできなくなり、**効きすぎた時に測ることすらできなくなる**。
+   休みは次の1手番だけなので、外した時に戻しやすい。
+   眠り版を足すなら、これを測ってからにすること。
+
+   確率は35%。多段攻撃でも1発ごとに判定するが、
+   休みは重ねても延びないので**実質1ターンに1回**しか意味を持たない。 */
+yoromeki:{name:'よろめかせ',cat:'被弾',
+  desc:'被弾した時、35%で攻撃者を休み状態にする（次の手番を失う）。',
+  damaged(s,c){ if(c.target!==s||!c.attacker||c.noCounter||!c.attacker.alive||!s.alive)return;
+    if(c.attacker.ail.rest)return;              // 既に休んでいるなら何も起きない
+    if(R(1)>=0.35)return;
+    proc(s,'yoromeki',`${c.attacker.name}の体勢を崩した`);
+    addAil(c.attacker,'rest',null,s);}},
+
 /* ---------- HP・瀕死 ---------- */
 haisui:{name:'背水',cat:'瀕死',desc:'HPが50%以下の時、減った分に比例して威力が最大+60%。',
   mod(s,k){ if(k!=='atk'&&k!=='mat')return 1; const r=hpR(s); if(r>0.5)return 1;
@@ -2706,12 +2726,20 @@ const bHits=(b,k)=>Array.isArray(b.stat)?b.stat.includes(k):b.stat===k;
 const bStatKey=b=>bStats(b).join(',');
 const bStatLabel=b=>bStats(b).map(s=>SN[s]||'').filter(Boolean).join('・');
 
+/* ★ 前列は攻撃+10% ★
+   前列は狙われ率1.5倍で、単体物理は前列しか狙えない ——
+   つまり**殴られ役を引き受けるだけで見返りが無かった**。
+   前に出す理由をここで作る。
+   敵にも同じく乗るので、前列の敵はそのぶん痛い（対称）。
+   stat を通すので編成画面の数値にも出る。攻撃依存の特技にもそのまま乗る。 */
+const FRONT_ATK=1.10;
 function stat(u,k){
   let base=u.base[k]||0,pct=0;
   u.buffs.forEach(b=>{ if(bHits(b,k)) pct+=b.value; });
   let m=1; for(const f of traitFns(u,'mod')) m*=(f(u,k)||1);
   m*=eqMult(u,k);                               // 装備の補正
   m*=auraMult(u,k);                             // 味方から掛かるオーラ（夜天）
+  if(k==='atk'&&isFront(u)) m*=FRONT_ATK;       // 前列の見返り
   if(u.guard&&(k==='def'||k==='mdf')) m*=1.8;
   return Math.max(1,base*(1+pct)*m);
 }
@@ -3198,6 +3226,7 @@ const CONDS=[
  {id:'hp_le50',  label:'HPが半分以下',         test:t=>hpR(t)<=0.5},
  {id:'hp_le25',  label:'HPが瀕死（25%以下）',  test:t=>hpR(t)<=0.25},
  {id:'mp_ok',    label:'MPが半分以上',         test:t=>t.mp/t.maxMp>=0.5},
+ {id:'mp_le50',  label:'MPが半分以下',         test:t=>t.mp/t.maxMp<=0.5},
  {id:'mp_low',   label:'MPが25%以下',          test:t=>t.mp/t.maxMp<=0.25},
  {id:'poison',   label:'毒状態',               test:t=>!!t.ail.poison},
  {id:'asleep',   label:'眠っている',           test:t=>!!t.ail.sleep},
@@ -3225,6 +3254,7 @@ const CONDMAP=Object.fromEntries(CONDS.map(c=>[c.id,c]));
 const CNTS=[{v:1,l:'1体以上'},{v:2,l:'2体以上'},{v:3,l:'3体以上'},{v:'all',l:'全員'}];
 const cntLabel=v=>(CNTS.find(c=>c.v===v)||CNTS[0]).l;
 const ACTS=[{id:'attack',label:'たたかう'},{id:'guard',label:'ぼうぎょ'},
+            {id:'swap',label:'いれかえ'},
             {id:'sp0',label:'スキル1'},{id:'sp1',label:'スキル2'},{id:'sp2',label:'スキル3'},
             {id:'sp3',label:'スキル4（武器）'},
             {id:'none',label:'（この行を無効）'}];
@@ -3235,6 +3265,21 @@ const actLabel=(u,id)=>{
   return `${lb}：${sid&&sid!=='none'?spName(SP[sid],u):'未設定'}`;
 };
 
+/* ★ 前衛職の締めくくり2行 ★
+   剣士・重騎士は前に立つのが仕事なので、既定の末尾に置いておく。
+
+     1. 自分 / 前列にいる → たたかう
+     2. 味方前衛 / HPが瀕死 → いれかえ
+
+   **1行目が蓋になっている**のが肝。自分が既に前にいるなら殴るだけで、
+   2行目へ落ちない。後列にいる時だけ「瀕死の前衛と入れ替わって庇う」が働く。
+   逆順にすると、前衛どうしが延々と入れ替わり続ける。 */
+const FRONT_CLASSES=['sw','kn'];
+function classGambits(u){
+  if(!FRONT_CLASSES.includes(u.clsId))return [];
+  return [{subj:'self', cond:'front',   cnt:1,act:'attack'},
+          {subj:'allyF',cond:'hp_le25',cnt:1,act:'swap'}];
+}
 /* 個性から生えるオート行動。
    スキルだけ見て組み立てると「通常攻撃で初めて意味が出る個性」が永久に使われない。
    《奪取》がまさにそれで、AIは相手のバフを見ずに殴る相手を選ぶため完全に死んでいた。
@@ -3324,6 +3369,7 @@ function defaultGambits(u){
   g.push(...traitGambits(u));      // 個性が要求する行動を、スキルより先に置く
   add(slot('atk','all')); add(slot('ail')); add(slot('evade'));
   add(slot('buff')); add(slot('debuff')); add(slot('atk','one'));
+  g.push(...classGambits(u));      // 前衛職の締めくくり（→ FRONT_CLASSES）
   return g;   // 末尾の「たたかう」は暗黙の既定行動なので入れない
 }
 
@@ -3389,6 +3435,19 @@ function evalGambit(u,row){
   if(hit.length<need)return null;
 
   if(row.act==='guard') return {cmd:'guard'};
+  /* ★ いれかえ ★ 条件に合った味方と枠を交換する。
+     ・**別の列の相手だけ**を候補にする。同じ列どうしでも resolveAction は交換するが、
+       前後が変わらないので手番を捨てるだけになる
+     ・《不動》は「いれかえで動かされない」ので相手からは外す。
+       自分が不動な場合は**自分の意思で動く**ぶんなので止めない（説明どおり受動だけを禁じる）
+     ・庇いに行く用途なので、条件に合う中でいちばんHPの割合が低い相手を選ぶ */
+  if(row.act==='swap'){
+    if(!u.alive)return null;
+    const cand=hit.filter(t=>t!==u&&t.alive&&t.side===u.side
+                             &&isFront(t)!==isFront(u)&&!hasT(t,'fudou'));
+    if(!cand.length)return null;
+    return {cmd:'swap',target:lowestHp(cand)};
+  }
   if(row.act==='attack'){
     // 通常攻撃は届く相手だけが対象。条件に合う相手が後列にいても殴れない。
     const reach=reachable(u,u.side==='ally'?'foe':'ally');
@@ -3825,8 +3884,13 @@ function renderLog(){ if(SIM)return;
 function renderCmd(u){
   ARMED=null;                 // コマンド欄を描き直したら確認待ちは解除
   const box=$('#cmdbody');
-  if(!u||!u.alive){ box.innerHTML=`<div class="hint">${running||NET.matched?'進行中…'
-    :'決着しました。<b>リセット: 全回復</b>で同じ編成のまま再戦、<b>味方</b>／<b>敵</b>で片側だけ引き直せます。'}</div>`; return; }
+  if(!u||!u.alive){
+    /* ★ 検証盤にしか無いボタンの案内を、ギルド側で出さない ★
+       「リセット: 全回復」「味方／敵で引き直す」は検証盤のコントロール群。
+       手動依頼・再生・闘技場の画面には存在しないので、案内すると嘘になる。 */
+    const done=GUILD?'この戦闘は決着しました。':
+      '決着しました。<b>リセット: 全回復</b>で同じ編成のまま再戦、<b>味方</b>／<b>敵</b>で片側だけ引き直せます。';
+    box.innerHTML=`<div class="hint">${running||NET.matched?'進行中…':done}</div>`; return; }
   if(u.side!==MY()||auto||!resolveCmd){
     box.innerHTML=`<div class="who">${u.name}<span>${u.clsName} / ${sideName(u.side)}</span></div>
       <div class="hint">${u.side!==MY()&&NET.matched?'相手が行動を選んでいます…':(auto?'自動戦闘で行動中':'行動を決定中…')}</div>
@@ -4318,6 +4382,9 @@ function renderGambits(u){
      ログにも何も残らないので、**組んだ本人にだけ分からない**という形になる。
      列（前衛・後衛）を選べるようになって、この取り違えは起きやすくなった。 */
   const rowWarn=g=>{
+    // いれかえは味方としか交換できない
+    if(g.act==='swap') return isAllySubj(g.subj)&&g.subj!=='self' ? ''
+      : 'いれかえは味方と交換する行動です。いまの対象では成立しません';
     if(!g.act||!g.act.startsWith('sp'))return '';
     const sid=allSpells(u)[+g.act[2]];
     if(!sid||sid==='none')return 'この枠にスキルがありません';
