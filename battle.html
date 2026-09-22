@@ -6510,14 +6510,19 @@ function fmtLeft(ms){
   return h+'時間'+(m%60?(m%60)+'分':'');
 }
 const fmtDur=sec=>sec?fmtLeft(sec*1000):'即時';
-/* 時短の値段。残り時間の帯で決める（分単位の端数で刻まない）。 */
+/* ★ 宝石1個 ＝ 1時間 ★
+   以前は残り時間の帯で 1/2/3/5 個だったので、**2日の依頼でも5個**で済み、
+   長い放置依頼ほど宝石の価値が跳ね上がっていた。時間に正比例させる。
+
+   刻みは「0〜60分未満が1個、60〜120分未満が2個」。
+   ちょうど60分は2個だが、**実際にその値になることはない。**
+   残り時間は必ず `returnAt - now()` で出すので、
+   出撃した瞬間ですら数十ミリ秒は経過している（実測63ms）。
+   つまり5時間の闘技場は、押せる瞬間には必ず5個になる。 */
+const GEM_HOUR=3600000;
 function skipCost(ms){
-  const m=ms/60000;
-  if(m<=0)return 0;
-  if(m<=5)return 1;
-  if(m<=30)return 2;
-  if(m<=120)return 3;
-  return 5;
+  if(ms<=0)return 0;
+  return Math.floor(ms/GEM_HOUR)+1;
 }
 const injured=u=>u.healAt>now();
 
@@ -6967,6 +6972,11 @@ function restock(){
   G.stockAt=now();
 }
 const RESTOCK_MS=3*3600000;
+/* 品揃えの入れ替えも**時短**として扱う。
+   「次の入れ替えまでの残り時間を宝石で飛ばす」ので、依頼・闘技場とまったく同じ式。
+   定額にすると、宝石1個＝1時間という決まりの中でここだけ例外になってしまう。
+   入れ替えた直後なら3個、残り1時間を切れば1個。 */
+const restockLeft=()=>(G.stockAt||0)+RESTOCK_MS-now();
 function maybeRestock(){
   if(now()-(G.stockAt||0)<RESTOCK_MS)return false;
   restock(); saveGuild(); return true;
@@ -8899,9 +8909,22 @@ function gShop(){
       ${G.shopDay?`<i>（相場 ${gEsc(G.shopDay)} 版）</i>`:'<i>（まだ取り寄せていません）</i>'}</div>
     <div class="sechead">品揃え（入れ替えまで <b class="gleft" data-until="${(G.stockAt||0)+RESTOCK_MS}">—</b>）
       <i class="fcount">倉庫 ${INV.length} / ${invCap()}</i></div>
+    ${(()=>{ const c=skipCost(restockLeft());
+      if(c<=0)return '';                       // まもなく自動で入れ替わる。押す意味が無い
+      return `<div class="cmds">${btnOr(G.gems>=c,
+        `<button class="btn sm" id="shRoll">品揃えを入れ替える 宝石${c}</button>`,
+        `入れ替えには宝石${c}（いま ${G.gems}）`)}</div>`; })()}
     <div class="rlist">${G.stock.map(it=>row(it,true)).join('')||'<div class="tdesc">売り切れ。</div>'}</div>
     <div class="sechead">手持ちの未装備品</div>
     <div class="rlist">${mine.map(it=>row(it,false)).join('')||'<div class="tdesc">売れるものがありません。</div>'}</div>`;
+  const roll=$('#shRoll');
+  if(roll) roll.onclick=()=>{
+    const c=skipCost(restockLeft());
+    if(c<=0||G.gems<c)return;
+    G.gems-=c; restock();                      // restock が stockAt を now に戻す＝3時間に戻る
+    GMSG=`宝石 ${c} を使って品揃えを入れ替えた。`;
+    saveGuild(); renderGuild();
+  };
   b.querySelectorAll('.rrow').forEach(r=>{
     const btn=r.querySelector('button'); if(!btn||btn.disabled)return;
     const iid=+r.dataset.i, buy=r.dataset.b==='1';
@@ -9611,7 +9634,7 @@ const ARENA_URL   = 'https://script.google.com/macros/s/AKfycbw-jGJ3OPvD-MCU-QEJ
    竜鱗を12%→8%のようなバランス変更では上げない —
    古い部隊も普通に読めるし、現在のルールで測り直される方が自然。 */
 const ARENA_REV   = 1;
-const ARENA_SEC   = 10*3600;   // 所要10時間
+const ARENA_SEC   = 5*3600;    // 所要5時間（宝石1個=1時間なので、時短は5個）
 const ARENA_BOUTS = 10;        // 1相手あたりの戦数（裏方）
 const ARENA_FOES  = 10;        // DLする部隊数
 const ARENA_PICK  = 3;         // 選ばせる数
