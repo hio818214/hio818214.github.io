@@ -543,6 +543,7 @@ body.mobile .mask.dlg{padding:16px;align-items:center}
 .rmain b{font-weight:500} .rmain i{font-style:normal;color:var(--muted);font-size:10px;margin-left:6px}
 .rsub{font-size:10.5px;color:var(--muted)}
 .rsub em{font-style:normal;color:#96d8b0}
+.rbd{color:var(--muted);opacity:.85}
 .rbtn{display:flex;gap:3px;flex:0 0 auto;align-items:center}
 /* 押せない理由。ボタンの代わりに同じ場所へ置くので、ボタンと同じ高さに座らせる。
    読ませたい文字なので、装飾は薄くしても字は本文と同じ 11px を保つ。 */
@@ -2105,6 +2106,15 @@ function eqBonusDead(u,slot){
    data-tip のような**属性へ入れる時は渡さない**こと（タグが壊れる）。 */
 const invBonusText=it=>!it?'':(it.spell?`スキル《${SP[it.spell]?spBase(SP[it.spell]):it.spell}》`
   :it.trait?`個性《${TRAITS[it.trait]?TRAITS[it.trait].name:it.trait}》`:'');
+/* 付与の説明文だけを返す。名前は invBonusText が持っているので**重ねない**。
+   武具屋は「名前だけ見て買う／売る」になりやすい画面なので、一覧に直接出す。
+   spText を通すのは ${power} 等を実数へ差し替えるため（レベル1の値）。 */
+const invBonusDesc=it=>{
+  if(!it)return '';
+  const sp=it.spell&&SP[it.spell]; if(sp)return spText(sp);
+  const tr=it.trait&&TRAITS[it.trait]; if(tr)return tr.desc||'';
+  return '';
+};
 function invName(it,opt){
   const d=invDef(it); if(!d)return '— なし —';
   const b=invBonusText(it);
@@ -6023,8 +6033,8 @@ const QUESTS=[
   reward:{equipChance:0.8,memberChance:0.5,memberBias:{kn:14,sw:10,mg:10},rareChance:0.5}},
  {id:'q4d',name:'五段の試練',tier:4,kind:'chain',sec:5400,gph:68000,key:true,
   waves:[['goblin','goblin','goblin'],['skeleton','skeleton','skeleton'],
-         ['harpy','harpy','wyvern'],['gargoyle','gargoyle','slime'],
-         ['cerberus','cerberus','vampire']],
+         ['harpy',['harpy','wyvern']],['gargoyle',['gargoyle','slime']],
+         ['cerberus',['cerberus','vampire']]],
   desc:'**回復なしで五連戦。**総HPより、MPと状態異常の管理で落ちる。',
   first:{gold:300000,item:true,member:true,rare:true},
   reward:{equipChance:0.85,memberChance:0.5,memberBias:{pr:16,kn:12,mg:12},rareChance:0.45}},
@@ -6645,7 +6655,8 @@ const PN_NOUN = [
   '威光','刃','翼','盾','牙','灯','誓い','足跡','咆哮','使徒','守人','狩人','継承者',
   '導き','轍','鼓動','残響','黙示','証','旗','夜明け','鎖','約束','帰路',
   // 追加
-  '篝火','心臓','天秤','境界','羅針盤','道標','祈り','残光'
+  '篝火','心臓','天秤','境界','羅針盤','道標','祈り','残光',
+  '騎士','光','剣'
 ];
 
 const PN_PRE = [
@@ -6659,14 +6670,15 @@ const PN_POST = [
   'ラット','ファング','クロウ','ウィング','ブレイド','ハウンド','ランス','アロー',
   'ハンマー','クレスト','リーパー','ウルフ','ホーク','バジリスク','キャラバン','ブリゲード','オーダー','カンパニー',
   // 追加
-  'ナイト','ガード','バスター','チェイサー','ロード','スピリット','ヴァルキリー'
+  'ナイト','ガード','バスター','チェイサー','ロード','スピリット','ヴァルキリー',
+  'モンスター',
 ];
 
 // 組織の接尾辞を拡張
 const PN_SUF = ['団','隊','党','衆','組','会','騎士団','旅団','同盟','義勇軍','結社','連盟','遊撃隊'];
 
 // 状態・形容表現を追加
-const PN_ADJ = ['名もなき','彷徨える','果てなき','眠れぬ','輝ける','喪われた','堕ちた','掲げられし'];
+const PN_ADJ = ['名もなき','彷徨える','果てなき','眠れぬ','輝ける','喪われた','堕ちた','掲げられし','射貫く'];
 
 function randPartyName() {
   const r = RI(15); // パターンを増やして15段階に拡張
@@ -8981,11 +8993,13 @@ function gShop(){
   if(shopStale()&&!SHOPSYNC){ shopSync().then(ok=>{ if(ok&&GVIEW==='shop'&&!guildBusy()) renderGuild(); }); }
   const mine=INV.filter(it=>!equippedBy(it.iid));
   const row=(it,buy)=>{
-    const d=invDef(it), pr=priceOf(it), sell=Math.round(pr*0.5/100)*100, bo=invBonusText(it);
+    const d=invDef(it), pr=priceOf(it), sell=Math.round(pr*0.5/100)*100,
+          bo=invBonusText(it), bd=invBonusDesc(it);
     return `<div class="rrow" data-i="${it.iid}" data-b="${buy?1:0}">
       <span class="rpos">${it.slot==='w'?'武器':'防具'}</span>
       <span class="rmain"><b>${d?d.n:'?'}</b><i>${d?eqStatText(d):''}</i><br>
-        <span class="rsub">${bo?`<em>${bo}</em>`:'<span class="rnone">付与なし</span>'}</span></span>
+        <span class="rsub">${bo?`<em>${bo}</em>${bd?` <span class="rsub">${bd}</span>`:''}`
+                             :'<span class="rnone">付与なし</span>'}</span></span>
       <span class="rbtn"><b class="gprice">${(buy?pr:sell).toLocaleString()}G</b>
         ${btnOr(!buy||(G.gold>=pr&&INV.length<invCap()),
           `<button data-a="x">${buy?'買う':'売る'}</button>`,
