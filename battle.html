@@ -1074,8 +1074,8 @@ thorns:{name:'棘返し',cat:'被弾',desc:'被弾した時、受けたダメー
 
    確率は35%。多段攻撃でも1発ごとに判定するが、
    休みは重ねても延びないので**実質1ターンに1回**しか意味を持たない。 */
-yoromeki:{name:'よろめかせ',cat:'被弾',
-  desc:'被弾した時、35%で攻撃者を休み状態にする（次の手番を失う）。',
+yoromeki:{name:'休み反撃',cat:'被弾',
+  desc:'被弾した時、35%で攻撃者を休み状態にする。',
   damaged(s,c){ if(c.target!==s||!c.attacker||c.noCounter||!c.attacker.alive||!s.alive)return;
     if(c.attacker.ail.rest)return;              // 既に休んでいるなら何も起きない
     if(R(1)>=0.35)return;
@@ -1266,7 +1266,7 @@ fujigari: killer('fujigari','不死狩り','不死'),
 kemonogari:killer('kemonogari','獣狩り','獣'),
 ishikudaki:killer('ishikudaki','石砕き','無機'),
 /* 竜を獣から切り離した時に足した。タグが1つ増えたら特効も1つ増やす、で揃えている。
-   該当は3体（ドレイク・ワイバーン・古竜）で、無機・植物と同じくらいの狭さ。 */
+   該当は3体（幼竜・飛竜・古竜）で、無機・植物と同じくらいの狭さ。 */
 ryugoroshi:killer('ryugoroshi','竜殺し','竜'),
 
 /* ---------- いきなり（戦闘開始時） ---------- */
@@ -1427,10 +1427,10 @@ koukatsu:{name:'狡猾',cat:'専用',needs:'goblin',
     if(stat(c.target,'atk')>=stat(s,'atk'))return;
     c.dmg*=1.30; c.tags.push('狡猾'); fire(s,'koukatsu');}},
 
-/* ★ ドレイクには渡していない ★ needs を '竜' にすると幼竜まで壁になる。
+/* ★ 幼竜には渡していない ★ needs を '竜' にすると幼竜まで壁になる。
    HP520に12%上限＝1発62では、難度2〜3の編成では抜けない。種族idで絞る。 */
 ryuurin:{name:'竜鱗',cat:'専用',needs:['wyvern','wyrm'],
-  desc:'1回に受けるダメージが最大HPの12%を超えない。大技ほど効く。ワイバーンと古竜のみ。',
+  desc:'1回に受けるダメージが最大HPの12%を超えない。大技ほど効く。飛竜と古竜のみ。',
   incoming(s,c){ if(c.target!==s)return;
     const cap=Math.max(1,Math.round(s.maxHp*0.12));
     if(c.dmg<=cap)return;
@@ -1688,8 +1688,8 @@ const SPELLS=[
   desc:'同じ対象へ攻撃×${power}を${hits}回。命中判定も${hits}回行う。'},
  {id:'taiatari',name:'体当たり',kind:'art',type:'atk',scope:'one',mp:6, power:1.3,recoil:0.1,
   desc:'対象へ攻撃×${power}。反動で与えたダメージの${recoil}を自分も受ける。'},
- /* ワイバーンから獣を外したので、牙と爪は竜にも開けてある。
-    これが無いと、ワイバーンが**自分の候補から噛みつきを失う**。 */
+ /* 飛竜から獣を外したので、牙と爪は竜にも開けてある。
+    これが無いと、飛竜が**自分の候補から噛みつきを失う**。 */
  {id:'kamitsuki',name:'噛みつき',kind:'art',type:'atk',scope:'one',mp:7,power:1.45,needs:['獣','竜'],
   desc:'対象へ攻撃×${power}。牙を持つ者の一撃。'},
  {id:'tsumesaki',name:'爪裂き', kind:'art',type:'atk',scope:'one',mp:8, power:0.7,hits:2,needs:['獣','飛行','竜'],
@@ -1720,12 +1720,23 @@ const SPELLS=[
   desc:'攻撃×${power}。列を無視して後列を直接狙える。ゴブリン専用。'},
  {id:'fuiuchi', name:'不意打ち',kind:'art',type:'atk',scope:'one',mp:10,power:1.6,frontHalf:true,needs:'goblin',
   desc:'攻撃×${power}。ただし自分が前列にいると攻撃×${frontPower}になる。後列から刺す技。ゴブリン専用。'},
- /* 尾は竜なら誰にでもある。急降下は**飛び込む技**なのでワイバーンに残す
+ /* 尾は竜なら誰にでもある。急降下は**飛び込む技**なので飛竜に残す
     （古竜も飛ぶが、あれは速さ36で急降下する体型ではない）。 */
  {id:'obigeki', name:'尾撃',kind:'art',type:'atk',scope:'all',mp:16,power:0.6,needs:'竜',
   desc:'敵全体へ攻撃×${power}。数少ない範囲物理。竜だけが使う。'},
  {id:'kyuukouka',name:'急降下',kind:'art',type:'atk',scope:'one',mp:14,power:2.0,selfRest:true,needs:'wyvern',
-  desc:'攻撃×${power}の大技。撃つと自分が休み状態になり、次の手番を失う。ワイバーン専用。'},
+  desc:'攻撃×${power}の大技。撃つと自分が休み状態になり、次の手番を失う。飛竜専用。'},
+ /* ★ ブレスだけは「撃つ側のHP」が威力になる ★
+    ホロビ（相手の現HPの割合）と**向きが逆**で、削られるほど弱くなる。
+    竜は例外なくHPが高いので、**開幕がいちばん重い**。粘って撃つ技ではない。
+    無視するのは防御・魔防・会心・命中といった**数値のやりとりだけ**で、
+    個性による軽減（《軽減》《竜鱗》《不定形》…）はそのまま通る（→ castSpell の selfRatio）。
+    dmgAs:'mag' … 特技なので封魔されないが、**受ける側の扱いは魔法**。
+    これが無いと炎の息をスライムの《不定形》（物理-30%）が薄める。 */
+ {id:'breath',  name:'ドラゴンブレス',kind:'art',type:'atk',scope:'all',mp:12,
+  selfRatio:0.10,dmgAs:'mag',alwaysHit:true,needs:'竜',
+  desc:'敵全体へ、自分の現在HPの${selfRatio}をそのままダメージにする。'
+      +'防御・魔防では軽減できず、命中判定も無い。個性による軽減だけは受ける。竜だけが使う。'},
  {id:'horobi',  name:'ホロビ',kind:'magic',type:'atk',scope:'all',mp:20,ratio:0.12,needs:'lich',
   desc:'敵全体の現在HPを${ratio}削る。魔防も軽減も無視するので、硬い相手ほど効く。リッチ専用。'},
  {id:'noshikakari',name:'のしかかり',kind:'art',type:'atk',scope:'one',mp:10,power:1.3,ail:'rest',ailChance:0.3,needs:'gargoyle',
@@ -1856,7 +1867,7 @@ const magicResist=sp=>(sp&&!isArt(sp)&&(sp.type==='debuff'||sp.type==='ail'))
    昇格するキーは SP_LEVELED に明示的に並べたものだけ。
    ========================================================= */
 const SP_SIGNED=['value','debuffValue'];                                   // 符号を出す（強化/弱体）
-const SP_PCT=['chance','ailChance','flat','ratio','lifesteal','recoil','execHp'];
+const SP_PCT=['chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','execHp'];
 const SP_POWER=['power','execPower','frontPower'];
 const spNum=(k,v)=>{
   if(typeof v!=='number')return String(v);
@@ -1869,7 +1880,7 @@ const spNum=(k,v)=>{
 /* ★ レベルで段が変わるキー ★
    ここに無いキーは配列でもそのまま渡す（stat / needs を壊さないため）。 */
 const SP_LEVELED=new Set(['name','power','hits','multi','mp','value','turns',
-  'chance','ailChance','flat','ratio','lifesteal','recoil','mpDrain']);
+  'chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','mpDrain']);
 /* 段が足りなければ末尾で止める。短く書いたキーは伸びないだけで壊れない。 */
 const atLv=(v,lv)=>Array.isArray(v)?v[Math.min(Math.max(1,lv)-1,v.length-1)]:v;
 /* 最大レベルは name の配列の長さ。文字列なら1。 */
@@ -2227,12 +2238,12 @@ const CLASSES=[
   spN:1, spBias:{ishinage:16,fuiuchi:14,hayabusa:10,taiatari:8}},
  /* ★ 獣 を外して 竜 にした ★
     飛竜を獣として数えると、《獣狩り》1枚が「速い飛竜」まで見てしまう。
-    竜は竜として独立させ、ドレイク・古竜と3体で1つのタグにする。 */
- {id:'wyvern',n:'ワイバーン',   c:'WY',kind:'monster',lv:4,hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
+    竜は竜として独立させ、幼竜・古竜と3体で1つのタグにする。 */
+ {id:'wyvern',n:'飛竜',   c:'WY',kind:'monster',lv:4,hp:560,mp:34,atk:82,def:54,mat:30,mdf:38,spd:80,
   tags:['竜','飛行'],
   desc:'最速級の飛竜。疾走と先導で手数を稼ぐ。',
   bias:{shissou:22,ryuurin:20,kasoku:14,sakigake:12,tsuigeki:10,hitokiri:8,iatsu:6},
-  spN:2, spBias:{obigeki:18,kyuukouka:16,kamitsuki:14,tsumesaki:10}},
+  spN:2, spBias:{obigeki:18,kyuukouka:16,kamitsuki:14,breath:12,tsumesaki:10}},
  {id:'lich',n:'リッチ',         c:'LC',kind:'monster',lv:3,hp:400,mp:92,atk:30,def:36,mat:92,mdf:70,spd:46,
   tags:['人型','不死'],
   desc:'魔力が全体で最高。呪詛と遺志で死後も削る。',
@@ -2321,21 +2332,21 @@ const CLASSES=[
   spN:3, spBias:{hinowa:20,yomigaeri:18,fire:10,heal:8,mrally:6}},
 
  /* ★ ここから竜が2体 ★
-    ワイバーンだけでは「竜」タグが1種族しかなく、抽選にならなかった。
+    飛竜だけでは「竜」タグが1種族しかなく、抽選にならなかった。
     レベル帯を散らして、低難度から高難度まで竜が出るようにする。
-      ドレイク lv2（地を這う幼竜） ／ ワイバーン lv4（速い飛竜） ／ 古竜 lv5（頂点） */
+      幼竜 lv2（地を這う幼竜） ／ 飛竜 lv4（速い飛竜） ／ 古竜 lv5（頂点） */
 
  /* 竜の入り口。**まだ飛べない**ので、飛行タグを持たない唯一の竜。
     低難度に竜を置くための駒なので、目立った仕掛けは持たせていない。
     《竜鱗》は**渡さない**。HP520に12%上限＝1発62では、難度2〜3では抜けなくなる。 */
- {id:'drake',n:'ドレイク',      c:'DK',kind:'monster',lv:2,hp:520,mp:24,atk:64,def:62,mat:26,mdf:38,spd:44,
+ {id:'drake',n:'幼竜',      c:'DK',kind:'monster',lv:2,hp:520,mp:24,atk:64,def:62,mat:26,mdf:38,spd:44,
   tags:['竜','四足'],
   desc:'まだ飛べない幼い竜。硬くて粘るが、それだけ。竜の中では唯一、空を飛ばない。',
   bias:{mitigate:18,fukutsu:16,kanjuku:12,recoil:12,chouhatsu:10,thorns:8,shissou:6},
-  spN:1, spBias:{kamitsuki:18,tsumesaki:12,taiatari:10,obigeki:6}},
+  spN:1, spBias:{kamitsuki:18,tsumesaki:12,taiatari:10,breath:8,obigeki:6}},
 
- /* 竜の頂点。**ワイバーンの対極**に置いてある。
-      ワイバーン … 速い（80）・物理（攻撃82／魔力30）・脆い（HP560）
+ /* 竜の頂点。**飛竜の対極**に置いてある。
+      飛竜 … 速い（80）・物理（攻撃82／魔力30）・脆い（HP560）
       古竜       … 遅い（36）・両刀（攻撃74／魔力86）・重い（HP760）
     HPと防御はゴーレム（780／92）を**超えないように**してある。
     あちらの「全職中で最高」という立ち位置を崩さないため。
@@ -2346,7 +2357,7 @@ const CLASSES=[
       +'まれに《竜鱗》を持ち、その時は大技が一切通らなくなる。',
   // 《不動》は needs:['gargoyle','golem'] なので古竜には乗らない。追い詰められて強くなる《背水》に。
   bias:{ryuurin:14,iatsu:18,nirami:14,mitigate:12,haisui:12,sakigake:10,shuunen:8,juso:6},
-  spN:3, spBias:{obigeki:18,inferno:16,kamitsuki:12,tsumesaki:10,blast:8,mrally:6}},
+  spN:3, spBias:{breath:20,obigeki:16,inferno:14,kamitsuki:12,tsumesaki:10,blast:8,mrally:6}},
 ];
 const CLS=Object.fromEntries(CLASSES.map(c=>[c.id,c]));
 const HUMANS   = CLASSES.filter(c=>c.kind==='human');
@@ -2999,7 +3010,9 @@ function castSpell(a,sp,target,o={}){
   const E=spEff(sp,a);
   const mult=(o.mult||1)*ampMult(a), otherSide=a.side==='ally'?'foe':'ally';
   const art=isArt(sp);
-  const dmgKind=art?'phys':'mag';
+  /* 既定は「特技＝物理／魔法＝魔」。dmgAs を書いた技だけ受ける側の扱いを変える
+     （ドラゴンブレス … 封魔を素通りする特技だが、受け手には魔法として届く）。 */
+  const dmgKind=sp.dmgAs||(art?'phys':'mag');
   // 特技は命中判定あり。魔法は必中。必中撃は特技だが判定を飛ばす。
   const needHit=art&&!sp.alwaysHit;
   const phys=isPhysSingle(sp);                  // 単体特技は前列しか狙えない
@@ -3026,6 +3039,19 @@ function castSpell(a,sp,target,o={}){
         if(E.ratio){
           const d=Math.max(1,Math.round(t.hp*E.ratio));
           const rc={attacker:a,target:t,dmg:d,kind:dmgKind,tags:['割合'],crit:false,redirected:null};
+          applyDamage(rc); dealt+=rc.dmg; firstHit=firstHit||rc.target; continue;
+        }
+        /* 自分の現在HPの割合を、そのまま相手へ渡す（ドラゴンブレス）。
+           ★ ホロビとの違いは incoming を回すこと ★
+           「防御・魔防では軽減できないが、個性の軽減は効く」がこの技の売りなので、
+           calcDamage は通さずに**軽減フックだけ**を手で回す。
+           outgoing（与ダメ増しの個性）は回さない。攻撃力を見ない技が
+           攻撃まわりの個性で伸びると、竜が殴り型と両取りになるため。 */
+        if(E.selfRatio){
+          const rc={attacker:a,target:t,dmg:Math.max(1,Math.round(a.hp*E.selfRatio)),
+                    kind:dmgKind,tags:['息'],crit:false,redirected:null};
+          for(const u of U){ if(u.alive&&!asleep(u)) runOn(u,'incoming',rc); }
+          rc.dmg=Math.max(1,Math.round(rc.dmg));
           applyDamage(rc); dealt+=rc.dmg; firstHit=firstHit||rc.target; continue;
         }
         if(dodged(a,t))continue;
@@ -5826,7 +5852,7 @@ const QKIND={
      ANY_MONSTER        … 全魔物
      MONSTER_TAG('飛行') … そのタグを持つ魔物すべて
      MONSTER_TAG('獣','不死') … どれかを持つ（和集合）
-     MONSTER_TAG_ALL('竜','飛行') … 全部を持つ（積集合。飛ぶ竜＝ワイバーンと古竜）
+     MONSTER_TAG_ALL('竜','飛行') … 全部を持つ（積集合。飛ぶ竜＝飛竜と古竜）
 
    ★ 最後に {max:n} を付けると難度で絞れる ★
      MONSTER_TAG('人型',{max:2}) … ゴブリン・ハーピィ・スケルトン
@@ -6126,15 +6152,15 @@ const QUESTS=[
   reward:{equipChance:0.65,memberChance:0.35,memberBias:{rg:14,ar:14,tm:12},rareChance:0.3}},
  {id:'k6b',name:'暴走する牙',tier:6,kind:'horde',sec:21600,gph:158000,
   waves:[tagWave(7,'獣'),tagWave(7,'獣')],
-  // ワイバーンが竜へ移ったので、ここは**ケルベロスとケンタウロスの2種だけ**になった
+  // 飛竜が竜へ移ったので、ここは**ケルベロスとケンタウロスの2種だけ**になった
   desc:'**7体の獣が二度。**ケルベロスとケンタウロスしかいない。'
       +'どちらも速く、追い詰めるほど強くなる。速度で押し込まれる前に何を通すか。',
   first:{gold:2900000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{ar:16,kn:14},rareChance:0.7}},
 
  /* 竜の依頼。他のタグと同じく**中難度と最高難度の2本**立て。
-    k4d は max:4 で古竜（lv5）を外し、ドレイクとワイバーンだけにしてある。
-    k6d は3体そろうので、遅い壁（古竜）と速い一撃（ワイバーン）が混ざる。 */
+    k4d は max:4 で古竜（lv5）を外し、幼竜と飛竜だけにしてある。
+    k6d は3体そろうので、遅い壁（古竜）と速い一撃（飛竜）が混ざる。 */
  {id:'k4d',name:'竜の寝床',tier:4,kind:'horde',sec:3000,gph:61000,
   waves:[tagWave(5,'竜',{max:4})],
   desc:'**5体すべてが「竜」。**地を這う幼竜と、空から落ちてくる飛竜。'
