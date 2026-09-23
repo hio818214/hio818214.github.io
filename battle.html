@@ -361,7 +361,19 @@ body.guildmode.replaying.manualplay #cmdBox{display:block}
 .flab{flex:0 0 auto;align-self:center;font-size:10px;letter-spacing:.14em;
   color:var(--muted);min-width:3.4em}
 .fchips.fsub{padding-left:10px;border-left:1px solid var(--line2)}
+/* 「すべて／未所属／所属あり」と「〜で絞り込む」を横に並べる。
+   幅が足りなければ折り返して2段になる（携帯はほぼ2段）。 */
+.frow{display:flex;flex-wrap:wrap;gap:6px}
+#fOpen button i{font-style:normal;font-family:var(--mono);font-size:9.5px;margin-left:5px;
+  opacity:.9;color:var(--gold)}
+#fOpen button.on i{color:inherit}
 .fhint{align-self:center;font-size:10.5px;color:var(--muted)}
+/* 図鑑。基準値の行は等幅で、桁がそろうと見比べやすい */
+.zstat{font-family:var(--mono);font-size:10.5px;letter-spacing:.02em}
+.zcnt{display:flex;flex-direction:column;gap:2px;align-items:flex-end;
+  font-size:10.5px;font-family:var(--mono);color:var(--muted)}
+.zcnt b{font-weight:500}
+.zcnt b.gok{color:var(--gold)}
 .fcount{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--gold)}
 .gchips{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .pcell .gchips{margin-top:2px;align-items:center}
@@ -1370,6 +1382,10 @@ tazuna:{name:'自律清流',cat:'持続',desc:'自分にバフ・デバフが掛
    ★ 戦闘の外に効く個性がここで初めて出る ★
    TRAITS のフックは戦闘中のイベント専用なので、《テイム》は hook を持たない。
    効くのは報酬の抽選（rollPending）で、そちらが id を直接見る。 */
+jinrou:{name:'獣化',cat:'専用',needs:'werewolf',
+  desc:'HPが60%以下になると獣の姿に戻り、攻撃+30%・素早さ+15%。ワーウルフ専用。',
+  mod(s,k){ if(k!=='atk'&&k!=='spd')return 1; if(hpR(s)>0.6)return 1;
+    s.fired.jinrou=2; return k==='atk'?1.30:1.15;}},
 tame:{name:'テイム',cat:'専用',needs:'tm',field:true,
   desc:'依頼を達成した時、その依頼で戦った魔物のうち1体が仲間になることがある。テイマー専用。'},
 moujuu:{name:'牙の共鳴',cat:'専用',needs:'tm',
@@ -2272,6 +2288,29 @@ const CLASSES=[
   desc:'防御が全体で最高の石像。軽減と棘返しで攻撃を跳ね返す。',
   bias:{mitigate:22,fudou:20,sekika:18,thorns:16,nirami:12,chouhatsu:10,cover:7},
   spN:1, spBias:{noshikakari:18,guardup:12,taiatari:8}},
+ /* ★ 獣の入り口 ★
+    これまで獣はケルベロス(lv3)とケンタウロス(lv4)しかおらず、
+    低い難度で「獣」のタグ抽選ができなかった（→ タグ依頼の注記）。
+    速くて紙、というゴブリンとは別方向の弱さを持たせてある。 */
+ {id:'wolf',n:'ウルフ',         c:'WF',kind:'monster',lv:1,hp:340,mp:16,atk:58,def:34,mat:16,mdf:24,spd:78,
+  tags:['獣','四足'],
+  desc:'群れで走る。速いが打たれ弱い。身のこなしが軽く、隣接と追撃を持ちやすい。',
+  /* ★ 当てさせない方向に寄せてある ★
+     HP340・防御34 なので、殴られたら終わりです。
+     そのかわり回避（軽業・強運）と行動順（疾走・先導・韋駄天）を厚くして、
+     「速くて当たらない代わりに脆い」を1体で成立させています。
+     ⚠️ 韋駄天（素早さ+30%）は素質＝レア枠の個性です。引くと 78→101 で**全職中で最速**になります。
+        lv1 の魔物としては目を引くはずなので、様子を見て重みを下げてください。 */
+  bias:{rinsetsu:20,tsuigeki:18,karuwaza:16,shissou:14,kasoku:12,kouun:12,idaten:10,kazu:8,sakigake:8,timid:6},
+  spN:1, spBias:{kamitsuki:22,tsumesaki:12,taiatari:8}},
+ /* 獣でありながら**人型**でもある唯一の魔物。
+    《人斬り》と《獣狩り》の両方が刺さり、人型の群れにもウルフの群れにも混ざる。
+    数字はスケルトン(lv2)より一回り重く、そのぶん硬さは並。 */
+ {id:'werewolf',n:'ワーウルフ', c:'WW',kind:'monster',lv:2,hp:470,mp:30,atk:74,def:46,mat:22,mdf:32,spd:72,
+  tags:['獣','人型'],
+  desc:'人の形をした獣。追い詰めると獣に戻り、手が付けられなくなる。',
+  bias:{jinrou:24,haisui:16,tsuigeki:14,kajiba:12,hitokiri:10,fukutsu:8,shissou:8,kemonogari:6},
+  spN:2, spBias:{kamitsuki:20,tsumesaki:16,hayabusa:10,taiatari:6}},
  {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',lv:3,hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
   tags:['獣','四足'],
   desc:'追い詰めるほど強くなる猟犬。追撃と処刑を持ちやすい。',
@@ -5915,6 +5954,12 @@ function tagPool(all,args,label){
   const tags=args;
   const ids=MONSTERS.filter(c=>{
     if(opt.max&&(c.lv||1)>opt.max) return false;
+    /* ★ 下限（min）★
+       同じタグに低レベルの魔物が増えると、**上位の依頼が勝手に薄くなる**。
+       獣にウルフ（lv1）とワーウルフ（lv2）を足した時がこれで、
+       難度6の「暴走する牙」が7体ともウルフになりうる状態だった。
+       max と対にして、上の依頼は下限で切る。 */
+    if(opt.min&&(c.lv||1)<opt.min) return false;
     const t=c.tags||[];
     return all ? tags.every(x=>t.includes(x)) : tags.some(x=>t.includes(x));
   }).map(c=>c.id);
@@ -5945,8 +5990,8 @@ const QUESTS=[
   desc:'納屋に粘体が住み着いた。硬くて鈍い。**物理は通りにくい。**',
   first:{gold:1500},
   reward:{equipChance:0.2,memberChance:0.15,memberBias:{mg:14,hx:8}}},
- {id:'q1c',name:'物置の当たり箱',tier:1,kind:'short',sec:150,gph:24000,enemies:['mimic'],
-  desc:'宝箱に見えるものが1つ。**中身は宝ではない。**当たれば装備を持ち帰れる。',
+ {id:'q1c',name:'街道のはぐれ狼',tier:1,kind:'short',sec:150,gph:24000,enemies:['wolf'],
+  desc:'街道に現れる狼の退治。',
   first:{gold:1000,item:true},
   reward:{equipChance:0.7,memberChance:0.1}},
  {id:'q2',name:'森の見回り',tier:1,kind:'std',sec:180,gph:22000,enemies:['goblin','goblin'],
@@ -5954,8 +5999,8 @@ const QUESTS=[
   first:{gold:2500},
   reward:{equipChance:0.35,memberChance:0.2,memberBias:{rg:16,ar:12}}},
  {id:'qt',name:'ゴブリンの連戦訓練',tier:1,kind:'chain',sec:240,gph:27000,key:true,
-  waves:[['goblin','goblin'],['goblin','goblin'],['goblin','goblin','goblin']],
-  desc:'ゴブリンの群れを三度続けて相手にする。',
+  waves:[['goblin','goblin'],['goblin','goblin']],
+  desc:'ゴブリンの群れを続けて相手にする。',
   first:{gold:3000,member:true},
   reward:{equipChance:0.4,memberChance:0.25,memberBias:{sw:12,kn:8}}},
  /* 候補枠の例。3枠目は「ハーピィか、ゴブリンか、何も来ない」の3択。
@@ -6002,8 +6047,12 @@ const QUESTS=[
       +'一つの型では抜けられない。',
   first:{gold:30000,member:true},
   reward:{equipChance:0.55,memberChance:0.35,memberBias:{sw:10,pr:10,rg:10},rareChance:0.2}},
+ /* ★ 重み付き枠の見本 ★ 4枠目が10%でミミックに化ける。
+    `rare('skeleton','mimic',0.1)` は {skeleton:0.9, mimic:0.1} と同じ。
+    1時間半の放置依頼なので、たまに違う顔が出るくらいがちょうどいい。
+    要らなければ 'skeleton' に戻すだけで元どおり。 */
  {id:'q2e',name:'石畳の見回り',tier:2,kind:'idle',sec:5400,gph:17000,
-  enemies:['goblin','goblin','goblin','skeleton'],
+  enemies:['goblin','goblin','goblin',rare('skeleton','mimic',0.1)],
   desc:'市街を一巡り。**1時間半かかるが、その間は何も考えなくていい。**',
   first:{gold:60000,item:true},
   reward:{equipChance:0.6,memberChance:0.4,memberBias:{kn:12,pr:12},rareChance:0.1}},
@@ -6147,8 +6196,10 @@ const QUESTS=[
     {max:n} は「その難度までに出てよい魔物」で絞る指定（魔物の lv を見る）。
 
     低い方を作れないタグがある：
-      獣  … 難度3以下だとケルベロス1体しかおらず抽選にならないので、最低が4
       無機 … 難度2以下だとミミック1体だけなので、最低が3
+    （獣は長らくケルベロス1体だけで低難度を作れなかったが、
+      ウルフ(lv1)・ワーウルフ(lv2)が入って**低い方も作れるようになった**。
+      そのかわり上の依頼は {min:…} で下限を切らないと薄くなる）
     候補が1体になると F12 に info が出る。 */
  {id:'k2h',name:'人まがいの群れ',tier:2,kind:'horde',sec:720,gph:31000,
   waves:[tagWave(4,'人型',{max:2})],
@@ -6189,14 +6240,15 @@ const QUESTS=[
   reward:{equipChance:0.8,memberChance:0.45,memberBias:{ar:18,rg:14},rareChance:0.4}},
 
  {id:'k4b',name:'獣道の待ち伏せ',tier:4,kind:'horde',sec:3000,gph:60000,
-  waves:[tagWave(6,'獣')],
+  // ウルフ(lv1)・ワーウルフ(lv2)が増えたので下限で切る。切らないと6体とも仔狼になりうる
+  waves:[tagWave(6,'獣',{min:2})],
   desc:'**6体すべてが「獣」。**どれも速く、攻撃が重い。'
       +'《獣狩り》が初めて全員に刺さる依頼。',
   first:{gold:150000,item:true,member:true},
   reward:{equipChance:0.65,memberChance:0.35,memberBias:{rg:14,ar:14,tm:12},rareChance:0.3}},
  {id:'k6b',name:'暴走する牙',tier:6,kind:'horde',sec:21600,gph:158000,
-  waves:[tagWave(7,'獣'),tagWave(7,'獣')],
-  // 飛竜が竜へ移ったので、ここは**ケルベロスとケンタウロスの2種だけ**になった
+  // 下限3で、ウルフ(lv1)とワーウルフ(lv2)は混ざらない。難度6の重さを保つため
+  waves:[tagWave(7,'獣',{min:3}),tagWave(7,'獣',{min:3})],
   desc:'**7体の獣が二度。**ケルベロスとケンタウロスしかいない。'
       +'どちらも速く、追い詰めるほど強くなる。速度で押し込まれる前に何を通すか。',
   first:{gold:2900000,item:true,member:true,rare:true},
@@ -6499,21 +6551,78 @@ QUESTS.forEach(q=>{
 const questWaves=q=>q.waves||(q.enemies&&q.enemies.length?[q.enemies]:[]);
 
 /* --- 枠の中身 ---
-   1枠は「職業ID」か「候補の配列」。配列なら均等抽選（重みは付けない）。
-   候補に空文字を混ぜると「何も出ない」も引ける。
-     enemies:['lich',['lich','lich','skeleton','']]
+   1枠に書けるのは3つの形：
+
+     'goblin'                     … そのまま1体
+     ['goblin','skeleton','']     … 均等抽選。空文字を混ぜると「何も出ない」も引ける
+     {goblin:0.9, mimic:0.1}      … **重み付き抽選**（合計は1でなくてよい。比で決まる）
+
+   ★ 重み付きは「まれに混じる敵」のために足した ★
+   以前は同じ名前を並べて確率を作るしかなく、10%を出すのに
+     ['goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin','goblin','mimic']
+   と書く必要があった。読めないし、9体と1体の比だと気づけない。
+   書き味のために `rare()` を用意してある（下）。
+
    ★ 必ず種を固定した中で呼ぶ ★ そうしないと見るたびに敵が変わる。
    掲示時に確定させたいので、呼び口は foesFor / foeIdsFor に限る。 */
-const resolveWave=spec=>(spec||[]).map(s=>Array.isArray(s)?pick(s):s).filter(Boolean);
-/* 枠の表示名。候補枠は [A/B/なし] と並べる。 */
+const isWSlot=s=>!!s&&typeof s==='object'&&!Array.isArray(s);
+/* 重みで1つ引く。重みは比なので、合計が1でも100でも同じ結果になる。 */
+function pickW(w){
+  const ks=Object.keys(w); let sum=0;
+  ks.forEach(k=>{ sum+=Math.max(0,+w[k]||0); });
+  if(sum<=0) return ks[0]||'';
+  let r=R(sum);
+  for(const k of ks){ r-=Math.max(0,+w[k]||0); if(r<=0) return k; }
+  return ks[ks.length-1];
+}
+/* まれに混じる敵を書くための糖衣。返り値は上の「重み付き枠」そのもの。
+
+     rare('goblin','mimic',0.1)              … ふだんゴブリン、10%でミミック
+     rare('goblin',{mimic:0.08,vampire:0.02}) … 複数を別々の確率で
+     rare('goblin','',0.2)                   … 20%で「何も出ない」
+     rare(MONSTER_TAG('獣'),'wyrm',0.05)      … base に候補の配列も置ける（残りを均等割り）
+
+   base は「残りぜんぶ」なので、確率を足しても1を超えないようにだけ気をつければよい。 */
+function rare(base,id,rate){
+  const add=(id&&typeof id==='object')?id:{[id]:rate};
+  const w={}; let sum=0;
+  Object.keys(add).forEach(k=>{ const v=Math.max(0,+add[k]||0); if(!v)return;
+    w[k]=(w[k]||0)+v; sum+=v; });
+  sum=Math.min(1,sum);
+  const list=Array.isArray(base)?base:[base];
+  const each=(1-sum)/Math.max(1,list.length);
+  if(each>0) list.forEach(b=>{ w[b]=(w[b]||0)+each; });
+  return w;
+}
+/* 枠に出てきうる職業id。中身の解決や検証はこれを通す。 */
+const slotIds=s=>Array.isArray(s)?s:isWSlot(s)?Object.keys(s):[s];
+/* ★ 受注前の画面に出してよい候補 ★
+   重み付き枠の**まれな側は名前を出さない**。
+   出してしまうと「まれに」と書いた時点で身構えられ、驚きが無くなる。
+   `questFoeText` の末尾の「など」が、書いていないものがある合図になる。
+   候補枠（配列）は今までどおり全部見せる。あちらは「どれが来るか分からない」
+   ことそのものが依頼の性格なので、隠すと読めなくなる。 */
+const slotShown=s=>{
+  if(!isWSlot(s)) return slotIds(s);
+  // 重みが同じなら「なし」ではない方を表に出す（体数の幅から中身が透けないように）
+  const ks=Object.keys(s).sort((a,b)=>((+s[b]||0)-(+s[a]||0))||(a?-1:1));
+  return ks.length?[ks[0]]:[];
+};
+const resolveWave=spec=>(spec||[]).map(s=>
+  Array.isArray(s)?pick(s):isWSlot(s)?pickW(s):s).filter(Boolean);
+/* 枠の表示名。候補枠は [A/B/なし]、重み付き枠は**いちばん出るものだけ**。 */
+const clsN=x=>x?(CLS[x]?CLS[x].n:x):'なし';
 const slotName=s=>Array.isArray(s)
-  ? '['+s.map(x=>x?(CLS[x]?CLS[x].n:x):'なし').join('/')+']'
-  : (CLS[s]?CLS[s].n:s);
+  ? '['+s.map(clsN).join('/')+']'
+  : clsN(slotShown(s)[0]);
 /* その戦闘に出る敵の数。候補枠は 0〜1 体なので幅が出る。 */
 function waveSize(w){
   let lo=0,hi=0;
   (w||[]).forEach(s=>{
-    if(Array.isArray(s)){ hi++; if(!s.some(x=>!x)) lo++; }
+    /* ★ 重み付き枠は「出る」として数える ★
+       まれに何も出ない枠があっても「最大N体」とは書かない。
+       体数の幅から、伏せてあるものの存在が透けてしまうため。 */
+    if(Array.isArray(s)||isWSlot(s)){ hi++; if(!slotShown(s).some(x=>!x)) lo++; }
     else if(s){ lo++; hi++; }
   });
   return {lo,hi};
@@ -6540,7 +6649,8 @@ function questFoeText(q){
   if(q.foeUnknown) return '何が出るか分からない';
   const c={};
   w.forEach(wave=>wave.forEach(s=>{
-    (Array.isArray(s)?s:[s]).forEach(id=>{ if(id&&CLS[id]) c[id]=(c[id]||0)+1; });
+    // 重み付き枠は、まれな側を数に入れない（名前が「など」の前に出てしまうため）
+    slotShown(s).forEach(id=>{ if(id&&CLS[id]) c[id]=(c[id]||0)+1; });
   }));
   const top=Object.keys(c).sort((a,b)=>c[b]-c[a]).slice(0,3).map(id=>CLS[id].n);
   return top.length?top.join('・')+' など':'戦闘なし';
@@ -7404,10 +7514,40 @@ function tameFromPending(rep,clsId){
   rep.gained.push(`${memberLabel(u)} が心を許した。`);
 }
 /* 封筒を開ける。報告画面を出した瞬間に呼ぶので、数字が動くのと結果を見るのが同時になる。 */
+/* =========================================================
+   図鑑の記録
+
+   ★ 数えるのは claimReport だけ ★
+   `makeFoes` / `foesFor` に引っ掛けてはいけません。
+   「見立て」は `estimateQuest` が最大40回まわすので、
+   **受注していない依頼の魔物まで記録されてしまいます。**
+
+   会った … 実際に戦った魔物（`rep.rounds[].foes`）。負けても数える。
+   倒した … **依頼を達成した時だけ**数える。
+            達成＝全部の戦闘に勝った、なので rounds に出た魔物は全部倒しています。
+            3戦目まで倒していても4戦目で負けたら「会った」だけ（そういう決め）。
+   ========================================================= */
+const seenOf=id=>(G&&G.seen&&G.seen[id])||{met:0,kill:0};
+const seenMet=id=>seenOf(id).met>0;
+const seenKill=id=>seenOf(id).kill>0;
+const seenList=()=>MONSTERS.filter(c=>seenMet(c.id));
+function seenRecord(ids,killed){
+  if(!G||!ids||!ids.length)return;
+  G.seen=G.seen||{};
+  ids.forEach(id=>{
+    if(!CLS[id]||CLS[id].kind!=='monster')return;      // 人間職は図鑑に載せない
+    const e=G.seen[id]||(G.seen[id]={met:0,kill:0});
+    e.met++; if(killed) e.kill++;
+  });
+}
+
 function claimReport(rep){
   if(!rep||rep.claimed)return;
   if(rep.manual&&!rep.fought)return;   // 手動依頼はまだ戦っていない。開ける中身が無い
   rep.claimed=true;
+  /* 図鑑。rounds には**実際に戦った戦闘だけ**が入っている
+     （負けたらそこで止まるので、見ていない波の魔物は入らない）。 */
+  seenRecord((rep.rounds||[]).reduce((a,x)=>a.concat(x.foes||[]),[]),!!rep.ok);
   const q=questOf(rep.questId), pen=rep.pending||{};
   const rank0=rankIdx();               // キークエストで上がるので、開ける前後で比べる
   rep.first=!!pen.first;
@@ -7454,7 +7594,7 @@ function guildData(){
         newOnly:!!GQF.newOnly,keyOnly:!!GQF.keyOnly},
     custom:customList().map(q=>({id:q.id,name:q.name,sec:q.sec,waves:q.waves.map(w=>w.slice())})),
     cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,cid:G.cid||'',
-    done:G.done,parties:G.parties,stockAt:G.stockAt,offers:G.offers,
+    done:G.done,parties:G.parties,stockAt:G.stockAt,offers:G.offers,seen:G.seen||{},
     mult:G.mult||{},shopDay:G.shopDay||'',shopLog:G.shopLog||{},
     roster:G.roster.map(u=>Object.assign(serSave(u),{gid:u.gid,healAt:u.healAt||0,hero:!!u.hero,spLv:u.spLv||{}})),
     inv:INV.map(ser),stock:G.stock.map(ser)};
@@ -7520,13 +7660,19 @@ function applyGuild(d){
   /* チュートリアルの位置。**既に遊んでいる保存には出さない**
      （途中から「依頼を受けよう！」と言われても困る）。達成した依頼があれば済み扱い。 */
   const tut={step:(d.tut&&+d.tut.step)||(Object.keys(d.done||{}).length?TUT.length:0)};
+  /* 図鑑。知らない職業idや壊れた数は捨てる（保存は手で触れるので素通しにしない）。 */
+  const seenLoad=o=>{ const out={};
+    Object.keys(o||{}).forEach(id=>{ if(!CLS[id]||CLS[id].kind!=='monster')return;
+      const v=o[id]||{}, met=Math.max(0,+v.met||0), kill=Math.max(0,+v.kill||0);
+      if(met) out[id]={met,kill:Math.min(kill,met)}; });
+    return out; };
   GREV=+d.rev||0;     // この版を知っている、という記録。これより新しい保存を見たら古いタブ扱い
   G={gold:d.gold||0,gems:d.gems==null?10:d.gems,ext,tut,rev:GREV,cid:d.cid||'',
      custom:[],cidc:d.cidc||0,rankSeen:d.rankSeen,
      gidc:d.gidc||0,oidc:d.oidc||0,
      name:d.name||'かけだし団',hero:d.hero||'レイ',done:d.done||{},
      mult:d.mult||{},shopDay:d.shopDay||'',shopLog:d.shopLog||{},
-     stockAt:d.stockAt||0,offers:d.offers||[],
+     stockAt:d.stockAt||0,offers:d.offers||[],seen:seenLoad(d.seen),
      roster:[],parties:d.parties||[],stock:[]};
   INV=[]; iidc=0;
   // 依頼の絞り込みを戻す。開いていない難度を指していたら「すべて」へ落とす。
@@ -7565,7 +7711,7 @@ function applyGuild(d){
 function newGuild(name,hero,clsId){
   G={gold:0,gems:10,ext:{parties:0,roster:0,inv:0,custom:0},custom:[],cidc:0,rankSeen:0,
      tut:{step:0},rev:0,
-     gidc:0,oidc:0,name:name,hero:hero,done:{},mult:{},shopDay:'',shopLog:{},stockAt:0,offers:[],
+     gidc:0,oidc:0,name:name,hero:hero,done:{},mult:{},shopDay:'',shopLog:{},stockAt:0,offers:[],seen:{},
      roster:[],parties:[],stock:[]};
   INV=[]; iidc=0;
   const hc=(CLS[clsId]&&clsId!=='cm')?clsId:'sw';
@@ -7802,6 +7948,7 @@ function renderGuild(){
       ${item('quest','依頼を見る','受注状況と帰還予定',offers)}
       ${arenaOpen()?item('arena','闘技場','他のギルドの部隊と戦う'):''}
       ${item('shop','武具屋','武器と防具の売り買い')}
+      ${zukanOpen()?item('zukan','魔物図鑑',`戦った魔物の記録（${seenList().length}/${MONSTERS.length}）`):''}
       ${item('temple','寺院','負傷者の治療',hurt)}
       ${item('admin','ギルド管理','ランクと枠の拡張',rankIdx()>(G.rankSeen||0)?'!':0)}
     </div>
@@ -7819,6 +7966,8 @@ function renderGuild(){
       <button class="btn sm dbg" id="dbgG">金をカンストさせる</button>
       <button class="btn sm dbg" id="dbgJ">宝石をカンストさせる</button>
       <button class="btn sm dbg" id="dbgK">ランクを1つ上げる</button>
+      <button class="btn sm dbg" id="dbgZ" title="全種を「倒した」状態にします。自作依頼の選択肢も全部開きます">図鑑を全部開く</button>
+      <button class="btn sm dbg" id="dbgZ0">図鑑を空にする</button>
     </div>`:''}
     ${DEBUG?`<div class="gfoot">
       時間は実時間で進みます。<b>ページを閉じていても依頼は進行します。</b><br>
@@ -7839,6 +7988,13 @@ function renderGuild(){
     const u=gainMember(rare?{reward:{rareChance:1}}:null,rare?true:undefined);
     GMSG=`【検証】${gEsc(memberLabel(u))} が加入した`;
   };
+  /* 図鑑。埋まるまで依頼を回さないと画面が見られないので、直接開ける口を置く。
+     ★ 倒した扱いにする ★ 専用の個性・スキルまで開かないと、見たい所が見られない。
+     自作依頼の選択肢も図鑑に連動しているので、これで全種が並ぶ。 */
+  dbg('#dbgZ',()=>{ G.seen={};
+    MONSTERS.forEach(c=>{ G.seen[c.id]={met:1,kill:1}; });
+    GMSG=`【検証】図鑑を全部開いた（${MONSTERS.length}種）`; });
+  dbg('#dbgZ0',()=>{ G.seen={}; GMSG='【検証】図鑑を空にした'; });
   dbg('#dbgM',()=>dbgJoin(false));
   dbg('#dbgR',()=>dbgJoin(true));
   /* テイマーを引くまで捕獲を試せないので、直接入れる口を用意する。 */
@@ -7874,7 +8030,8 @@ function renderGuild(){
       extCap()===Infinity?'無制限':extCap()+'回'} まで拡張可）`;
   });
   if(GVIEW!=='make') GMAKE=null;      // 別のタブへ移ったら下書きは捨てる
-  ({party:gParty,quest:gQuest,shop:gShop,temple:gTemple,admin:gAdmin,make:gMake,arena:gArena}[GVIEW]||gParty)();
+  ({party:gParty,quest:gQuest,shop:gShop,temple:gTemple,admin:gAdmin,make:gMake,
+    arena:gArena,zukan:gZukan}[GVIEW]||gParty)();
   tickLabels();
 }
 
@@ -7970,8 +8127,8 @@ function renderGuildStart(){
       <div class="fchips" id="gnCls">${list}</div>
       <div class="tdesc">${gEsc(cur.desc)}<br>${clsSummary(cur)}</div>
       <div class="cmds"><button class="btn big" id="gnGo">はじめる</button></div>
-      <div class="seghint">主人公は<b>《主人公補正》</b>を必ず持ちます（全ステータス+15%／致死を1度だけ耐える）。
-        残り2枠の個性とスキルは職業の傾向で引きます。<br>
+      <div class="seghint">主人公は<b>《主人公補正》《先導》《転生》</b>を必ず持ちます（全ステータス+15%／致死を1度だけ耐える）（次の味方が少し早く動く）（一度だけ別形態で復活する）。
+        スキルは職業の傾向で引きます。<br>
         <b>主人公は除名できません。</b>職業はここでしか決められないので、好みで選んでください。<br>
         ギルド名は、いずれ他のプレイヤーから見える名前になります。</div>
     </div>`;
@@ -8109,7 +8266,7 @@ let GQF={st:'all',tier:'all',kind:[],newOnly:false,keyOnly:false};
 let GPICK=null;            // 「選んでから置く」の選択中の gid
 /* 控えの絞り込み。人数が増えると一覧が長くなるので、所属と職業で絞れるようにする。
    画面を出入りしても保つ（毎回やり直すほうが煩わしい）。 */
-let GFILT={own:'all',cls:[],cat:[],abl:[]};
+let GFILT={own:'all',open:[],cls:[],cat:[],abl:[]};
 
 /* =========================================================
    仲間の絞り込み
@@ -8165,6 +8322,8 @@ function filtPass(u){
    指し先が消えたまま「何も出ないのに解除する手段も無い」状態になる。
    数え直したついでに、いま存在しない指定は落とす。 */
 function filtBar(pool0,ownLabels){
+  // 保険。古い形の GFILT が残っていても落とさない（配列でなければ空にする）
+  ['open','cls','cat','abl'].forEach(k=>{ if(!Array.isArray(GFILT[k])) GFILT[k]=[]; });
   const clsCount={}, catCount={}, ablCount={}, catOf={};
   pool0.forEach(u=>{
     clsCount[u.clsId]=(clsCount[u.clsId]||0)+1;
@@ -8184,27 +8343,46 @@ function filtBar(pool0,ownLabels){
       `<button class="fchip${GFILT.cat.includes(c)?' on':''}" data-fcat="${gEsc(c)}">${
         gEsc(catName(c))}<i>${catCount[c]}</i></button>`).join('');
   const tCat=catRow('T'), sCat=catRow('S');
-  const open=Object.keys(ablCount).filter(k=>GFILT.cat.includes(catOf[k]))
-    .sort(byCount(ablCount,ablName));
-  const ablChips=open.map(k=>
-    `<button class="fchip${GFILT.abl.includes(k)?' on':''}" data-fabl="${gEsc(k)}">${
-      gEsc(ablName(k))}<i>${ablCount[k]}</i></button>`).join('');
 
   const L=ownLabels||['すべて','未所属','所属あり'];
+  /* ★ 絞り込みの列は、要ると言われるまで出さない ★
+     職業・個性・スキルを常に並べると、開いた瞬間にチップが3段（最大33個）出て
+     肝心の一覧が下へ押しやられる。「〜で絞り込む」を押した列だけ開く。
+     閉じたらその列の指定は落とす。**見えない絞り込みを残さない**ため。 */
+  const opened=k=>GFILT.open.includes(k);
+  const openBtn=(k,label,n)=>`<button data-fopen="${k}"${opened(k)?' class="on"':''}>${
+    label}${n?`<i>${n}</i>`:''}</button>`;
+  const ablRow=pre=>{
+    const on=Object.keys(catCount).filter(c=>c[0]===pre&&GFILT.cat.includes(c));
+    if(!on.length)return '';
+    const ks=Object.keys(ablCount).filter(k=>on.includes(catOf[k])).sort(byCount(ablCount,ablName));
+    const mine=GFILT.abl.filter(k=>catOf[k]&&catOf[k][0]===pre);
+    return `<div class="fchips fsub"><span class="flab">中身</span>${
+      ks.map(k=>`<button class="fchip${GFILT.abl.includes(k)?' on':''}" data-fabl="${gEsc(k)}">${
+        gEsc(ablName(k))}<i>${ablCount[k]}</i></button>`).join('')||'<span class="rnone">—</span>'}
+      ${mine.length?`<button class="fchip clr" data-fabl="*${pre}">解除</button>`
+        :'<span class="fhint">選ばなければ、この分類の何かを持つ人すべて</span>'}</div>`;
+  };
   return `<div class="fbar">
-    <div class="esteps" id="fOwn">
-      <button data-f="all"${GFILT.own==='all'?' class="on"':''}>${L[0]}</button>
-      <button data-f="free"${GFILT.own==='free'?' class="on"':''}>${L[1]}</button>
-      <button data-f="busy"${GFILT.own==='busy'?' class="on"':''}>${L[2]}</button>
+    <div class="frow">
+      <div class="esteps" id="fOwn">
+        <button data-f="all"${GFILT.own==='all'?' class="on"':''}>${L[0]}</button>
+        <button data-f="free"${GFILT.own==='free'?' class="on"':''}>${L[1]}</button>
+        <button data-f="busy"${GFILT.own==='busy'?' class="on"':''}>${L[2]}</button>
+      </div>
+      <div class="esteps" id="fOpen">
+        ${openBtn('cls','職業で絞り込む',GFILT.cls.length)}
+        ${openBtn('T','個性で絞り込む',GFILT.cat.filter(c=>c[0]==='T').length)}
+        ${openBtn('S','スキルで絞り込む',GFILT.cat.filter(c=>c[0]==='S').length)}
+      </div>
     </div>
-    <div class="fchips"><span class="flab">職業</span>${clsChips||'<span class="rnone">—</span>'}
-      ${GFILT.cls.length?'<button class="fchip clr" data-fc="*">解除</button>':''}</div>
-    ${tCat?`<div class="fchips"><span class="flab">個性</span>${tCat}</div>`:''}
-    ${sCat?`<div class="fchips"><span class="flab">スキル</span>${sCat}</div>`:''}
-    ${GFILT.cat.length?`<div class="fchips fsub"><span class="flab">中身</span>${
-      ablChips||'<span class="rnone">—</span>'}
-      ${GFILT.abl.length?'<button class="fchip clr" data-fabl="*">解除</button>'
-        :'<span class="fhint">選ばなければ、この分類の何かを持つ人すべて</span>'}</div>`:''}
+    ${opened('cls')?`<div class="fchips"><span class="flab">職業</span>${
+      clsChips||'<span class="rnone">—</span>'}
+      ${GFILT.cls.length?'<button class="fchip clr" data-fc="*">解除</button>':''}</div>`:''}
+    ${opened('T')?`<div class="fchips"><span class="flab">個性</span>${
+      tCat||'<span class="rnone">—</span>'}</div>`+ablRow('T'):''}
+    ${opened('S')?`<div class="fchips"><span class="flab">スキル</span>${
+      sCat||'<span class="rnone">—</span>'}</div>`+ablRow('S'):''}
   </div>`;
 }
 
@@ -8228,8 +8406,19 @@ function filtBind(b,redraw){
     redraw(); });
   b.querySelectorAll('[data-fabl]').forEach(el=>el.onclick=()=>{
     const k=el.dataset.fabl;
-    GFILT.abl=k==='*'?[]
-      :GFILT.abl.includes(k)?GFILT.abl.filter(x=>x!==k):GFILT.abl.concat(k);
+    if(k[0]==='*'){ const pre=k[1];            // その列の「解除」だけを外す
+      GFILT.abl=GFILT.abl.filter(x=>ablCat(x)[0]!==pre); }
+    else GFILT.abl=GFILT.abl.includes(k)?GFILT.abl.filter(x=>x!==k):GFILT.abl.concat(k);
+    redraw(); });
+  b.querySelectorAll('[data-fopen]').forEach(el=>el.onclick=()=>{
+    const k=el.dataset.fopen;
+    if(GFILT.open.includes(k)){
+      GFILT.open=GFILT.open.filter(x=>x!==k);
+      // 閉じた列の指定は落とす（開いていない絞り込みが効いていると、結果が読めない）
+      if(k==='cls') GFILT.cls=[];
+      else { GFILT.cat=GFILT.cat.filter(c=>c[0]!==k);
+             GFILT.abl=GFILT.abl.filter(x=>ablCat(x)[0]!==k); }
+    }else GFILT.open=GFILT.open.concat(k);
     redraw(); });
 }
 
@@ -9366,8 +9555,18 @@ function gMakeEdit(){
   const sec=clamp(D.sec||3600,CUSTOM_MIN_SEC,CUSTOM_MAX_SEC);
   const gold=customGold(live,sec);
   const total=solid.reduce((a,w)=>a+w.length,0);
-  const opts=cur=>`<option value=""${cur?'':' selected'}>—</option>`
-    +MONSTERS.map(c=>`<option value="${c.id}"${cur===c.id?' selected':''}>${c.n}</option>`).join('');
+  /* ★ 置けるのは図鑑に載っている魔物だけ ★
+     知らない相手を呼び出せると、自作依頼が図鑑を埋める抜け道になる。
+     ただし**いま選ばれているものは必ず残す**。
+     保存済みの依頼が、図鑑の都合で黙って書き換わってはいけない。 */
+  const pool=MONSTERS.filter(c=>seenMet(c.id));
+  const opts=cur=>{
+    const list=pool.slice();
+    if(cur&&CLS[cur]&&!list.some(c=>c.id===cur)) list.push(CLS[cur]);
+    return `<option value=""${cur?'':' selected'}>—</option>`
+      +list.map(c=>`<option value="${c.id}"${cur===c.id?' selected':''}>${gEsc(c.n)}${
+        seenMet(c.id)?'':'（図鑑に無し）'}</option>`).join('');
+  };
   const waveBlock=(w,i)=>`<div class="cwave">
     <div class="cwhead">第 ${i+1} 戦
       <i>敵 ${solid[i].length} 体 ／ 時給 +${Math.round(
@@ -9378,6 +9577,9 @@ function gMakeEdit(){
       <select data-w="${i}" data-s="${j}">${opts(id)}</select></label>`).join('')}</div>
   </div>`;
   b.innerHTML=`<h2>${D.fresh?'新しい依頼':'依頼の編集'}</h2>
+    ${pool.length?'':`<div class="seghint"><b>置ける魔物がまだいません。</b>
+      自作依頼に並べられるのは<b>魔物図鑑に載っている魔物</b>（＝一度戦ったことのある魔物）だけです。
+      まずは公式の依頼へ出てみてください。</div>`}
     <div class="pname"><label>依頼名</label>
       <b class="pnval">${gEsc(D.name||'（未命名）')}</b>
       <button class="btn sm" id="cRoll">名前を引き直す</button></div>
@@ -9447,6 +9649,84 @@ function gMakeEdit(){
 }
 
 /* --- 寺院 --- */
+/* --- 魔物図鑑 ---
+   ★ 会ったものだけを載せる ★ 名前の伏せ字は置かない。
+   「まだ見ていないものが何体いるか」だけを数で出す。
+
+   ★ 専用の個性・スキルは「倒してから」開ける ★
+   会っただけでは手の内は分からない、という建て付け。 */
+const ZUKAN_OPEN=1;                       // 駆け出しギルドから
+const zukanOpen=()=>!!G&&rankIdx()>=ZUKAN_OPEN;
+/* その魔物だけが持つ個性・スキル。
+   ★ 人間職も満たす needs は「専用」に数えない ★
+   〈剣所持〉〈射手〉〈人型〉は人間職にもあるタグなので、これを入れると
+   全力斬まで「スケルトンの専用技」として並んでしまう。 */
+/* ★ 擬態（ミミック）は最初から除く ★
+   `traitAllowed` / `skillAllowed` は擬態に対して何でも true を返すので、
+   そのまま数えると**種族専用のほぼ全部**がミミックの欄に並び、
+   図鑑が「他の魔物の手の内の一覧」になってしまう。
+   ミミックは**何を持つか決まっていない**のが仕様なので、専用は無しとして扱う。 */
+const mimicry=cls=>!!(cls&&cls.tags&&cls.tags.includes('擬態'));
+const soloTraits=cls=>mimicry(cls)?[]:TRAIT_IDS.filter(id=>TRAITS[id]&&TRAITS[id].needs
+  && traitAllowed(TRAITS[id],cls) && !HUMANS.some(h=>traitAllowed(TRAITS[id],h)));
+const soloSpells=cls=>mimicry(cls)?[]:SPELL_IDS.filter(id=>SP[id]&&SP[id].needs
+  && skillAllowed(SP[id],cls) && !HUMANS.some(h=>skillAllowed(SP[id],h)));
+let GZF={tags:[]};
+function gZukan(){
+  const b=$('#gbody'); if(!b)return;
+  const seen=seenList();
+  // タグのチップは「会ったことのある魔物が持つタグ」だけ。空振りするボタンを置かない
+  const tagCount={};
+  seen.forEach(c=>(c.tags||[]).forEach(t=>{ tagCount[t]=(tagCount[t]||0)+1; }));
+  GZF.tags=GZF.tags.filter(t=>tagCount[t]);           // 自己修復
+  const list=seen.filter(c=>!GZF.tags.length||(c.tags||[]).some(t=>GZF.tags.includes(t)))
+    .sort((a,b2)=>(a.lv||0)-(b2.lv||0)||a.n.localeCompare(b2.n,'ja'));
+  const tagChips=Object.keys(tagCount).sort((a,b2)=>tagCount[b2]-tagCount[a]||a.localeCompare(b2,'ja'))
+    .map(t=>`<button class="fchip${GZF.tags.includes(t)?' on':''}" data-zt="${gAttr(t)}">${
+      gEsc(t)}<i>${tagCount[t]}</i></button>`).join('');
+  const stat=c=>`HP${c.hp}　MP${c.mp}　攻${c.atk}　防${c.def}　魔${c.mat}　魔防${c.mdf}　速${c.spd}`;
+  const row=c=>{
+    const e=seenOf(c.id), open=e.kill>0;
+    const tr=soloTraits(c), sp=soloSpells(c);
+    const chips=mimicry(c)
+      ? '<span class="rnone">何を持っているかは決まっていない</span>'
+      :!tr.length&&!sp.length
+      ? '<span class="rnone">専用の個性・スキルは持っていない</span>'
+      : open
+        ? tr.map(id=>`<span class="tchip" data-tip="《${gAttr(TRAITS[id].name)}》${
+              gAttr(TRAITS[id].desc||'')}">${gEsc(TRAITS[id].name)}</span>`).join('')
+          +sp.map(id=>`<span class="schip${isArt(SP[id])?' art':''}" data-tip="${
+              gAttr(skillTip(SP[id]))}">${gEsc(spBase(SP[id]))}</span>`).join('')
+        : `<span class="rnone">専用の個性・スキルが ${tr.length+sp.length} 件。一度倒すと読めます</span>`;
+    return `<div class="rrow" data-z="${gAttr(c.id)}">
+      <span class="rpos">Lv${c.lv||1}</span>
+      <span class="rmain"><b>${gEsc(c.n)}</b>${
+        (c.tags||[]).map(t=>`<i class="gtag tr">${gEsc(t)}</i>`).join('')}<br>
+        <span class="rsub">${gEsc(c.desc||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
+        <span class="rsub zstat">${stat(c)}</span>
+        <span class="gchips">${chips}</span></span>
+      <span class="rbtn zcnt"><b>会った ${e.met}</b><b class="${open?'gok':''}">倒した ${e.kill}</b></span>
+    </div>`;
+  };
+  b.innerHTML=`<h2>魔物図鑑</h2>
+    <div class="seghint">依頼で<b>実際に戦った魔物</b>だけが載ります。見立て（試算）では増えません。<br>
+      <b>数値は基準値です。</b>実際に出てくる個体は ±10%（敵はさらにHP+5%）ばらつきます。<br>
+      <b>一度倒すと、その魔物の専用の個性とスキルが読めるようになります。</b>
+      自作依頼に置けるのも、ここに載っている魔物だけです。</div>
+    <div class="sechead">見つけた魔物　<i class="fcount">${seen.length} / ${MONSTERS.length} 種</i></div>
+    ${Object.keys(tagCount).length?`<div class="fbar"><div class="fchips">
+      <span class="flab">タグ</span>${tagChips}
+      ${GZF.tags.length?'<button class="fchip clr" data-zt="*">解除</button>':''}</div></div>`:''}
+    <div class="rlist">${list.map(row).join('')
+      ||`<div class="tdesc">${seen.length?'絞り込みに合う魔物がいません。'
+        :'まだ一体も戦っていません。依頼へ出て、報告を聞くと載ります。'}</div>`}</div>`;
+  b.querySelectorAll('[data-zt]').forEach(el=>el.onclick=()=>{
+    const t=el.dataset.zt;
+    GZF.tags=t==='*'?[]
+      :GZF.tags.includes(t)?GZF.tags.filter(x=>x!==t):GZF.tags.concat(t);
+    gZukan(); });
+}
+
 function gTemple(){
   const b=$('#gbody');
   const hurt=G.roster.filter(showHurt);   // 報告を聞く前の負傷はここにも出さない
