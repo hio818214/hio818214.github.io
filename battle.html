@@ -773,6 +773,20 @@ body.mobile .grow{gap:4px}
 body.mobile .grow select{flex:1 1 46%;min-height:38px;font-size:12px}
 body.mobile .gbtns button{width:34px;height:34px}
 body.mobile .rrow{flex-wrap:wrap}
+/* ★ 右の列を下へ落とさない行 ★
+   折り返すと右の列が**丸ごと1行を占める**ので、必ず1行ぶん高くなる。
+   そのわりに読みやすくはならない（ボタン2つ・数字2行しか無い）。
+   落とさずに横へ置いたまま、その列の中だけで折り返させる。
+   .rmain は min-width:0 なので、狭くなれば名前側が先に縮む。 */
+body.mobile .rrow.tight{flex-wrap:nowrap}
+/* ★ width:100% を外すのが本体 ★
+   下の `body.mobile .rbtn{width:100%}` が、折り返した右の列に1行まるごと使わせていた。
+   ここでは幅を**画面の20%まで**に抑える。ボタン2つと数字2行しか無いので、それで足りる。
+   はみ出しそうな文字（「呼び戻すには宝石5（いま 3）」など）は折り返して縦に伸びる。 */
+body.mobile .rrow.tight .rbtn{width:auto;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end;
+  max-width:20%;overflow-wrap:anywhere}
+body.mobile .rrow.tight .rwhy{max-width:100%}
+body.mobile .rrow.tight .zcnt{flex:0 0 auto}
 body.mobile .rbtn{width:100%;justify-content:flex-end}
 body.mobile .rbtn button{min-height:36px;padding:6px 10px}
 body.mobile .rlist{max-height:none}
@@ -8333,7 +8347,7 @@ function gParty(){
       :p.questId?`受注中：${gEsc(questOf(p.questId).name)}　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :'<span class="rnone">待機中</span>';
     const skip=(p.questId||p.arena)?skipCost(p.returnAt-now()):0;
-    return `<div class="rrow" data-p="${p.pid}">
+    return `<div class="rrow tight" data-p="${p.pid}">
       <span class="rpos">${men.length}人</span>
       <span class="rmain">
         <span class="phead"><b>${gEsc(p.name)}</b>
@@ -9861,7 +9875,7 @@ function gZukan(){
           +sp.map(id=>`<span class="schip${isArt(SP[id])?' art':''}" data-tip="${
               gAttr(skillTip(SP[id]))}">${gEsc(spBase(SP[id]))}</span>`).join('')
         : `<span class="rnone">専用の個性・スキルが ${tr.length+sp.length} 件。一度倒すと読めます</span>`;
-    return `<div class="rrow" data-z="${gAttr(c.id)}">
+    return `<div class="rrow tight" data-z="${gAttr(c.id)}">
       <span class="rpos">Lv${c.lv||1}</span>
       <span class="rmain"><b>${gEsc(c.n)}</b>${
         (c.tags||[]).map(t=>`<i class="gtag tr">${gEsc(t)}</i>`).join('')}<br>
