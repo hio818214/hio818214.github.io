@@ -3563,22 +3563,37 @@ function rowForSpell(sp,act){
 }
 /* ★ 既に作られたキャラの繕い ★
    defaultGambits は**作った時に一度しか走らない**ので、
-   全体治療の行が抜けたまま保存されたキャラは、直しても行が生えない。
+   行が抜けたまま保存されたキャラは、defaultGambits を直しても行が生えない。
    読み込み時に、持っているのに行が無い場合だけ足す。
 
    足すのは**その枠を指す行が1つも無い時だけ**。
    手で消した行を勝手に復活させないための条件で、
-   applySkillGain が新しく覚えたスキルの行を足す時と同じ判定にしてある。 */
-function fixCureAllRow(u){
+   applySkillGain が新しく覚えたスキルの行を足す時と同じ判定にしてある。
+
+   いま繕っているのは2つ：
+     全体治療 … 範囲を見ずに引いていたので、単体しか行にならなかった
+     MP回復  … defaultGambits が type:'mp' を引いていなかった */
+function fixAutoRows(u){
   if(!u||!u.gambits)return false;
   const sps=allSpells(u);
-  const i=sps.findIndex(id=>id&&id!=='none'&&SP[id]&&SP[id].type==='cure'&&SP[id].scope==='all');
-  if(i<0)return false;
-  const act='sp'+i;
-  if(u.gambits.some(x=>x.act===act))return false;
-  const r=rowForSpell(SP[sps[i]],act); if(!r)return false;
-  u.gambits.unshift(r);          // 治療は先頭。後ろだと攻撃行に先を越される
-  return true;
+  let n=0;
+  const want=(pick,head)=>{
+    const i=sps.findIndex(id=>id&&id!=='none'&&SP[id]&&pick(SP[id]));
+    if(i<0)return;
+    const act='sp'+i;
+    if(u.gambits.some(x=>x.act===act))return;
+    const r=rowForSpell(SP[sps[i]],act); if(!r)return;
+    if(head){ u.gambits.unshift(r); }            // 治療は先頭。後ろだと攻撃行に先を越される
+    else{
+      // MP回復は回復行の直後へ。末尾だと攻撃の行に先を越されて出番が来ない
+      const at=u.gambits.findIndex(g=>!isAllySubj(g.subj));
+      u.gambits.splice(at<0?u.gambits.length:at,0,r);
+    }
+    n++;
+  };
+  want(sp=>sp.type==='cure'&&sp.scope==='all',true);
+  want(sp=>sp.type==='mp',false);
+  return n>0;
 }
 function defaultGambits(u){
   const g=[];
@@ -3593,6 +3608,12 @@ function defaultGambits(u){
      全体を上に置く。条件が「2人以上」なので、1人だけなら素通りして下の単体へ落ちる。 */
   add(slot('heal','all')); add(slot('heal','one'));
   add(slot('cure','all')); add(slot('cure','one'));
+  /* ★ MP回復（魔薬・マナーヤ）★
+     ここを呼んでいなかったので、**生まれつき持っている人には行が作られず**、
+     オートで一度も撃たれなかった（あとから覚えた場合だけ applySkillGain が足していた）。
+     条件は mp_low（25%以下）なので、満タン相手に撃ち続けることはない。
+     どちらも消費MPが0なので、順番を上に置いても攻め手を削らない。 */
+  add(slot('mp'));
   g.push(...traitGambits(u));      // 個性が要求する行動を、スキルより先に置く
   add(slot('atk','all')); add(slot('ail')); add(slot('evade'));
   add(slot('buff')); add(slot('debuff')); add(slot('atk','one'));
@@ -7870,7 +7891,7 @@ function applyGuild(d){
   (d.roster||[]).forEach(o=>{ const u=buildUnit(o);
     u.gid=o.gid||(++G.gidc); u.healAt=o.healAt||0; u.hero=!!o.hero; u.side='ally';
     u.spLv=o.spLv||{};   // スキルidごとのレベル。古い保存には無いので空で始める
-    fixCureAllRow(u);    // 全体治療の行が抜けている保存を繕う（→ §F-36）
+    fixAutoRows(u);      // 全体治療・MP回復の行が抜けている保存を繕う
     G.gidc=Math.max(G.gidc,u.gid); G.roster.push(u); });
   // 実在しない gid と、二重所属を掃除する（過去の保存に混ざっている可能性がある）
   const live=new Set(G.roster.map(u=>u.gid));
