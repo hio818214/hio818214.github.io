@@ -400,6 +400,12 @@ body.guildmode.replaying.manualplay #cmdBox{display:block}
 body.mobile .aunit{flex-wrap:wrap}
 body.mobile .aunit .gchips{flex-basis:100%}
 .gname{cursor:help;border-bottom:1px dotted var(--line2)}
+/* 部隊一覧の行。1行目＝部隊名と状態、2行目＝前衛、3行目＝後衛。
+   [前][後] の札は闘技場（.apos）と同じものを使い回している。 */
+.phead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.prow{display:flex;align-items:baseline;gap:6px;margin-top:2px}
+.pmem{flex:1 1 auto;min-width:0}
+.pmem i{font-style:normal;color:var(--muted);font-size:10.5px;margin-left:3px}
 .gname:hover{color:var(--gold);border-bottom-color:var(--gold)}
 .ghero{font-style:normal;background:var(--gold);color:#1a1526;font-size:8.5px;
   border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle}
@@ -2440,11 +2446,132 @@ const ANAMES = [
   'クレオ', 'サクヤ', 'サシャ', 'シエル', 'シリル', 'シルヴィ', 'セイラ', 'ゼン', 'ツバキ', 'ナギ',
   'ナタン', 'ニーナ', 'ハク', 'バル', 'ピピン', 'フィオナ', 'フラン', 'マキ', 'ミオ', 'ミラ'
 ];
-/* 同じ名前が並ばないように未使用の名前から引く */
+/* =========================================================
+   名簿を使い切ったあとの名前（カタカナのマルコフ連鎖）
+
+   ★ 番号を振るのをやめるために入れた ★
+   ANAMES（152件）が尽きると「ライカ・153」のようになっていた。
+   仲間が増えるほど名前が名前でなくなるので、**そこからは作る**。
+
+   仕組みは「直前の1文字から次の1文字を引く」だけ。
+   表の値は「その文字の次に実際に来た文字」を並べたもので、
+   **同じ文字が何度も並んでいるのは誤記ではなく、それがそのまま重み**になる
+   （ラ の次は ン が多い、など）。
+   先頭は空文字のキーから引くので、ー や ッ では始まらない。
+   どの行き先にも対応する行があるので、途中で打ち切られることはない
+   （長さは len だけで決まる）。
+   ========================================================= */
+const NAME_CHAIN={
+  '':'アイウエオカガキギクグケゲコゴサザシジスセゼソゾタダチツテデトドナニヌネノハバパヒビピフブプヘベペホボポマミムメモヤユヨラリルレロワヴ',
+  'ー':'サデヴデジルスギニスタドルレトガフロドトパスドドトニスドムンルリントマイルンシナザサゼタンブルラミマスムスバトベマデンストバドニマテリラサニツウジバリゼンドトアデストラルグニナネジルヌレヌドドヌラヌラテレンンヌナニリンリナヌアヌジシニラデヴマリンサドビダラゼタリヌサシジンヌネラアラドニフデナネズルゼナヌンヌシラプルルルスフリスズイアンジナムリリスラムルシヤドネクンジニデイリスグフルネウクンナボラフカモトタフン',
+  'ァ':'ーーナイーイーニハフルース',
+  'ア':'ーーイクシルレレンンンスームンーランスムンーガデメリンンンーナンンナンンナトムンーサシシスタタテドナモラリルンヌエスノンスルフルッ',
+  'ィ':'ンルルスンーッンーーーケノモエスルネルンネーネンーーアーフフーーオアッーシンギキンアスアコトリロウランウラウクトートンー',
+  'イ':'ザーーカポラジンアゲルンモラマダマンオンントトースンルロジヨントフンリルドオリルレンオンナアラースンデマラルクドダオセラ',
+  'ゥ':'イーススアトース',
+  'ウ':'ィェェォッアィコンリスェルェィェラネイェォラダススンスキェリスムエスィスゴレムィスメテ',
+  'ェ':'ルルラロールロッイルルリリリレナツスミレデルルルーラープフーンフ',
+  'エ':'スドメラルルルンルルットポリルレレッッッルドヘルキスウミルガルムマラムンヴル',
+  'ォ':'ーーーーーダノー',
+  'オ':'イーコスドリリルルルスドナナラーデンンノアシミロロルスルスウ',
+  'カ':'ボーーーーースミルルスタッテテトミロンルトエデフマモルンウンリイ',
+  'ガ':'ーウーンーサーーラウネンルロルルラトル',
+  'キ':'ーーッャンンノアムャャャアーリウメヤナスム',
+  'ギ':'ューャルスンナビオルンル',
+  'ク':'セセーリルレロラスサリトマレマスウリレリシレサトトゼィススドベムルンルメブェグエア',
+  'グ':'ルススラリレララリリナリウラリフナルフルデルレル',
+  'ケ':'イスネマンンスンーリーモル',
+  'ゲ':'ンイオルオー',
+  'コ':'ンクッナンスフランーリレンルヨリルンモンジ',
+  'ゴ':'ッドドルジル',
+  'サ':'ーイイエテバフミンースムーンスバールタダル',
+  'ザ':'ッネレフベンリベリナ',
+  'シ':'モーデャュュュルーーーュュュアェェェシィシルスビャーリルーャーュラィャアアュュュリュャュャネャャュュュンョャュレェュャェニリャェ',
+  'ジ':'ャルェェギュョルルャスカャンーーェニナーャャョリアョールェルバャャャャュェダーャー',
+  'ス':'トテトカンバレタトムキタタタチペミレラクコマテケレタタリテキウザカカテタジレプネメレブトトタトトラテカヴチ',
+  'ズ':'ベルリドデ',
+  'セ':'ルスイイスドネリレンスシシリルウウオクコッマミンー',
+  'ゼ':'ールフールッノス',
+  'ソ':'アーーテンンンーニラアグ',
+  'ゾ':'ーッーンス',
+  'タ':'ーフーーンーヴーーーリマリルグルクラウフミムランリンールゼナハ',
+  'ダ':'ーーーヴグレレーイナリリルンルムムンテルテ',
+  'チ':'ュェェッボャャャョアェエコャェアスマモャューーフ',
+  'ッ':'ククトドドトパクトクトタクトトシシジパツクケクサトククヒククツトトダトサトタトトトトキトサトタテタテツドサデトドトククサタツト',
+  'ツ':'ヴォェィァェィ',
+  'テ':'バィィルィオナネィィィィィィジィィィィィィールレィィィアンィクィィィスィペィィィィスィト',
+  'デ':'ィンィィィィィィィヴーィフュュィィィンレッィスィラリルガリィィシィフィィウメィスーギ',
+  'ト':'ンナワレンイニニビムレレルランンリビンーワリースリルリラルリゥゥゥハナララレルシルラリラロゥゥ',
+  'ド':'ヴマネナウフリラーーメワゥロールリルリルラゥーレロボシワッゥウミルゥーミラ',
+  'ナ':'ーンーーーイーールッボンルルータナネンンンエハイテジタエフムレババウー',
+  'ニ':'ーーオココュルーーーーアースャアーャーコナースアスコネンシムッア',
+  'ヌ':'ーーンスンーデム',
+  'ネ':'ルルスリカシイヴクデリルロガススッスッリスージフーーヘルネウ',
+  'ノ':'ーーーールンーーアミススワスー',
+  'ハ':'ンンクーンルイエネリリリリイトニ',
+  'バ':'ンーーーテーージルレーイーーイーベルラアシタフラルロゾルン',
+  'パ':'ーーブリーッテ',
+  'ヒ':'ーギラルエュェ',
+  'ビ':'エーークススヨンーッルアビアーニルゾ',
+  'ピ':'ー',
+  'フ':'レァォリラォィィーォラマェォァァィアィィラリロェララリェェマェシラァィァエララルァォァュィラ',
+  'ブ':'ルロラリリッラーカリス',
+  'プ':'リースサリロロタ',
+  'ヘ':'イーカブリプ',
+  'ベ':'ーリルラルルルルンンンンーラッアッテラスール',
+  'ペ':'ンドシガトラ',
+  'ホ':'ーッッフルレルルル',
+  'ボ':'ッーコニルロリー',
+  'ポ':'ルニリー',
+  'マ':'ンルーンンンンルンーンイウックチッーリルルンラーーーイデドリリリリルレロナゾーキルールンンッウウクシストムルンンー',
+  'ミ':'ュースエンッハハルレーケザリリナテラスアエテズキトトリー',
+  'ム':'ンソジラリジセールルガンキズースタドシプーヘメリルンマエ',
+  'メ':'ッニイイッランルリリリリルロリルトーナシフラルルレ',
+  'モ':'フンシースビラルンンンーリッセシフイーデラーン',
+  'ャ':'シラルッドンミースリンクニノーーウーノフマンコンタル',
+  'ヤ':'フランチーロラズロロ',
+  'ュ':'ストナリルアーラーアヴナナバマルロダパドフスボ',
+  'ユ':'ーーーートリーーースリーグス',
+  'ョ':'ーーシリナ',
+  'ヨ':'ルーーーシナハラルードル',
+  'ラ':'イイハンンースーーースーーンイッウンスントニームンヴウザムムルンンンンゼヤリンンウナビリウタテンシルーンーンッミニラマロンーグウカゲルダーーフーヴキスムモンンー',
+  'リ':'ケバビーフーアンッムーーフッーーアッッウーョロスーーオカジッドーフロゴーアソンアッカーナーーンンザスーーーールーアーーアルーアラクアーーエーーシスーーーーエエオサーーアーィッルーアサーザシタリアーーカスウエガィヤンャアーダヤアギペシッルッスーウオュュュ',
+  'ル':'セトフズナワヴナモシハロバトグドルツハベズニデスソドクントナドニントバズチテトデゴフドアイーーカキネドフダママーダマシフマーデタイイクシンルヒテヤラカナドガンウスムッッフギヌシクムデヌスララスデスレグフムマテガスガラニナエームエスミクドトトシエツドヒタクーエガバツド',
+  'レ':'クッッルーアイイイウインヴバリスガーーイイイオスッニンンイーイナリモリッンーーーチオジズテイーッッットビアイガーーーシナネム',
+  'ロ':'フーーーフイーッドベラルレンリーリークザゼッレレレアルアククーヴブンフヴスアススマ',
+  'ワ':'ールイーイイットーンルール',
+  'ン':'グトリグドリネグデズトラダトズブグツグトドグズビセスズテグツグハクサジトロドテドグドドバブドドツメジヌネグデドデテチナカシチダシトキネタトドノスナジケグドワナガタムテチキドギムドテゴムプチギダデ',
+  'ヴ':'ォァィィァィィァィィェァァィォァィレィィ',
+};
+/* 長さは 2+RI(3)+RI(3)+RI(3) で 2〜8文字。4〜5が出やすい山になる。
+   ★ 乱数は必ず RI（種つき）を使う ★ Math.random だと再生で名前が変わる。 */
+function markovName(len){
+  const n=len||(2+RI(3)+RI(3)+RI(3));
+  let last='', out='';
+  for(let i=0;i<n;i++){
+    const next=NAME_CHAIN[last];
+    if(!next) break;
+    last=next.charAt(RI(next.length));
+    out+=last;
+  }
+  return out.replace(/ッ+$/,'');     // 末尾の促音だけは落とす（読めないので）
+}
+/* 名簿が尽きた時の名前。使われていない2文字以上が出るまで引き直す。
+   それでも駄目なら従来どおり番号を振る（最後の手段）。 */
+function freshName(used){
+  for(let i=0;i<60;i++){
+    const n=markovName();
+    if(n.length>=2&&!used.has(n)) return n;
+  }
+  return ANAMES[RI(ANAMES.length)]+'・'+(used.size+1);
+}
+
+/* 同じ名前が並ばないように未使用の名前から引く。
+   名簿を使い切ったら markovName で作る（→ freshName）。 */
 function freshAllyName(){
   const used=new Set([...U,...BENCH].filter(x=>x.side==='ally').map(x=>x.name0||x.name));
   const free=ANAMES.filter(n=>!used.has(n));
-  return free.length?pick(free):ANAMES[RI(ANAMES.length)]+'・'+(used.size+1);
+  return free.length?pick(free):freshName(used);
 }
 const ROMAN=['','Ⅱ','Ⅲ','Ⅳ','Ⅴ','Ⅵ','Ⅶ'];
 
@@ -2645,7 +2772,7 @@ function renameForClass(u,cls,wasKind){
   if(wasKind==='human')return;
   const used=new Set([...U,...BENCH].filter(x=>x!==u&&x.side===u.side).map(x=>x.name0||x.name));
   const free=ANAMES.filter(n=>!used.has(n));
-  u.name=u.name0=free.length?pick(free):ANAMES[RI(ANAMES.length)]+'・'+(used.size+1);
+  u.name=u.name0=free.length?pick(free):freshName(used);
 }
 function newUnit(side,slot){
   const cls=side==='ally'?pick(HUMANS):pick(MONSTERS);
@@ -5768,7 +5895,7 @@ function openDataPanel(){
    それを何度も回せばそのまま成功率の試算になる。
    ========================================================= */
 const GUILD_KEY='kosei-guild-v1';
-const GOLD_CAP=999999999;       // 検証用のカンスト値
+const GOLD_CAP=99999999999;       // 検証用のカンスト値
 const GEM_CAP=9999;
 // 部隊は拡張のたびに増えるので、漢数字が尽きたら算用数字に落とす
 const KANJI_NUM=['一','二','三','四','五','六','七','八','九','十',
@@ -6007,7 +6134,7 @@ const QUESTS=[
     掲示された時点でどれかに確定するので、受注画面で確かめられる。 */
  {id:'q1d',name:'夜通しの見張り',tier:1,kind:'idle',sec:1800,gph:11000,
   enemies:['goblin','goblin',['harpy','goblin','']],
-  desc:'朝まで街道に張り付く。**何が出るかは掲示を見るまで分からない。**',
+  desc:'朝まで街道に張り付く。',
   first:{gold:8000,item:true},
   reward:{equipChance:0.4,memberChance:0.3,memberBias:{rg:14,ar:10}}},
 
@@ -6063,9 +6190,13 @@ const QUESTS=[
   desc:'不死が三体。倒しても立ち上がることがある。',
   first:{gold:42000,item:true},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,hx:14},rareChance:0.2}},
+ /* ★ キーは「その難度でいちばん重い」に置く ★
+    4体ではこの難度の普通の依頼（平均4.9体）より軽く、関門になっていなかった。
+    ゴブリンを外して狼へ。犬舎なので顔ぶれも揃う。 */
  {id:'q3b',name:'犬舎の暴走',tier:3,kind:'std',sec:900,gph:46000,key:true,
-  enemies:['cerberus','cerberus','goblin','goblin'],
-  desc:'鎖を切った猟犬が2頭。**追い詰めるほど強くなる。**短期決戦しかない。',
+  enemies:['cerberus','cerberus','wolf','wolf','wolf'],
+  desc:'鎖を切った猟犬が2頭と、つられて出た狼が3匹。'
+      +'**追い詰めるほど強くなる。**短期決戦しかない。',
   first:{gold:35000},
   reward:{equipChance:0.5,memberChance:0.3,memberBias:{kn:16,sw:12},rareChance:0.2}},
  {id:'q3a',name:'廃坑の奥',tier:3,kind:'std',sec:1500,gph:44000,
@@ -6080,8 +6211,9 @@ const QUESTS=[
   first:{gold:68000,member:true},
   reward:{equipChance:0.6,memberChance:0.35,memberBias:{pr:20,mg:14},rareChance:0.25}},
  {id:'q3d',name:'四連の門',tier:3,kind:'chain',sec:2400,gph:48000,key:true,
+  // 3戦目だけ2体で、そこが息継ぎになっていた。連戦は波の谷を作らない
   waves:[['goblin','goblin','goblin','goblin'],['skeleton','skeleton','lich'],
-         ['gargoyle','gargoyle'],['cerberus','cerberus','harpy']],
+         ['gargoyle','gargoyle','harpy'],['cerberus','cerberus','harpy']],
   desc:'**回復なしで四連戦。**門ごとに相手の型が変わる。'
       +'MPをどこで使うかがそのまま結果になる。',
   first:{gold:96000,item:true,member:true,rare:true},
@@ -6104,21 +6236,27 @@ const QUESTS=[
       +'物理で削り合うと先にこちらが尽きる。',
   first:{gold:140000,item:true},
   reward:{equipChance:0.65,memberChance:0.4,memberBias:{mg:20,hx:14},rareChance:0.3}},
+ /* 3体はこの難度で最少だった（普通の依頼は平均5.3体）。
+    飛竜はそのままに、足元を固める幼竜を3体足して6体に。 */
  {id:'q4a',name:'竜の通り道',tier:4,kind:'std',sec:3600,gph:58000,key:true,
-  enemies:['wyvern','wyvern','wyvern'],
-  desc:'最速級が三体。**《竜鱗》で大技が通らない。**手数で削るしかない。',
+  enemies:['wyvern','wyvern','wyvern','drake','drake','drake'],
+  desc:'最速級が三体、その足元に幼竜が三体。'
+      +'**《竜鱗》で大技が通らない。**手数で削るしかない。',
   first:{gold:175000,item:true},
   reward:{equipChance:0.7,memberChance:0.4,memberBias:{rg:16,ar:16},rareChance:0.35}},
  {id:'q6',name:'巣穴の掃討',tier:4,kind:'horde',sec:7200,gph:62000,key:true,
-  enemies:['goblin','goblin','goblin','wyvern','wyvern'],
-  desc:'数と火力の両方が来る。生半可な編成では帰れない。',
+  enemies:['goblin','goblin','goblin','werewolf','wyvern','wyvern'],
+  desc:'数と火力の両方が来る。**人の形をしたものも巣に居着いている。**'
+      +'生半可な編成では帰れない。',
   first:{gold:370000,item:true,member:true,rare:true},
   reward:{equipChance:0.8,memberChance:0.5,memberBias:{kn:14,sw:10,mg:10},rareChance:0.5}},
  {id:'q4d',name:'五段の試練',tier:4,kind:'chain',sec:5400,gph:68000,key:true,
+  /* 3戦目から2体に痩せていて、後半ほど楽になっていた。全部3体で揃える。
+     2枠目を候補枠のままにしてあるので、顔ぶれは掲示のたびに変わる。 */
   waves:[['goblin','goblin','goblin'],['skeleton','skeleton','skeleton'],
-         ['harpy',['harpy','wyvern']],['gargoyle',['gargoyle','slime']],
-         ['cerberus',['cerberus','vampire']]],
-  desc:'**回復なしで五連戦。**総HPより、MPと状態異常の管理で落ちる。',
+         ['harpy','harpy',['harpy','wyvern']],['gargoyle','gargoyle',['gargoyle','slime']],
+         ['cerberus','cerberus',['cerberus','vampire']]],
+  desc:'**回復なしで五連戦。**どの段も三体。総HPより、MPと状態異常の管理で落ちる。',
   first:{gold:300000,item:true,member:true,rare:true},
   reward:{equipChance:0.85,memberChance:0.5,memberBias:{pr:16,kn:12,mg:12},rareChance:0.45}},
  {id:'q4c',name:'長夜の哨戒',tier:4,kind:'idle',sec:21600,gph:33000,
@@ -6128,28 +6266,43 @@ const QUESTS=[
   reward:{equipChance:1,memberChance:0.6,memberBias:{ar:14,rg:14,kn:10},rareChance:0.4}},
 
  /* ---------- 難度5：数時間 ---------- */
- {id:'q5b',name:'首無しの街道',tier:5,kind:'std',sec:7200,gph:92000,key:true,
-  enemies:['dullahan','dullahan','skeleton','skeleton','lich'],
-  desc:'首無しが二騎。**《宣告》で確実に落としにくる。**押し切られる前に落とす。',
+ /* ★ 難度5のキーは4本で形を分けてある ★
+      七つの石像 … 7体×1　一発の壁
+      吸血鬼の館 … 6体×2　表と奥
+      古城の最奥 … 5体×3　門番・石像・城主
+      首無しの街道 … 4体×5　いちばん長い
+    同じ難度でも「どう重いか」が違うので、通せる編成も違う。
+    どれも1枠だけ10%でミミックが混じる（受注前の画面には出さない → slotShown）。 */
+ {id:'q5b',name:'首無しの街道',tier:5,kind:'chain',sec:7200,gph:92000,key:true,
+  waves:[['skeleton','skeleton','goblin','goblin'],
+         ['skeleton','skeleton','skeleton','lich'],
+         ['dullahan','skeleton','skeleton',rare('skeleton','mimic',0.1)],
+         ['dullahan','lich','skeleton','skeleton'],
+         ['dullahan','dullahan','lich','lich']],
+  desc:'**回復なしで五連戦。**街道をたどるほど首無しが増える。'
+      +'**《宣告》で確実に落としにくる。**最後の二騎まで手を残せるか。',
   first:{gold:550000,item:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{kn:16,pr:16},rareChance:0.5}},
- {id:'q5a',name:'吸血鬼の館',tier:5,kind:'std',sec:9000,gph:88000,key:true,
-  enemies:['vampire','vampire',['skeleton','dullahan'],'skeleton','lich'],
-  desc:'削っても削っても戻る。**吸血と再生を止める手立てが要る。**'
-      +'門番が誰かは掲示のたびに変わる。',
+ {id:'q5a',name:'吸血鬼の館',tier:5,kind:'chain',sec:9000,gph:88000,key:true,
+  waves:[['vampire','skeleton','skeleton','skeleton','lich',rare('skeleton','mimic',0.1)],
+         ['vampire','vampire',['skeleton','dullahan'],'dullahan','lich','lich']],
+  desc:'**表の広間と、奥の寝室。**削っても削っても戻る。'
+      +'**吸血と再生を止める手立てが要る。**門番が誰かは掲示のたびに変わる。',
   first:{gold:660000,item:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{hx:18,pr:14},rareChance:0.55}},
  {id:'q5d',name:'七つの石像',tier:5,kind:'horde',sec:10800,gph:100000,key:true,
-  enemies:['gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle'],
+  // 7体×1 はこのままで基準どおり。7体目だけ10%で石像ではないものが混じる
+  enemies:['gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle',
+           rare('gargoyle','mimic',0.1)],
   desc:'**石像が7体。**全員が軽減と棘返しを持ちうる。'
       +'殴った分だけ返る盤面で、どうやって総量を削るか。',
   first:{gold:900000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.6,memberBias:{mg:22,hx:16},rareChance:0.6}},
  {id:'q7',name:'古城の最奥',tier:5,kind:'chain',sec:10800,gph:95000,key:true,
-  waves:[['skeleton','skeleton','goblin','goblin'],
-         ['gargoyle','gargoyle','lich'],
-         ['dullahan','vampire','lich','skeleton']],
-  desc:'**回復なしで三連戦。**門番、石像、そして城主。'
+  waves:[['skeleton','skeleton','skeleton','goblin',rare('goblin','mimic',0.1)],
+         ['gargoyle','gargoyle','gargoyle','lich','skeleton'],
+         ['dullahan','vampire','lich','skeleton','skeleton']],
+  desc:'**回復なしで三連戦。**門番、石像、そして城主。どの門も五体。'
       +'最後まで立っていられる編成でないと、奥までは行けない。',
   first:{gold:850000,item:true,member:true,rare:true},
   reward:{equipChance:1,memberChance:0.7,memberBias:{kn:12,pr:12,mg:12},rareChance:0.8}},
@@ -6271,13 +6424,13 @@ const QUESTS=[
   reward:{equipChance:1,memberChance:0.6,memberBias:{kn:14,sw:14,rg:12},rareChance:0.7}},
 
  {id:'k3m',name:'動く石たち',tier:3,kind:'horde',sec:1500,gph:43000,
-  waves:[tagWave(5,'無機',{max:3})],
+  waves:[tagWave(5,'無機',{min:2,max:3})],
   desc:'**5体すべてが「無機」。**硬く、殴り返してくる。'
       +'《石砕き》を持っていれば景色が変わる。',
   first:{gold:78000,item:true},
   reward:{equipChance:0.55,memberChance:0.3,memberBias:{mg:14,hx:12}}},
  {id:'k5m',name:'無音の列',tier:5,kind:'horde',sec:9000,gph:97000,
-  waves:[tagWave(7,'無機')],
+  waves:[tagWave(7,'無機',{min:2})],
   desc:'**7体すべてが「無機」。**ゴーレムが混じれば状態異常は通らない。'
       +'硬さを正面から削れる編成でないと、手数だけが尽きる。',
   first:{gold:700000,item:true,member:true,rare:true},
@@ -6320,7 +6473,7 @@ const QUESTS=[
   first:{gold:140000,item:true,member:true},
   reward:{equipChance:0.6,memberChance:0.35,memberBias:{ar:16,rg:14,tm:10},rareChance:0.3}},
  {id:'q5i',name:'動かぬ門番',tier:5,kind:'horde',sec:9000,gph:96000,
-  enemies:['golem','golem','gargoyle','gargoyle','mimic'],
+  enemies:['golem','golem','golem','gargoyle',rare('gargoyle','mimic',0.1)],
   desc:'**毒も眠りも封魔も通らない。**殴っても硬い。'
       +'ただし魔に対しては脆いという話もある。',
   first:{gold:700000,item:true,member:true,rare:true},
@@ -6411,7 +6564,7 @@ const QUESTS=[
    reward:{equipChance:0.4,memberChance:0.25,memberBias:{sw:14,ar:10}}},
   {id:'q1h',name:'荷馬車の護衛',tier:1,kind:'idle',sec:3600,gph:12000,
    enemies:['goblin','goblin','slime'],
-   desc:'隣町までの往復護衛。**1時間かかる。**時給は低いがしばらく目を離せる。',
+   desc:'隣町までの往復護衛。**1時間かかる。**',
    first:{gold:15000},
    reward:{equipChance:0.5,memberChance:0.35,memberBias:{kn:16,pr:12}}},
 
@@ -6419,8 +6572,8 @@ const QUESTS=[
      追加分：難度2（十数分〜数時間の放置）
      ========================================================= */
   {id:'q2g',name:'街道のひったくり',tier:2,kind:'short',sec:300,gph:27000,
-   enemies:['harpy'],
-   desc:'空から荷物を狙う輩が1体。**遠距離攻撃がないと泥沼化する。**',
+   enemies:['harpy','harpy'],
+   desc:'空から荷物を狙う輩が2体。**遠距離攻撃がないと泥沼化する。**',
    first:{gold:5000},
    reward:{equipChance:0.35,memberChance:0.25,memberBias:{ar:20,rg:10}}},
   {id:'q2h',name:'墓暴きの討伐',tier:2,kind:'std',sec:600,gph:29000,
@@ -6435,7 +6588,7 @@ const QUESTS=[
    reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:20,hx:14}}},
   {id:'q2j',name:'関所の警備補佐',tier:2,kind:'idle',sec:7200,gph:18000,
    enemies:['skeleton','skeleton','harpy'],
-   desc:'関所で兵士の手伝い。**2時間。**寝る前や出かける前に出しておく用。',
+   desc:'関所で兵士の手伝い。',
    first:{gold:75000,item:true},
    reward:{equipChance:0.65,memberChance:0.45,memberBias:{kn:16,ar:12},rareChance:0.15}},
 
@@ -6459,7 +6612,7 @@ const QUESTS=[
    reward:{equipChance:0.65,memberChance:0.35,memberBias:{kn:14,pr:14,mg:10},rareChance:0.25}},
   {id:'q3i',name:'遺跡の定点観測',tier:3,kind:'idle',sec:14400,gph:26000,
    enemies:['gargoyle','gargoyle','skeleton','skeleton','skeleton'],
-   desc:'古代遺跡を監視する。**4時間。**時給は低いが、仕事中や授業中に回すのに適している。',
+   desc:'古代遺跡を監視する。**4時間。**',
    first:{gold:180000,item:true},
    reward:{equipChance:0.7,memberChance:0.5,memberBias:{mg:16,hx:14,pr:10},rareChance:0.25}},
 
@@ -6483,7 +6636,7 @@ const QUESTS=[
    reward:{equipChance:0.75,memberChance:0.45,memberBias:{ar:20,mg:16},rareChance:0.4}},
   {id:'q4h',name:'霊峰の巡礼護衛',tier:4,kind:'idle',sec:28800,gph:34000,
    enemies:['wyvern','wyvern','gargoyle','lich','lich','lich'],
-   desc:'険しい山道を信徒と共に越える。**8時間。**睡眠時間を丸ごと当てられる長さ。',
+   desc:'険しい山道を信徒と共に越える。**8時間。**',
    first:{gold:550000,item:true},
    reward:{equipChance:0.9,memberChance:0.6,memberBias:{kn:18,pr:16,sw:10},rareChance:0.45}},
 
@@ -6507,7 +6660,7 @@ const QUESTS=[
    reward:{equipChance:1,memberChance:0.65,memberBias:{kn:24,hx:16},rareChance:0.65}},
   {id:'q5h',name:'王都防衛戦線の維持',tier:5,kind:'idle',sec:86400,gph:52000,
    enemies:['dullahan','dullahan','gargoyle','gargoyle','lich','lich','lich'],
-   desc:'最前線で陣地を死守する。**24時間。**丸一日部隊が帰ってこないが、巨額の富を生む。',
+   desc:'最前線で陣地を死守する。**24時間。**',
    first:{gold:2500000,item:true,rare:true},
    reward:{equipChance:1,memberChance:0.8,memberBias:{kn:16,pr:16,sw:14},rareChance:0.75}},
 
@@ -6858,7 +7011,7 @@ function freshPartyName(){
 function freshGuildName(){
   const used=new Set(G.roster.map(x=>x.name0||x.name));
   const free=ANAMES.filter(n=>!used.has(n));
-  return free.length?pick(free):ANAMES[RI(ANAMES.length)]+'・'+(used.size+1);
+  return free.length?pick(free):freshName(used);
 }
 /* 魔物は人名を付けない。種族名そのままで、被ったら番号を振る。 */
 function freshMonsterName(cls){
@@ -7948,7 +8101,7 @@ function renderGuild(){
       ${item('quest','依頼を見る','受注状況と帰還予定',offers)}
       ${arenaOpen()?item('arena','闘技場','他のギルドの部隊と戦う'):''}
       ${item('shop','武具屋','武器と防具の売り買い')}
-      ${zukanOpen()?item('zukan','魔物図鑑',`戦った魔物の記録（${seenList().length}/${MONSTERS.length}）`):''}
+      ${zukanOpen()?item('zukan','魔物図鑑',`戦った魔物の記録`):''}
       ${item('temple','寺院','負傷者の治療',hurt)}
       ${item('admin','ギルド管理','ランクと枠の拡張',rankIdx()>(G.rankSeen||0)?'!':0)}
     </div>
@@ -8163,6 +8316,15 @@ async function dissolveParty(p){
 /* --- 部隊 --- */
 function gParty(){
   const b=$('#gbody');
+  /* 前衛・後衛を1行ずつ。★ 闘技場の [前][後] の札と同じ見た目にしてある ★
+     どちらの列に誰がいるかが、部隊名と状態より先に目に入る形。
+     空でも札は出す（行数を揃えて、視線の位置を動かさないため）。 */
+  const pRow=(list,label,front)=>`<span class="prow">
+    <span class="apos${front?' f':''}">${label}</span>
+    <span class="rsub pmem">${list.map(u=>
+      `<span class="gname" data-tip="${unitTip(u)}">${gEsc(u.name)}</span><i>${gEsc(u.clsName)}</i>`
+      +(showHurt(u)?'<em class="ghurt">負傷</em>':'')).join('・')
+      ||'<span class="rnone">—</span>'}</span></span>`;
   const row=p=>{
     const men=partyUnits(p);
     // 成否はここに出さない。報告を聞くまで分からないようにする。
@@ -8173,10 +8335,11 @@ function gParty(){
     const skip=(p.questId||p.arena)?skipCost(p.returnAt-now()):0;
     return `<div class="rrow" data-p="${p.pid}">
       <span class="rpos">${men.length}人</span>
-      <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub" data-st="${p.pid}" data-stw="quest">${st}</span><br>
-        <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
-          u.slot<3?'前':'後'}${gEsc(u.name)}</span>`
-          +(showHurt(u)?'<em class="ghurt">負傷</em>':'')).join('・')||'誰もいない'}</span></span>
+      <span class="rmain">
+        <span class="phead"><b>${gEsc(p.name)}</b>
+          <span class="rsub" data-st="${p.pid}" data-stw="quest">${st}</span></span>
+        ${pRow(men.filter(isFront),'前',true)}
+        ${pRow(men.filter(u=>!isFront(u)),'後',false)}</span>
       <span class="rbtn">
         ${p.report?`<button data-a="rep">${repLabel(p.report)}</button>`:''}
         ${(p.questId||p.arena)?btnOr(G.gems>=skip,
