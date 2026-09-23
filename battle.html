@@ -368,6 +368,9 @@ body.guildmode.replaying.manualplay #cmdBox{display:block}
   opacity:.9;color:var(--gold)}
 #fOpen button.on i{color:inherit}
 .fhint{align-self:center;font-size:10.5px;color:var(--muted)}
+/* 復元コード。書き写す前提なので、等幅で字間を空ける */
+.scode{font-family:var(--mono);letter-spacing:.18em;color:var(--gold);
+  user-select:all;-webkit-user-select:all}
 /* 図鑑。基準値の行は等幅で、桁がそろうと見比べやすい */
 .zstat{font-family:var(--mono);font-size:10.5px;letter-spacing:.02em}
 .zcnt{display:flex;flex-direction:column;gap:2px;align-items:flex-end;
@@ -7763,6 +7766,9 @@ function guildData(){
     cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,cid:G.cid||'',
     done:G.done,parties:G.parties,stockAt:G.stockAt,offers:G.offers,seen:G.seen||{},
     mult:G.mult||{},shopDay:G.shopDay||'',shopLog:G.shopLog||{},
+    /* 預けた先を覚えておく。**コードそのもの**なので、
+       これが入った保存を他人に渡すと、その人も上書きできる。 */
+    saveCode:G.saveCode||'',saveAt:G.saveAt||'',
     roster:G.roster.map(u=>Object.assign(serSave(u),{gid:u.gid,healAt:u.healAt||0,hero:!!u.hero,spLv:u.spLv||{}})),
     inv:INV.map(ser),stock:G.stock.map(ser)};
 }
@@ -7840,6 +7846,7 @@ function applyGuild(d){
      name:d.name||'かけだし団',hero:d.hero||'レイ',done:d.done||{},
      mult:d.mult||{},shopDay:d.shopDay||'',shopLog:d.shopLog||{},
      stockAt:d.stockAt||0,offers:d.offers||[],seen:seenLoad(d.seen),
+     saveCode:codeNorm(d.saveCode),saveAt:d.saveAt||'',
      roster:[],parties:d.parties||[],stock:[]};
   INV=[]; iidc=0;
   // 依頼の絞り込みを戻す。開いていない難度を指していたら「すべて」へ落とす。
@@ -7879,6 +7886,7 @@ function newGuild(name,hero,clsId){
   G={gold:0,gems:10,ext:{parties:0,roster:0,inv:0,custom:0},custom:[],cidc:0,rankSeen:0,
      tut:{step:0},rev:0,
      gidc:0,oidc:0,name:name,hero:hero,done:{},mult:{},shopDay:'',shopLog:{},stockAt:0,offers:[],seen:{},
+     saveCode:'',saveAt:'',
      roster:[],parties:[],stock:[]};
   INV=[]; iidc=0;
   const hc=(CLS[clsId]&&clsId!=='cm')?clsId:'sw';
@@ -9611,6 +9619,25 @@ function gAdmin(){
           <span class="rsub">${foeSummary(q)}　／　${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span></span>
         </div>`).join('')||'<div class="tdesc">キークエストが設定されていません。</div>'}</div>`
      :''}
+    <div class="sechead">預かりと引き継ぎ</div>
+    <div class="seghint">いまのギルドを<b>そのまま預けて、復元コードを1つ受け取ります</b>。
+      別の端末でそのコードを入れれば、そこから続きが遊べます。<br>
+      ⚠️ <b>コードを知っている人は誰でも読めて、誰でも上書きできます。</b>
+      鍵はこのコードだけなので、人に見せないでください。<br>
+      預けるのは<b>押した時だけ</b>です。自動では送りません。
+      ${G.saveCode?`<br><b>前回：</b>${gEsc(G.saveAt||'—')}`:''}</div>
+    ${G.saveCode?`<div class="pname"><label>復元コード</label>
+      <b class="pnval scode">${gEsc(codeShow(G.saveCode))}</b>
+      <i>このコードを控えておいてください。次からは同じコードへ上書きします</i></div>`:''}
+    <div class="cmds">
+      <button class="btn" id="gBak">${G.saveCode?'預け直す（上書き）':'預けて復元コードをもらう'}</button>
+      ${G.saveCode?'<button class="btn sm" id="gBakNew">別のコードで預ける</button>':''}
+    </div>
+    <div class="pname"><label>引き継ぎ</label>
+      <input id="gCode" maxlength="24" placeholder="復元コード（16文字）" value="">
+      <button class="btn sm" id="gRes">このコードで読み込む</button>
+      <i>小文字・ハイフン・空白はそのままで構いません</i></div>
+
     <div class="sechead">ギルドを畳む</div>
     <div class="cmds"><button class="btn" id="gWipe">最初からやり直す</button></div>
     <div class="seghint">仲間・装備・金・ランクの<b>すべてを消して</b>新しいギルドを立ち上げ直します。元に戻せません。</div>`;
@@ -9640,6 +9667,51 @@ function gAdmin(){
     tutDone('expand');     // 「枠を広げよう！」
     saveGuild(); renderGuild();
   });
+  /* --- 預かりと引き継ぎ --- */
+  const say=(t,run)=>{ GMSG=t; if(run!==false) renderGuild(); };
+  const bak=async(fresh)=>{
+    const btns=b.querySelectorAll('#gBak,#gBakNew,#gRes');
+    btns.forEach(x=>{ x.disabled=true; });            // 連打で二重に預けない
+    say('預けています…');
+    try{
+      const r=await saveBackup(fresh?null:G.saveCode);
+      G.saveCode=r.code; G.saveAt=new Date().toLocaleString();
+      saveGuild();
+      say(`預かりました。復元コードは <b class="scode">${gEsc(codeShow(r.code))}</b> です。`
+         +`（${(r.len/1024).toFixed(1)}KB${r.enc==='gzip'?`／素の ${(r.raw/1024).toFixed(1)}KB を圧縮`:''}）`);
+    }catch(e){
+      say(`預けられませんでした（${gEsc(String(e&&e.message||e))}）。しばらくしてから試してください。`);
+    }
+  };
+  const bk=$('#gBak');   if(bk) bk.onclick=()=>bak(false);
+  const bn=$('#gBakNew');if(bn) bn.onclick=()=>bak(true);
+  const rs=$('#gRes');
+  if(rs) rs.onclick=async()=>{
+    const el=$('#gCode'), code=codeNorm(el?el.value:'');
+    if(code.length!==SAVE_CODE_LEN){ say('復元コードは16文字です。'); return; }
+    let got;
+    b.querySelectorAll('#gBak,#gBakNew,#gRes').forEach(x=>{ x.disabled=true; });
+    say('読み込んでいます…');
+    try{ got=await saveRestore(code); }
+    catch(e){ say(`読み込めませんでした（${gEsc(String(e&&e.message||e))}）。`); return; }
+    /* ★ 確認は中身を見せてから ★
+       いまのギルドは消えるので、「何に入れ替わるのか」を出さずに聞かない。 */
+    const d=got.data;
+    const ok=await gConfirm(
+      `<b>${gEsc(d.name||'—')}</b>（仲間 ${(d.roster||[]).length}人・`
+      +`${(d.gold||0).toLocaleString()}G・宝石 ${d.gems==null?'—':d.gems}）<br>`
+      +`預けられた日時：${gEsc(got.at||'—')}<br><br>`
+      +`これを読み込むと、<b>いまのギルド（${gEsc(G.name)}）は消えます。</b>元には戻せません。`,
+      {title:'引き継ぎ',ok:'読み込む',danger:true});
+    if(!ok){ say(''); return; }
+    try{
+      mBattleClear();
+      applyGuild(d);
+      G.saveCode=code; G.saveAt=got.at||'';
+      saveGuild();
+      GVIEW='party'; say(`${gEsc(G.name)} を読み込みました。`);
+    }catch(e){ say(`読み込めませんでした（${gEsc(String(e&&e.message||e))}）。`); }
+  };
   const wp=$('#gWipe');
   if(wp) wp.onclick=async()=>{
     const ok=await gConfirm(
@@ -10365,6 +10437,70 @@ async function arenaPost(body){
   catch(e){ throw new Error('応答が読めません'); }
   if(!j.ok) throw new Error(j.error||'サーバが断りました');
   return j;
+}
+
+/* =========================================================
+   セーブの預かり（バックアップと復元）
+
+   ★ 復元コードがそのまま鍵 ★
+   コードを知っている人は誰でも読めて、誰でも上書きできる。
+   ログインの仕組みが無い以上それ以上は守れないので、**そう決めて**画面でも断っている。
+   16文字×32種＝約80ビットなので、総当たりで当てられることはない。
+
+   ★ 押した時しか通信しない ★
+   `saveGuild()` は操作のたびに呼ばれる（38か所）ので、そこに相乗りはできない。
+   ギルド管理の「バックアップ」を押した時だけ送る。
+
+   ★ 圧縮は「できたらする」★
+   セーブは素で最大 約72KB。`CompressionStream` があれば 2割ほどに縮むが、
+   無い環境でもサーバ側が4万字ずつ6セルに分けて受けるので、素のままでも通る。
+   ========================================================= */
+const SAVE_CODE_LEN=16;
+/* 読み書きしやすいように4文字ずつ区切って見せる。控えるのは人間なので。 */
+const codeShow=c=>String(c||'').replace(/(.{4})(?=.)/g,'$1-');
+/* 入力のゆらぎを吸収する。サーバ側の normCode と同じ規則。 */
+const codeNorm=v=>String(v==null?'':v).toUpperCase().replace(/[^0-9A-Z]/g,'')
+  .replace(/O/g,'0').replace(/[IL]/g,'1').replace(/U/g,'V').slice(0,SAVE_CODE_LEN);
+
+/* 文字列 → gzip → base64。使えない環境では null を返す（素で送る）。 */
+async function gzipB64(text){
+  if(typeof CompressionStream!=='function')return null;
+  try{
+    const cs=new CompressionStream('gzip');
+    const buf=await new Response(
+      new Blob([text]).stream().pipeThrough(cs)).arrayBuffer();
+    const b=new Uint8Array(buf);
+    /* ★ 一度に apply すると引数が多すぎて落ちる ★
+       80KB の配列をそのまま展開すると RangeError になる環境がある。分けて繋ぐ。 */
+    let bin=''; const N=8192;
+    for(let i=0;i<b.length;i+=N) bin+=String.fromCharCode.apply(null,b.subarray(i,i+N));
+    return btoa(bin);
+  }catch(e){ console.warn('圧縮できませんでした',e); return null; }
+}
+async function ungzipB64(b64){
+  const bin=atob(b64), b=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i);
+  const ds=new DecompressionStream('gzip');
+  return await new Response(new Blob([b]).stream().pipeThrough(ds)).text();
+}
+
+/* いまのセーブを預ける。code を渡すとその行を上書き、省くと新しく発行される。 */
+async function saveBackup(code){
+  const raw=JSON.stringify(guildData());
+  const gz=await gzipB64(raw);
+  const body={action:'backup',rev:G.rev||0,
+              enc:gz?'gzip':'raw', data:gz||raw};
+  if(code) body.code=codeNorm(code);
+  const j=await arenaPost(body);
+  return {code:j.code,at:j.at,len:j.len,raw:raw.length,enc:body.enc};
+}
+/* 復元コードで取り出す。**この関数は保存を書き換えない**（呼び出し側で確認を取る）。 */
+async function saveRestore(code){
+  const j=await arenaPost({action:'restore',code:codeNorm(code)});
+  const text=j.enc==='gzip'?await ungzipB64(j.data):j.data;
+  const d=JSON.parse(text);
+  if(!d||!Array.isArray(d.roster)) throw new Error('セーブの形が違います');
+  return {data:d,at:j.at,len:j.len};
 }
 
 /* ---- 部隊の直列化 ----
