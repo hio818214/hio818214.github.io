@@ -356,6 +356,12 @@ body.guildmode.replaying.manualplay #cmdBox{display:block}
 .fchip.on{background:var(--gold);border-color:var(--gold);color:#1a1526;font-weight:700}
 .fchip i{font-style:normal;font-family:var(--mono);font-size:9.5px;margin-left:5px;opacity:.7}
 .fchip.clr{border-style:dashed}
+/* 絞り込み欄の行見出し（職業／個性／スキル／中身）。
+   チップが3段以上並ぶので、何の列かが分からないと読めない。 */
+.flab{flex:0 0 auto;align-self:center;font-size:10px;letter-spacing:.14em;
+  color:var(--muted);min-width:3.4em}
+.fchips.fsub{padding-left:10px;border-left:1px solid var(--line2)}
+.fhint{align-self:center;font-size:10.5px;color:var(--muted)}
 .fcount{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--gold)}
 .gchips{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .pcell .gchips{margin-top:2px;align-items:center}
@@ -6751,6 +6757,17 @@ function freshMonsterName(cls){
   for(let i=2;i<200;i++){ const n=`${cls.n} ${i}`; if(!used.has(n))return n; }
   return cls.n;
 }
+/* ★ 職業の確定枠は潰さない ★
+   指揮官の《共有》とテイマーの《テイム》は職業の芯です。
+   以前はレア加入が `u.traits[RI(3)]` と**3枠から無作為**に書いていたので、
+   レアで来た指揮官・テイマーは 1/3 で芯を失っていました。
+   主人公補正（opt.fixed）も添字そのままだったので、
+   **主人公が指揮官かテイマーなら必ず消えて**いました。
+   上書きしてよい枠だけを返し、1つも無ければ空を返す（その時は付けない）。 */
+function freeTraitSlots(u,cls){
+  const keep=new Set((cls&&cls.fixed||[]).filter(id=>TRAITS[id]));
+  return [0,1,2].filter(i=>!keep.has(u.traits[i]));
+}
 function guildUnit(clsId,opt={}){
   const cls=CLS[clsId]||pick(HUMANS);
   const u=makeUnit('ally',0,cls,opt.name||'');
@@ -6758,12 +6775,18 @@ function guildUnit(clsId,opt={}){
   u.traits=opt.blank?['none','none','none']:rollTraits(cls);
   /* 個体ごとの確定枠。職業の fixed（指揮官の《共有》など）とは別で、
      **その1人にだけ**付けたい時に使う。いまは主人公の《主人公補正》だけ。 */
-  (opt.fixed||[]).forEach((id,i)=>{ if(TRAITS[id]&&!u.traits.includes(id)) u.traits[i]=id; });
+  {
+    const free=freeTraitSlots(u,cls);
+    (opt.fixed||[]).forEach(id=>{ if(!TRAITS[id]||u.traits.includes(id))return;
+      const i=free.shift(); if(i==null)return; u.traits[i]=id; });
+  }
   /* レア加入 … 3枠のうち1つをレア個性で確定させる。
      「難しい依頼ほど良い仲間が来る」を、確率の底上げではなく確定枠で表現する。 */
   if(opt.rare){
     const pool=RARE_TRAITS.filter(id=>!u.traits.includes(id));
-    if(pool.length){ const t=pick(pool); u.traits[RI(3)]=t; u.rareFrom=t; }
+    const free=freeTraitSlots(u,cls);
+    if(pool.length&&free.length){
+      const t=pick(pool); u.traits[free[RI(free.length)]]=t; u.rareFrom=t; }
   }
   if(opt.blank) u.spells=['none','none','none'];
   u.equip=emptyEquip();
@@ -7890,8 +7913,9 @@ function syncRecallButtons(){
   document.querySelectorAll('[data-st]').forEach(el=>{
     const p=G.parties.find(x=>x.pid==el.dataset.st);
     if(!p||p.questId||p.arena||!p.report)return;
-    const t=`${gEsc(p.name)} ${repPending(p.report)?'が現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}`;
-    if(el.innerHTML.indexOf(t)<0) el.innerHTML=`<b class="gwait">${t}</b>`;
+    // ★ 行を描いた時と同じ関数で組む ★ 別々に書くと1秒後に文が化ける
+    const h=repState(p,el.dataset.stw==='party'?'party':'quest');
+    if(el.innerHTML!==h) el.innerHTML=h;
   });
 }
 function startGuildTick(){
@@ -7985,15 +8009,14 @@ function gParty(){
   const row=p=>{
     const men=partyUnits(p);
     // 成否はここに出さない。報告を聞くまで分からないようにする。
-    const st=p.report?`<b class="gwait">${repPending(p.report)
-        ?'現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}</b>`
+    const st=p.report?repState(p,'quest')
       :p.arena?`闘技場へ出場中　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :p.questId?`受注中：${gEsc(questOf(p.questId).name)}　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :'<span class="rnone">待機中</span>';
     const skip=(p.questId||p.arena)?skipCost(p.returnAt-now()):0;
     return `<div class="rrow" data-p="${p.pid}">
       <span class="rpos">${men.length}人</span>
-      <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub" data-st="${p.pid}">${st}</span><br>
+      <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub" data-st="${p.pid}" data-stw="quest">${st}</span><br>
         <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
           u.slot<3?'前':'後'}${gEsc(u.name)}</span>`
           +(showHurt(u)?'<em class="ghurt">負傷</em>':'')).join('・')||'誰もいない'}</span></span>
@@ -8011,18 +8034,8 @@ function gParty(){
      画面を増やすより、部隊の下にそのまま並べたほうが「誰がどこにいるか」を
      一続きで見られる。絞り込みは編成画面と同じ GFILT を共有する。 */
   const pool0=G.roster;
-  const pool=pool0.filter(u=>{
-    const o=partyOf(u);
-    if(GFILT.own==='free'&&o)return false;
-    if(GFILT.own==='busy'&&!o)return false;
-    if(GFILT.cls.length&&!GFILT.cls.includes(u.clsId))return false;
-    return true;
-  });
-  const clsCount={};
-  pool0.forEach(u=>{ clsCount[u.clsId]=(clsCount[u.clsId]||0)+1; });
-  const clsChips=Object.keys(clsCount).map(id=>
-    `<button class="fchip${GFILT.cls.includes(id)?' on':''}" data-fc="${id}">${
-      CLS[id]?CLS[id].n:id}<i>${clsCount[id]}</i></button>`).join('');
+  const pool=pool0.filter(filtPass);
+  const fbar=filtBar(pool0,['すべて','未所属','所属あり']);
   // こちらは読むだけ。配置は編成画面の仕事なので「詳細」しか置かない。
   const mline=u=>{
     const hurt=showHurt(u), other=partyOf(u), busy=!!(other&&partyBusy(other));
@@ -8049,15 +8062,7 @@ function gParty(){
       作れる部隊の数は<b>ギルド管理で広げた枠</b>の分だけです（いまは ${maxParties()} 部隊まで。
       広げられる回数は【${gEsc(rankNow().n)}】の認可で決まります）。</div>
     <div class="sechead">ギルドの仲間　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
-    <div class="fbar">
-      <div class="esteps" id="fOwn">
-        <button data-f="all"${GFILT.own==='all'?' class="on"':''}>すべて</button>
-        <button data-f="free"${GFILT.own==='free'?' class="on"':''}>未所属</button>
-        <button data-f="busy"${GFILT.own==='busy'?' class="on"':''}>所属あり</button>
-      </div>
-      <div class="fchips">${clsChips||'<span class="rnone">—</span>'}
-        ${GFILT.cls.length?'<button class="fchip clr" id="fClr">職業の絞り込みを解除</button>':''}</div>
-    </div>
+    ${fbar}
     <div class="rlist">${pool.map(mline).join('')
       ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'まだ仲間がいません。'}</div>`}</div>
     <div class="seghint">ここは読むだけの一覧です。配置を変えるときは部隊の<b>編成</b>から。
@@ -8078,14 +8083,7 @@ function gParty(){
     const btn=r.querySelector('[data-a="mdet"]');
     if(btn) btn.onclick=()=>gUnit(u,null);     // 閉じたらこの画面へ戻る
   });
-  const fo=$('#fOwn');
-  if(fo) fo.onclick=e=>{ const btn=e.target.closest('button'); if(!btn)return;
-    GFILT.own=btn.dataset.f; gParty(); };
-  b.querySelectorAll('[data-fc]').forEach(el=>el.onclick=()=>{
-    const id=el.dataset.fc;
-    GFILT.cls=GFILT.cls.includes(id)?GFILT.cls.filter(x=>x!==id):GFILT.cls.concat(id);
-    gParty(); });
-  const fcl=$('#fClr'); if(fcl) fcl.onclick=()=>{ GFILT.cls=[]; gParty(); };
+  filtBind(b,()=>gParty());
   const pa=$('#pAdd');
   if(pa) pa.onclick=()=>{
     G.parties.push({pid:Math.max(0,...G.parties.map(x=>x.pid))+1,
@@ -8111,26 +8109,138 @@ let GQF={st:'all',tier:'all',kind:[],newOnly:false,keyOnly:false};
 let GPICK=null;            // 「選んでから置く」の選択中の gid
 /* 控えの絞り込み。人数が増えると一覧が長くなるので、所属と職業で絞れるようにする。
    画面を出入りしても保つ（毎回やり直すほうが煩わしい）。 */
-let GFILT={own:'all',cls:[]};
+let GFILT={own:'all',cls:[],cat:[],abl:[]};
+
+/* =========================================================
+   仲間の絞り込み
+
+   部隊一覧（名簿）と編成画面で**同じ GFILT を共有**する。
+   どちらも「誰がどこにいるか」を探す画面なので、行き来しても指定が続く方が楽。
+
+   ★ 個性・スキルは2段で絞る ★
+   上段＝分類、下段＝ON にした分類の中身。
+   仲間20人で個性は39種まで増えるので、全部を1列に並べると携帯で崩れる。
+   分類だけ ON なら「その分類の何かを持つ人」、中身を選べば**選んだものだけ**。
+   （中身を1つでも選んだら分類は器として働く。両方で絞ると結果が読めなくなる）
+
+   ⚠️ 分類（`TRAITS[].cat`）は**作る側の言葉**です。
+   「《軽減》が〈被弾〉だと知らないと辿り着けない」という穴が残っています（→ backlog C-6）。
+   分類の切り直しは別件なので、ここは cat をそのまま使っています。
+
+   キーの形： 個性 `t:<id>` ／ スキル `s:<id>` ／ 分類 `T:<分類名>` `S:<分類名>`
+   接頭辞で見分けるので、1つの配列に混ぜて持てる。
+   ========================================================= */
+/* その人が持っている個性・スキル。**装備由来も含む**（重複で死んだ枠は除く）。
+   「この個性を持つ人を探す」目的なので、素の3枠に限る理由が無い。 */
+const ablKeys=u=>[...new Set([
+  ...allTraits(u).filter(id=>id&&id!=='none').map(id=>'t:'+id),
+  ...spellsOf(u).map(id=>'s:'+id)])];
+const ablName=k=>k[0]==='t'
+  ? ((TRAITS[k.slice(2)]||{}).name||k.slice(2))
+  : (SP[k.slice(2)]?spBase(SP[k.slice(2)]):k.slice(2));
+/* ★ スキルは skillCat ではなく type で分ける ★
+   skillCat は特技37種をまるごと〈特技〉1つにまとめてしまうので、絞り込みには粗すぎる。
+   攻撃／回復／強化／弱体…なら、魔法と特技をまたいで同じ役割が並ぶ。 */
+const ablCat=k=>{
+  if(k[0]==='t'){ const t=TRAITS[k.slice(2)]; return 'T:'+((t&&t.cat)||'その他'); }
+  const sp=SP[k.slice(2)]; return 'S:'+((sp&&TYPE_LABEL[sp.type])||'その他');
+};
+const catName=c=>c.slice(2);
+
+function filtPass(u){
+  const o=partyOf(u);
+  if(GFILT.own==='free'&&o)return false;
+  if(GFILT.own==='busy'&&!o)return false;
+  if(GFILT.cls.length&&!GFILT.cls.includes(u.clsId))return false;
+  if(GFILT.abl.length||GFILT.cat.length){
+    const ks=ablKeys(u);
+    if(GFILT.abl.length){ if(!ks.some(k=>GFILT.abl.includes(k)))return false; }
+    else if(!ks.some(k=>GFILT.cat.includes(ablCat(k))))return false;
+  }
+  return true;
+}
+
+/* 絞り込み欄。pool0 は**絞る前の全員**（チップの数はここから数える）。
+   ★ 自己修復 ★ 仲間を手放したり装備を外したりすると、
+   指し先が消えたまま「何も出ないのに解除する手段も無い」状態になる。
+   数え直したついでに、いま存在しない指定は落とす。 */
+function filtBar(pool0,ownLabels){
+  const clsCount={}, catCount={}, ablCount={}, catOf={};
+  pool0.forEach(u=>{
+    clsCount[u.clsId]=(clsCount[u.clsId]||0)+1;
+    ablKeys(u).forEach(k=>{ const c=ablCat(k); catOf[k]=c;
+      ablCount[k]=(ablCount[k]||0)+1; catCount[c]=(catCount[c]||0)+1; });
+  });
+  GFILT.cls=GFILT.cls.filter(id=>clsCount[id]);
+  GFILT.cat=GFILT.cat.filter(c=>catCount[c]);
+  GFILT.abl=GFILT.abl.filter(k=>ablCount[k]&&GFILT.cat.includes(catOf[k]));
+
+  const byCount=(cnt,name)=>(a,b)=>cnt[b]-cnt[a]||String(name(a)).localeCompare(String(name(b)),'ja');
+  const clsChips=Object.keys(clsCount).sort(byCount(clsCount,id=>CLS[id]?CLS[id].n:id)).map(id=>
+    `<button class="fchip${GFILT.cls.includes(id)?' on':''}" data-fc="${gEsc(id)}">${
+      gEsc(CLS[id]?CLS[id].n:id)}<i>${clsCount[id]}</i></button>`).join('');
+  const catRow=pre=>Object.keys(catCount).filter(c=>c[0]===pre)
+    .sort(byCount(catCount,catName)).map(c=>
+      `<button class="fchip${GFILT.cat.includes(c)?' on':''}" data-fcat="${gEsc(c)}">${
+        gEsc(catName(c))}<i>${catCount[c]}</i></button>`).join('');
+  const tCat=catRow('T'), sCat=catRow('S');
+  const open=Object.keys(ablCount).filter(k=>GFILT.cat.includes(catOf[k]))
+    .sort(byCount(ablCount,ablName));
+  const ablChips=open.map(k=>
+    `<button class="fchip${GFILT.abl.includes(k)?' on':''}" data-fabl="${gEsc(k)}">${
+      gEsc(ablName(k))}<i>${ablCount[k]}</i></button>`).join('');
+
+  const L=ownLabels||['すべて','未所属','所属あり'];
+  return `<div class="fbar">
+    <div class="esteps" id="fOwn">
+      <button data-f="all"${GFILT.own==='all'?' class="on"':''}>${L[0]}</button>
+      <button data-f="free"${GFILT.own==='free'?' class="on"':''}>${L[1]}</button>
+      <button data-f="busy"${GFILT.own==='busy'?' class="on"':''}>${L[2]}</button>
+    </div>
+    <div class="fchips"><span class="flab">職業</span>${clsChips||'<span class="rnone">—</span>'}
+      ${GFILT.cls.length?'<button class="fchip clr" data-fc="*">解除</button>':''}</div>
+    ${tCat?`<div class="fchips"><span class="flab">個性</span>${tCat}</div>`:''}
+    ${sCat?`<div class="fchips"><span class="flab">スキル</span>${sCat}</div>`:''}
+    ${GFILT.cat.length?`<div class="fchips fsub"><span class="flab">中身</span>${
+      ablChips||'<span class="rnone">—</span>'}
+      ${GFILT.abl.length?'<button class="fchip clr" data-fabl="*">解除</button>'
+        :'<span class="fhint">選ばなければ、この分類の何かを持つ人すべて</span>'}</div>`:''}
+  </div>`;
+}
+
+/* 絞り込み欄の結線。redraw は画面ごとの描き直し（gParty / gPartyEdit）。 */
+function filtBind(b,redraw){
+  const fo=b.querySelector('#fOwn');
+  if(fo) fo.onclick=e=>{ const btn=e.target.closest('button'); if(!btn)return;
+    GFILT.own=btn.dataset.f; redraw(); };
+  b.querySelectorAll('[data-fc]').forEach(el=>el.onclick=()=>{
+    const id=el.dataset.fc;
+    GFILT.cls=id==='*'?[]
+      :GFILT.cls.includes(id)?GFILT.cls.filter(x=>x!==id):GFILT.cls.concat(id);
+    redraw(); });
+  b.querySelectorAll('[data-fcat]').forEach(el=>el.onclick=()=>{
+    const c=el.dataset.fcat;
+    if(GFILT.cat.includes(c)){
+      GFILT.cat=GFILT.cat.filter(x=>x!==c);
+      // 分類を閉じたら中身の選択も落とす。見えない絞り込みを残さないため
+      GFILT.abl=GFILT.abl.filter(k=>ablCat(k)!==c);
+    }else GFILT.cat=GFILT.cat.concat(c);
+    redraw(); });
+  b.querySelectorAll('[data-fabl]').forEach(el=>el.onclick=()=>{
+    const k=el.dataset.fabl;
+    GFILT.abl=k==='*'?[]
+      :GFILT.abl.includes(k)?GFILT.abl.filter(x=>x!==k):GFILT.abl.concat(k);
+    redraw(); });
+}
 
 function gPartyEdit(p){
   const b=$('#gbody'); if(!b)return;
   GSUB=true;             // 帰還の巡回に描き直させない
   const slots=partySlots(p);
   const pool0=G.roster.filter(u=>!partyHas(p,u.gid));
-  const pool=pool0.filter(u=>{
-    const o=partyOf(u);
-    if(GFILT.own==='free'&&o)return false;
-    if(GFILT.own==='busy'&&!o)return false;
-    if(GFILT.cls.length&&!GFILT.cls.includes(u.clsId))return false;
-    return true;
-  });
-  // 職業のチップは「実際に抱えている職業」だけ出す
-  const clsCount={};
-  pool0.forEach(u=>{ clsCount[u.clsId]=(clsCount[u.clsId]||0)+1; });
-  const clsChips=Object.keys(clsCount).map(id=>
-    `<button class="fchip${GFILT.cls.includes(id)?' on':''}" data-fc="${id}">${
-      CLS[id]?CLS[id].n:id}<i>${clsCount[id]}</i></button>`).join('');
+  const pool=pool0.filter(filtPass);
+  // チップは「実際に抱えているもの」だけ出す（→ filtBar）
+  const fbar=filtBar(pool0,['すべて','未所属','他の部隊']);
   const cell=i=>{
     const gid=slots[i], u=gid!=null?G.roster.find(x=>x.gid===gid):null;
     if(!u) return `<div class="pcell empty${GPICK!=null?' drop':''}" data-slot="${i}">
@@ -8183,15 +8293,7 @@ function gPartyEdit(p){
         <div class="pcells back">${[3,4,5,6].map(cell).join('')}</div></div>
     </div>
     <div class="sechead">控え・他の部隊　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
-    <div class="fbar">
-      <div class="esteps" id="fOwn">
-        <button data-f="all"${GFILT.own==='all'?' class="on"':''}>すべて</button>
-        <button data-f="free"${GFILT.own==='free'?' class="on"':''}>未所属</button>
-        <button data-f="busy"${GFILT.own==='busy'?' class="on"':''}>他の部隊</button>
-      </div>
-      <div class="fchips">${clsChips||'<span class="rnone">—</span>'}
-        ${GFILT.cls.length?'<button class="fchip clr" id="fClr">職業の絞り込みを解除</button>':''}</div>
-    </div>
+    ${fbar}
     <div class="rlist">${pool.map(line).join('')
       ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'ほかに仲間がいません。'}</div>`}</div>
     <div class="cmds">
@@ -8233,14 +8335,7 @@ function gPartyEdit(p){
       };
     });
   });
-  // 絞り込み
-  b.querySelectorAll('#fOwn button').forEach(el=>el.onclick=()=>{
-    GFILT.own=el.dataset.f; gPartyEdit(p); });
-  b.querySelectorAll('[data-fc]').forEach(el=>el.onclick=()=>{
-    const id=el.dataset.fc;
-    GFILT.cls=GFILT.cls.includes(id)?GFILT.cls.filter(x=>x!==id):GFILT.cls.concat(id);
-    gPartyEdit(p); });
-  const fc=$('#fClr'); if(fc) fc.onclick=()=>{ GFILT.cls=[]; gPartyEdit(p); };
+  filtBind(b,()=>gPartyEdit(p));      // 絞り込み（名簿と同じ GFILT）
   const pd=$('#pDetail'); if(pd&&picked) pd.onclick=()=>gUnit(picked,p);
   const po=$('#pOutSel'); if(po) po.onclick=()=>{
     const j=slots.indexOf(GPICK); if(j>=0) slots[j]=null;
@@ -8300,7 +8395,7 @@ function gQuest(){
     const pend=rp&&repPending(rp.report);
     const stId=p?p.pid:(rp?rp.pid:'');
     const st=p?`${gEsc(p.name)} が受注中：残り <b class="gleft" data-until="${p.returnAt}">—</b>`
-            :rp?`<b class="gwait">${gEsc(rp.name)} ${pend?'が現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}</b>`
+            :rp?repState(rp,'party')
               :'<span class="rnone">未受注</span>';
     const el=eligible(q), k=QKIND[q.kind]||QKIND.std;
     const ft=cleared(q)?'':firstText(q);
@@ -8314,7 +8409,7 @@ function gQuest(){
         q.manual?'<i class="gman">手動戦闘</i>':''}</b>
         <i>報酬 ${q.gold.toLocaleString()}G</i><br>
         <span class="rsub">${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
-        <span class="rsub">${questFoeText(q)}　／　${foeSummary(q)}　／　<span data-st="${stId}">${st}</span></span></span>
+        <span class="rsub">${questFoeText(q)}　／　${foeSummary(q)}　／　<span data-st="${stId}" data-stw="party">${st}</span></span></span>
       <span class="rbtn">
         ${rp?`<button data-a="rep">${repLabel(rp.report)}</button>`:''}
         ${p?btnOr(G.gems>=skipCost(p.returnAt-now()),
@@ -8610,6 +8705,17 @@ let REPLAY=null;   // {p,rep,q,men,idx,playing}
 /* 手動依頼はまだ戦っていないので、再生ではなく出撃へ回す。 */
 const repPending=r=>!!(r&&r.manual&&!r.fought&&!r.arena);
 const repLabel=r=>repPending(r)?'指揮を執る':'報告を聞く';
+/* 報告が置かれている部隊の状態文。
+   ★ 画面によって出す名前が逆 ★
+     部隊一覧 … 行の見出しが部隊名なので、ここには**依頼名**（闘技場なら「闘技場」）
+     依頼一覧 … 行の見出しが依頼名なので、ここには**部隊名**
+   ★ 1秒ごとの syncRecallButtons も必ずこれを通す ★
+   以前は tick 側が独自の文を組んでいて、**部隊一覧の行を依頼一覧用の文で上書き**していた。
+   そのため「帰還済み — 報告待ち」の1秒後に依頼名が部隊名へ化けていた。 */
+const repWhat=r=>gEsc(r.quest||(r.arena?'闘技場':'依頼'));
+const repState=(p,show)=>`<b class="gwait">${
+  show==='party'?gEsc(p.name):repWhat(p.report)} — ${
+  repPending(p.report)?'現地に到着・指揮待ち':'帰還済み・報告待ち'}</b>`;
 
 function gReport(p){
   const r=p.report; if(!r)return;
@@ -9864,10 +9970,16 @@ function arenaBout(men,foes,n){
   let win=0,lose=0;
   try{
     SIM=true; if(ARENA_INV) INV=ARENA_INV;
+    foes.forEach(f=>{ f.side='foe'; });
+    U=[...men,...foes]; BENCH=[];
+    /* ★ 隊列の控えはループの外で1回だけ ★
+       中で取り直すと、控えるのが**前の戦闘で動いたあとの位置**になり、
+       `simOneBattle` が頭で戻しても意味がなくなる。
+       「いれかえ」をガンビットへ載せてから、10戦ぶんの崩れが積み上がって
+       勝率と、相手選びの前衛／後衛表示の両方が狂っていた。
+       `estimateQuest` も `runSim` も外で1回。ここだけ違っていた。 */
+    SIMPOS=posSnapshot();
     for(let i=0;i<n;i++){
-      foes.forEach(f=>{ f.side='foe'; });
-      U=[...men,...foes]; BENCH=[];
-      SIMPOS=posSnapshot();
       const r=simOneBattle(300,false);
       if(r.result==='ally') win++; else lose++;
     }
