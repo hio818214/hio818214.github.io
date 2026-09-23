@@ -9678,7 +9678,9 @@ function gAdmin(){
       G.saveCode=r.code; G.saveAt=new Date().toLocaleString();
       saveGuild();
       say(`預かりました。復元コードは <b class="scode">${gEsc(codeShow(r.code))}</b> です。`
-         +`（${(r.len/1024).toFixed(1)}KB${r.enc==='gzip'?`／素の ${(r.raw/1024).toFixed(1)}KB を圧縮`:''}）`);
+         +`（${(r.len/1024).toFixed(1)}KB${r.enc==='gzip'?`／素の ${(r.raw/1024).toFixed(1)}KB を圧縮`:''}）`
+         /* サーバが別のコードで置いていたら、黙っていると復元できない。必ず出す。 */
+         +(r.warn?`<br>⚠️ <b>${gEsc(r.warn)}</b>`:''));
     }catch(e){
       say(`預けられませんでした（${gEsc(String(e&&e.message||e))}）。しばらくしてから試してください。`);
     }
@@ -10456,6 +10458,20 @@ async function arenaPost(body){
    無い環境でもサーバ側が4万字ずつ6セルに分けて受けるので、素のままでも通る。
    ========================================================= */
 const SAVE_CODE_LEN=16;
+/* 紛らわしい I L O U を除いた32文字（Crockford Base32）。サーバと同じ並び。 */
+const SAVE_CODE_CHARS='0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+/* ★ コードはクライアントで作る ★
+   以前はサーバに発行させて返事の `code` を読んでいたが、
+   **返事の1フィールドが欠けただけでコードを見失う**（実際に起きた）。
+   32種×16文字＝約80ビットなので、こちらで引いてもぶつからない。
+   サーバは「その名前の行へ置く」だけでよくなり、発行の責任が片側に寄る。 */
+function newSaveCode(){
+  const n=SAVE_CODE_LEN, a=new Uint32Array(n);
+  if(typeof crypto!=='undefined'&&crypto.getRandomValues) crypto.getRandomValues(a);
+  else for(let i=0;i<n;i++) a[i]=Math.floor(Math.random()*4294967296);
+  let t=''; for(let i=0;i<n;i++) t+=SAVE_CODE_CHARS.charAt(a[i]%SAVE_CODE_CHARS.length);
+  return t;
+}
 /* 読み書きしやすいように4文字ずつ区切って見せる。控えるのは人間なので。 */
 const codeShow=c=>String(c||'').replace(/(.{4})(?=.)/g,'$1-');
 /* 入力のゆらぎを吸収する。サーバ側の normCode と同じ規則。 */
@@ -10488,11 +10504,16 @@ async function ungzipB64(b64){
 async function saveBackup(code){
   const raw=JSON.stringify(guildData());
   const gz=await gzipB64(raw);
-  const body={action:'backup',rev:G.rev||0,
-              enc:gz?'gzip':'raw', data:gz||raw};
-  if(code) body.code=codeNorm(code);
-  const j=await arenaPost(body);
-  return {code:j.code,at:j.at,len:j.len,raw:raw.length,enc:body.enc};
+  const data=gz||raw, enc=gz?'gzip':'raw';
+  const use=codeNorm(code)||newSaveCode();
+  const j=await arenaPost({action:'backup',code:use,rev:G.rev||0,enc,data});
+  /* ★ 長さもコードもこちらが持っている値を使う ★
+     返事は「通った」ことの確認にだけ使う。中身の食い違いは知らせるだけ。 */
+  const back=codeNorm(j.code);
+  const warn=(back&&back!==use)
+    ? `サーバは別のコード（${back}）で保存しました。復元にはそちらを使ってください。` : '';
+  if(warn) console.warn(warn,{sent:use,got:j.code});
+  return {code:back||use,at:j.at||'',len:data.length,raw:raw.length,enc,warn};
 }
 /* 復元コードで取り出す。**この関数は保存を書き換えない**（呼び出し側で確認を取る）。 */
 async function saveRestore(code){
