@@ -377,6 +377,7 @@ body.guildmode.replaying.manualplay #cmdBox{display:block}
   font-size:10.5px;font-family:var(--mono);color:var(--muted)}
 .zcnt b{font-weight:500}
 .zcnt b.gok{color:var(--gold)}
+.zcnt b.gtame{color:#b39bdd}     /* テイムは仲間の色（.gtame と同じ紫）に寄せる */
 .fcount{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--gold)}
 .gchips{display:flex;flex-wrap:wrap;gap:3px;margin-top:3px}
 .pcell .gchips{margin-top:2px;align-items:center}
@@ -1510,8 +1511,17 @@ fudou:{name:'不動',cat:'専用',needs:['gargoyle','golem'],
     s.buffs=s.buffs.filter(b=>b!==c.buff);
     proc(s,'fudou',`${c.buff.label}を受け付けなかった`);}},
 
-mikubi:{name:'三首',cat:'専用',needs:'cerberus',
-  desc:'通常攻撃が攻撃×0.4の3連撃になる。命中判定も3回。追撃・崩し・吸魔と噛み合う。ケルベロス専用。'},
+/* ★ ケルベロス専用から「多頭」タグへ ★
+   首が複数あることそのものが条件なので、種族で縛る理由が無い。
+   タグにしておくと、多頭の魔物を足すたびに自動で共有される（胞子・ネムリバナと同じ考え方）。 */
+/* ★ 効果そのものは castSpell の refl にある ★
+   ここに書けるのは「被弾した後」のフックだけで、
+   反射は**的を決める段**で起きるので、フックでは表現できない。 */
+hansha:{name:'魔法反射',cat:'専用',needs:'mirror',
+  desc:'自分に向けられた魔法を、すべて撃った本人へ跳ね返す。味方からの回復や強化も返る。'
+      +'特技は返らない。鏡同士で撃ち合うと打ち消し合って何も起きない。呪いの鏡専用。'},
+mikubi:{name:'三首',cat:'専用',needs:'多頭',
+  desc:'通常攻撃が攻撃×0.4の3連撃になる。命中判定も3回。追撃・崩し・吸魔と噛み合う。多頭の魔物だけ。'},
 tsuisou:{name:'追走',cat:'専用',needs:'cerberus',
   desc:'敵が「いれかえ」で動いた時、その相手へ攻撃×0.6で追撃する。ケルベロス専用。',
   swapped(s,c){ if(!s.alive||!c.unit||c.unit.side===s.side||!c.unit.alive)return;
@@ -2040,14 +2050,18 @@ const invOf=iid=>iid==null?null:INV.find(x=>x.iid===iid)||null;
 const invDef=it=>it?EQ[it.id]||null:null;
 const invSlot=slot=>INV.filter(x=>x.slot===slot);
 
+/* その武器に、そのスキルを載せてよいか。
+   ★ 生成と刻印で同じ規則を使う ★
+   needs の無いスキルはどの武器にも。剣技は名前に「剣」が入る武器だけ。
+   種族専用（needs:'lich' など）は、どの武器にも載せない。 */
+function eqSpellOk(def,id){
+  const sp=SP[id]; if(!def||!sp)return false;
+  if(!sp.needs) return true;
+  const need=Array.isArray(sp.needs)?sp.needs:[sp.needs];
+  return /剣/.test(def.n)&&need.includes('剣所持');
+}
 function rollEqSpellFor(def){
-  const sword=/剣/.test(def.n);
-  const pool=SPELL_IDS.filter(id=>{
-    const sp=SP[id];
-    if(!sp.needs) return true;
-    const need=Array.isArray(sp.needs)?sp.needs:[sp.needs];
-    return sword&&need.includes('剣所持');
-  });
+  const pool=SPELL_IDS.filter(id=>eqSpellOk(def,id));
   return pool.length?pick(pool):null;
 }
 /* slot を渡すと武器／防具を指定して作る（生成ボタンは指定なし＝16種から1種）。 */
@@ -2335,7 +2349,7 @@ const CLASSES=[
   bias:{jinrou:24,haisui:16,tsuigeki:14,kajiba:12,hitokiri:10,fukutsu:8,shissou:8,kemonogari:6},
   spN:2, spBias:{kamitsuki:20,tsumesaki:16,hayabusa:10,taiatari:6}},
  {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',lv:3,hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
-  tags:['獣','四足'],
+  tags:['獣','四足','多頭'],
   desc:'追い詰めるほど強くなる猟犬。追撃と処刑を持ちやすい。',
   bias:{mikubi:22,tsuigeki:20,tsuisou:16,kajiba:14,shokei:12,hitokiri:10,sakigake:8,haisui:8},
   spN:2, spBias:{kamikudaki:18,houkou:14,kamitsuki:14,tsumesaki:10}},
@@ -2373,6 +2387,71 @@ const CLASSES=[
  /* 敵側で初めて `射手` タグを持つ。通常攻撃が列を無視するので、
     **プレイヤーの後列が構造的に安全**という前提がここで崩れる。
     《狙い撃ち》は「後列を撃てる」ではなく「後列を撃つと痛い」を足す個性。 */
+ /* ★ 多頭の2体 ★
+    《三首》（通常攻撃が3連撃）を共有する。
+
+    ⚠️ **「1発が軽いから硬い相手に通らない」は誤り**（実測で確かめた）。
+    このゲームのダメージは `120/(120+防御*0.9)` の**掛け算**なので、
+    1発に割っても合計は変わらない。0.4×3＝1.2 でむしろ2割増える。
+    本当の性格は次の2つ：
+      ・命中判定が3回 … **回避の高い相手には弱い**（3回とも判定される）
+      ・命中ごとに乗るものと噛み合う … 追撃・崩し・吸魔・毒撃など
+    どちらも遅めにしてあるのは、手番あたりの手数が多いぶんを速さで払わせるため。 */
+ {id:'hydra',n:'ヒドラ',        c:'HD',kind:'monster',lv:4,hp:660,mp:40,atk:74,def:56,mat:46,mdf:48,spd:46,
+  tags:['竜','多頭'],
+  desc:'首の数だけ噛みついてくる水竜。硬くて重いが鈍い。'
+      +'倒しても立ち上がる《不屈》と、3連撃の《三首》を持ちやすい。',
+  bias:{mikubi:26,fukutsu:18,haisui:14,regen:12,tsuigeki:10,mitigate:8,shuunen:8,iatsu:6},
+  spN:2, spBias:{kamitsuki:20,obigeki:14,breath:12,venom:10,tsumesaki:8}},
+ /* 獅子と山羊と蛇。**獣でありながら魔力も高い**唯一の四足で、
+    物理で固めた編成が「殴り合いなら勝てる」と踏むと裏切られる。 */
+ {id:'chimera',n:'キメラ',      c:'CH',kind:'monster',lv:4,hp:560,mp:52,atk:74,def:48,mat:64,mdf:50,spd:62,
+  tags:['獣','四足','多頭'],
+  desc:'三つの頭がそれぞれ別のことをする。爪で裂き、毒を吐き、魔法を撃つ。',
+  bias:{mikubi:24,tsuigeki:14,kemonogari:6,dokugeki:14,juso:12,kouun:10,tekiou:8,shissou:8},
+  /* 咆哮とヌメリはケルベロス／スライム専用なので置けない（needs を満たさない）。
+     蛇の頭ぶんは毒と眠りで表す。 */
+  spN:3, spMag:0.45, spBias:{tsumesaki:16,kamitsuki:14,venom:14,fire:12,sleep:8,mweaken:6}},
+
+ /* ★ 無機の4体 ★
+    無機はミミック・ガーゴイル・ゴーレムの3種しかなく、タグの中でいちばん薄かった。
+    lv2〜3を4体足したので、「動く石たち」がガーゴイル1種に固定される問題も解ける。 */
+ {id:'clay',n:'泥人形',         c:'CL',kind:'monster',lv:2,hp:500,mp:20,atk:58,def:56,mat:18,mdf:30,spd:26,
+  tags:['無機','人型'],
+  desc:'泥をこねただけの人形。遅くて攻め手に乏しいが、崩れても形を保つ。',
+  bias:{mitigate:22,fukutsu:18,chitai:14,thorns:12,chouhatsu:10,kanjuku:8,iatsu:6},
+  spN:1, spBias:{taiatari:16,guardup:10,slow:8}},
+ /* 中身のいない鎧。不死と無機の両方に数えられる唯一の相手で、
+    《不死狩り》と《石砕き》がどちらも刺さる。 */
+ {id:'armor',n:'動く鎧',        c:'AM',kind:'monster',lv:3,hp:520,mp:24,atk:78,def:70,mat:20,mdf:46,spd:40,
+  tags:['不死','無機'],
+  desc:'中身のいない鎧が独りでに動く。硬く、倒れてもまた立ち上がる。',
+  bias:{fukutsu:22,mitigate:18,tensei:14,iatsu:12,nirami:10,thorns:8,shuunen:8},
+  spN:1, spBias:{taiatari:14,guardup:10,weaken:8}},
+ /* 無機でありながら剣所持（剣技はスケルトン・ゴブリン・デュラハンも使う）。
+    ★ 無機＝硬い、という読みを外すために置いてある ★
+    硬さを捨てて速さと手数に振ってあるので、
+    「無機だから物理で殴り合えばいい」と構えた編成に先手で刺さる。 */
+ {id:'blade',n:'浮遊する剣',    c:'BL',kind:'monster',lv:3,hp:340,mp:26,atk:88,def:40,mat:24,mdf:38,spd:76,
+  tags:['無機','剣所持'],
+  desc:'持ち手のいない剣が宙に浮いている。速く、鋭く、脆い。',
+  bias:{tsuigeki:20,sakigake:16,mustHit:14,karuwaza:12,hitokiri:10,shissou:10,kouun:8},
+  spN:2, spBias:{hayabusa:18,zenryoku:14,samidare:12,hicchuu:10}},
+ /* ★ 魔法を撃つ側を丸ごと否定する ★
+    《魔法反射》は100%なので、魔法で押す編成は**自分の魔法で沈む**。
+    殴って割るか、状態異常を特技で入れるかしかない。
+    自分でも魔法を撃つので、無視して放っておくこともできない。 */
+ {id:'mirror',n:'呪いの鏡',     c:'MR',kind:'monster',lv:3,hp:420,mp:60,atk:30,def:50,mat:70,mdf:66,spd:34,
+  tags:['無機'],
+  /* ★ 《魔法反射》は確定枠 ★（指揮官の《共有》・テイマーの《テイム》と同じ）
+     抽選だと「反射しない鏡」が出てしまう。それはもう鏡ではないし、
+     掲示で「鏡が出る」と読めた時に何を備えればいいのかも決まらない。
+     確定枠は freeTraitSlots が守るので、レア加入や主人公補正でも消えない。 */
+  fixed:['hansha'],
+  desc:'磨かれた鏡がひとりでに立っている。**向けた魔法がそのまま返ってくる。**',
+  bias:{juso:16,mitigate:14,iatsu:12,nirami:12,makekkai:10,shuunen:8,chitai:6},
+  spN:2, spBias:{fire:16,blast:12,mweaken:10,sleep:10,breach:8}},
+
  {id:'centaur',n:'ケンタウロス', c:'CT',kind:'monster',lv:4,hp:520,mp:30,atk:76,def:48,mat:28,mdf:36,spd:74,
   tags:['獣','四足','射手'],
   desc:'後列を直接射抜いてくる。速く、狙いが正確で、前に出て守る意味を薄れさせる。',
@@ -3222,6 +3301,35 @@ function castSpell(a,sp,target,o={}){
   const oneTarget=()=>{
     let t=(target&&target.alive&&(!phys||canReach(a,target)))?target:pickTarget(a,phys);
     return t?[t]:[]; };
+  /* ★ 《魔法反射》★ 魔法の的を、そのまま撃った本人へ差し替える。
+     味方からの魔法も返る（回復も強化も、鏡に向けたら自分に掛かる）。
+     ・特技は返らない（鏡が割れるのは魔法だけ、という建て付け）
+     ・自分自身へ撃った時は返さない（反射ではなく、ただの自分がけ）
+
+     ★ 鏡が鏡へ撃つと打ち消し合う ★
+     返した先もまた鏡なら、**その魔法は消える**（的から外す）。
+     向かい合わせの鏡で無限に往復して散った、という扱い。
+     ここを「1回だけ返して着弾」にすると、鏡が自分の魔法で自滅することになり、
+     絵としても据わりが悪かった。
+     消えるのは**鏡へ向いたぶんだけ**なので、全体魔法の他の的には普通に通る。
+     MPは戻らない（手番ごと無駄になる）。
+
+     ⚠️ 全体魔法が鏡を2体巻き込むと、**撃った本人が2回受ける**。
+        100%で返す以上そうなるが、範囲を撒く編成には相当きつい。 */
+  let reflected=false;
+  const refl=list=>{
+    if(art||!list||!list.length)return list;
+    const selfMirror=hasT(a,'hansha');
+    const out=[];
+    list.forEach(t=>{
+      if(!t||t===a||!hasT(t,'hansha')){ out.push(t); return; }
+      if(!reflected){ reflected=true;
+        proc(t,'hansha',selfMirror?`${a.name} の ${E.name} は鏡の間で消えた`
+                                  :`${a.name} の ${E.name} を跳ね返した`); }
+      if(!selfMirror) out.push(a);      // 鏡でない相手が撃ったなら、その本人へ返す
+    });
+    return out;
+  };
 
   if(sp.type==='atk'){
     let dealt=0, firstHit=null;
@@ -3232,6 +3340,7 @@ function castSpell(a,sp,target,o={}){
       else if(E.multi) tg=reachOf().slice(0,E.multi);        // 黒馬突 … 届く範囲から2体
       else if(sp.randomTarget){ const c=reachOf(); if(!c.length)break; tg=[pick(c)]; }
       else tg=oneTarget();
+      tg=refl(tg);
       if(!tg.length)break;
       for(const t of tg){
         if(!t.alive)continue;
@@ -3290,7 +3399,7 @@ function castSpell(a,sp,target,o={}){
     if(!o.isExtra&&firstHit) emit('allyHit',{attacker:a,target:firstHit});
 
   } else if(sp.type==='heal'){
-    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
     /* flat … 撃ち手のステータスを見ず、**受ける側の最大HPの割合**で回復する。
        薬師の薬がこれ。魔力が伸びない職でも終盤まで一定の仕事が残り、
        封魔されても（特技なので）撃てる。魔法の回復とは伸び方がまるで違う。 */
@@ -3303,7 +3412,7 @@ function castSpell(a,sp,target,o={}){
     /* MP回復。**消費0で撃てる**ので、尽きた後も手が止まらない。
        ただし回復量は「その職のおよそ1発ぶん」に置いてあるので、
        撃つ代わりに充電しても得はしない（尽きた後の保険であって、増幅装置ではない）。 */
-    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
     tg.forEach(t=>{ if(!t.alive)return;
       const v=E.flat?Math.round(t.maxMp*E.flat*mult):Math.round(stat(a,'mat')*E.power*mult);
       const before=t.mp; gainMp(t,v);
@@ -3312,25 +3421,25 @@ function castSpell(a,sp,target,o={}){
                   :`${t.name} のMPは満タンだった`,'l-buff'); });
 
   } else if(sp.type==='cure'){
-    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
     let any=false;
     tg.forEach(t=>{ if(t.alive&&clearAils(t)) any=true; });
     if(!any) addLog(`${E.name} — 治す状態異常が無かった`,'l-sys');
 
   } else if(sp.type==='evade'){
-    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
     tg.forEach(t=>{ if(!t.alive)return; t.evade=(t.evade||0)+1;
       addLog(`${t.name} は次の攻撃を1回かわす構え`,'l-buff'); });
 
   } else if(sp.type==='buff'){
     // バフ・デバフの効果量は「威力」ではないので増幅を掛けない（追唱の減衰だけ効く）
     const bm=o.mult||1;
-    const tg=sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a];
+    const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
     tg.forEach(t=>addBuff(t,{label:E.base,stat:sp.stat,value:E.value*bm,turns:E.turns,kind:'buff'},a));
 
   } else if(sp.type==='debuff'){
     const bm=o.mult||1;
-    const tg=sp.scope==='all'?foesOf():oneTarget();
+    const tg=refl(sp.scope==='all'?foesOf():oneTarget());
     tg.forEach(t=>{
       if(!t.alive)return;
       // 魔法のデバフだけ 魔力 vs 魔防 で抜ける。特技（咆哮・羽撃き）は今までどおり確定
@@ -3340,7 +3449,7 @@ function castSpell(a,sp,target,o={}){
     });
 
   } else if(sp.type==='ail'){
-    const tg=sp.scope==='all'?foesOf():oneTarget();
+    const tg=refl(sp.scope==='all'?foesOf():oneTarget());
     tg.forEach(t=>{
       if(!t.alive)return;
       /* 魔法 … 元の確率に 魔力vs魔防 を掛ける（元が確定なら倍率そのもの）
@@ -4010,7 +4119,42 @@ function shake(u){ if(SIM)return; const el=$(`[data-u="${u.id}"]`); if(!el)retur
 function lunge(u){ if(SIM)return; const el=$(`[data-u="${u.id}"]`); if(!el)return;
   el.classList.add(u.side===MY()?'lunge-l':'lunge-r');
   setTimeout(()=>el.classList.remove('lunge-l','lunge-r'),Math.max(60,260/speedF));}
-function addLog(t,cls){ if(SIM)return; logs.push({t,cls}); if(logs.length>400)logs.shift(); renderLog(); }
+/* =========================================================
+   戦闘ログ
+
+   ★ 溜める数と、出す数を分けない ★
+   以前は 400行まで溜めて、**そのうち直近160行しか描いて**いなかった。
+   7人対7人の1戦でだいたい240行出るので、**開幕はスクロールしても戻れなかった**。
+   実測：4人対ゴブリン2で96行／7対7で238行／長引くと400行（上限に当たる）。
+
+   ★ 1行ずつ足す ★
+   addLog のたびに全部描き直すと、400行の戦闘で延べ8万個の要素を作ることになる。
+   DOM は新しい順（先頭に差し込む）で、CSS の column-reverse が下へ並べ替える。
+   こうすると「いちばん下が最新」「上へスクロールすると過去」が黙って成り立つ。
+   ========================================================= */
+const LOG_MAX=2000;      // 5連戦ぶん。1行 約80バイトなので、溜めても 160KB 程度
+function logLine(l){
+  const d=document.createElement('div');
+  if(l.cls) d.className=l.cls;
+  d.innerHTML=l.t;
+  return d;
+}
+function addLog(t,cls){
+  if(SIM)return;
+  const l={t,cls}; logs.push(l);
+  const h=$('#log');
+  if(logs.length>LOG_MAX){
+    logs.shift();
+    if(h&&h.lastChild) h.removeChild(h.lastChild);   // 末尾＝いちばん古い行
+  }
+  if(!h)return;
+  h.insertBefore(logLine(l),h.firstChild);
+  /* ★ 仕切り直しの1行目で、見る位置を最新へ寄せる ★
+     renderLog は logs が空のまま呼ばれることが多く（`logs=[]; renderLog();` の順）、
+     その時点では寄せる先の行がまだ無い。1行目が入った所でもう一度寄せる。
+     2行目以降は、いちばん下に貼り付いたまま勝手についてくる（column-reverse）。 */
+  if(logs.length===1) logToNewest(h);
+}
 
 /* --- ホバー説明チップ --- */
 const TIP=document.createElement('div'); TIP.className='tip'; TIP.hidden=true; document.body.appendChild(TIP);
@@ -4153,8 +4297,28 @@ function renderOrder(){
   $('#order').innerHTML='<span class="lbl">TURN ORDER</span>'+upcoming(10).map((u,i)=>
     `<span class="otk ${u.side===MY()?'ally':'foe'} ${i===0?'now':''}"><i></i>${u.name}</span>`).join('');
 }
-function renderLog(){ if(SIM)return;
-  $('#log').innerHTML=logs.slice(-160).reverse().map(l=>`<div class="${l.cls}">${l.t}</div>`).join(''); }
+/* 全部描き直す。logs を入れ替えた時だけ呼ぶ（ふだんは addLog が1行ずつ足す）。 */
+function renderLog(){
+  if(SIM)return;
+  const h=$('#log'); if(!h)return;
+  const f=document.createDocumentFragment();
+  for(let i=logs.length-1;i>=0;i--) f.appendChild(logLine(logs[i]));
+  h.innerHTML=''; h.appendChild(f);
+  logToNewest(h);
+}
+/* ★ いちばん新しい行へ戻す ★
+   「もう一度見る」で前回のスクロール位置が残り、**途中から始まったように見えて**いた。
+   以前は addLog のたびに全部描き直していたので、その副作用で毎回下へ戻っていた。
+   1行ずつ足す形にしたらその副作用が消えたので、ここで明示的に戻す。
+
+   数字（scrollTop=0 など）で合わせないのは、column-reverse の scrollTop の
+   向きが環境によって違うため。「先頭の行を見える所へ」なら向きに依存しない。 */
+function logToNewest(h){
+  const box=h||$('#log'); if(!box)return;
+  const top=box.firstElementChild;
+  if(top&&typeof top.scrollIntoView==='function') top.scrollIntoView({block:'nearest'});
+  else box.scrollTop=0;
+}
 function renderCmd(u){
   ARMED=null;                 // コマンド欄を描き直したら確認待ちは解除
   const box=$('#cmdbody');
@@ -4416,6 +4580,12 @@ const equipGroups=(slot,u)=>{
 /* =========================================================
    11. 個性エディタ
    ========================================================= */
+/* 編集画面を開き直した時に、見ていた位置を保つための控え。
+   ★ 開き直しは innerHTML の差し替え ★
+   装備を替えるたびに要素が作り直されるので、スクロールは必ず先頭へ戻る。
+   以前はそれがそのまま出ていて、**装備を1つ替えるたびに画面が跳ねて**いた。
+   同じ人を開き直した時だけ戻す（別の人を開いたら先頭から読みたい）。 */
+let MEDIT=null;
 function openEditor(u){
   closePicker();
   // 対戦中は自分の陣営しか編集できない（相手のユニットは閲覧のみ）
@@ -4439,6 +4609,10 @@ function openEditor(u){
      報告待ちの部隊も同じ扱い（まだ帰ってきていない）。 */
   const own=LOCK&&G?partyOf(u):null;
   const FROZEN=!!(own&&(partyBusy(own)||own.report));
+  // 描き直す直前の位置を控える（同じ人を開き直した時だけ）
+  const prevBox=document.querySelector('.modal');
+  const keepTop=(prevBox&&MEDIT===u.id)?prevBox.scrollTop:0;
+  MEDIT=u.id;
   $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
     <header><h3>${u.name}</h3><span class="hint">${u.clsName} / ${u.side==='ally'?'味方':'敵'} / ${isFront(u)?'前列':'後列'} slot${u.slot}</span>
       <button class="btn x" id="closeM">閉じる</button></header>
@@ -4534,6 +4708,7 @@ function openEditor(u){
         <button class="btn" id="clrAllS">全員のスキルをなしに</button>
       </div>`}
     </div></div></div>`;
+  if(keepTop){ const nb=document.querySelector('.modal'); if(nb) nb.scrollTop=keepTop; }
   $('#closeM').onclick=closeEditor;
   document.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask')) closeEditor(); };
   const M=document.querySelector('.modal');
@@ -4651,6 +4826,13 @@ function renderGambits(u){
   let blocked=-1;   // ここより下は絶対に判定されない
   u.gambits.forEach((g,i)=>{ if(blocked<0&&g.cond==='always'&&(+g.cnt||1)===1
     &&(g.act==='attack'||g.act==='guard')) blocked=i; });
+  /* ★ 言う必要があるのは「下に行が余っている」時だけ ★
+     いちばん下の行が必ず成立するのは**正しい組み方**（締めくくり）なので、
+     そこで「下の行が判定されません」と言われても直しようがない。
+     ★ 締めの「たたかう」も、必ず成立する行がある時点で起きない ★
+     起きないものを毎回書いておくと、行の意味を読み違える。 */
+  const deadBelow = blocked>=0 && blocked<u.gambits.length-1;
+  const fallback  = blocked<0;
   /* ★ 向きが食い違う行はその場で言う ★
      味方へ使うスキルに「敵」を指定しても、条件は通るのに対象が0件で落ちる。
      ログにも何も残らないので、**組んだ本人にだけ分からない**という形になる。
@@ -4679,8 +4861,8 @@ function renderGambits(u){
       <span class="gbtns"><button data-g="up" title="上へ">▲</button><button data-g="dn" title="下へ">▼</button><button data-g="del" title="削除">×</button></span>
     </div>`).join('')
     +warns.map(x=>`<div class="warn">${x.i+1}行目：${x.w}</div>`).join('')
-    +(blocked>=0?`<div class="warn">${blocked+1}行目が常に成立するため、それより下の行は判定されません。▲で上に移動してください。</div>`:'')
-    +`<div class="grow last"><span class="gno">—</span><span class="hint">上の行が全て不成立なら「たたかう」</span></div>`;
+    +(deadBelow?`<div class="warn">${blocked+1}行目が常に成立するため、それより下の行は判定されません。▲で上に移動してください。</div>`:'')
+    +(fallback?`<div class="grow last"><span class="gno">—</span><span class="hint">上の行が全て不成立なら「たたかう」</span></div>`:'');
   host.querySelectorAll('.grow[data-i]').forEach(row=>{
     const i=+row.dataset.i;
     row.querySelectorAll('select').forEach(s=>s.onchange=()=>{
@@ -4698,7 +4880,7 @@ function renderGambits(u){
 let LOADING=false;            // 読み込み中は自動保存を止める（古い状態で上書きしないため）
 let GEDIT_RETURN=null;        // ギルドから編集画面を開いた時の戻り先
 function closeEditor(){
-  closePicker(); $('#modalHost').innerHTML='';
+  closePicker(); MEDIT=null; $('#modalHost').innerHTML='';
   if(!LOADING&&typeof saveLocal==='function') saveLocal();
   if(GEDIT_RETURN){ const f=GEDIT_RETURN; GEDIT_RETURN=null; f(); }
 }
@@ -7620,11 +7802,27 @@ function levelUp(u,id){
   return {gid:u.gid,kind:'lv',id,to:lv+1};
 }
 /* 1回ぶんのチャンス。枠を1つ引いて、伸びしろがあれば伸ばす。 */
+/* 装備枠が当たったのに武器へ何も付いていない時、**本人のスキルをその武器へ刻む**。
+   ★ 以前はここで空振りしていた ★ 1/4の抽選が、付与なしの武器だと丸ごと無駄になっていた。
+   刻んだスキルは装備に残るので、**別の仲間がその武器を持てば同じスキルを撃てる**。
+   載せてよいかは生成と同じ規則（eqSpellOk）で見るので、杖に剣技は刻まれない。
+
+   ⚠️ 本人にとっては**重複して無効**になる（同じスキルを素の枠でも持っているため）。
+      価値が出るのは持ち替えた時で、そこは承知のうえ。
+   ⚠️ 付与つき装備は値段の基準が10倍（1万→10万）。**ただで付与が生まれる**経路なので、
+      武具屋の相場と金策への効きは見ておくこと。 */
+function engraveInto(u){
+  const it=eqItem(u,'w'); if(!it||it.spell)return null;
+  const def=invDef(it); if(!def)return null;
+  const own=(u.spells||[]).filter(id=>id&&id!=='none'&&SP[id]&&eqSpellOk(def,id));
+  if(!own.length)return null;
+  return {gid:u.gid,kind:'engrave',iid:it.iid,id:pick(own)};
+}
 function trySkillGain(u){
   const i=RI(4);                         // 0〜2 = 基本枠、3 = 装備枠
   if(i===3){
     const id=eqSpellRaw(u);
-    return (id&&id!=='none')?levelUp(u,id):null;   // 装備枠は上昇のみ
+    return (id&&id!=='none')?levelUp(u,id):engraveInto(u);
   }
   const id=u.spells[i];
   return (!id||id==='none')?learnInto(u,i):levelUp(u,id);
@@ -7660,6 +7858,18 @@ function applySkillGain(rep,list){
         if(r){ if(sp.type==='heal'||sp.type==='cure') u.gambits.unshift(r); else u.gambits.push(r); }
       }
       rep.skill=(rep.skill||[]).concat(`${u.name} は ${spName(SP[g.id],u)} をひらめいた！`);
+    }else if(g.kind==='engrave'){
+      /* ★ 開封までに状況が変わっていたら流す ★
+         売った・外した・別の付与が付いた、はどれも普通に起きる。 */
+      const it=invOf(g.iid);
+      if(!it||it.spell||!SP[g.id])return;
+      if(eqItem(u,'w')!==it)return;
+      const before=eqSnapshot(u);
+      it.spell=g.id;
+      // 本人が同じスキルを素の枠で持っていると重複で無効なので、行は足さない
+      if(!(u.spells||[]).includes(g.id)) resyncGambits(u,before);
+      rep.skill=(rep.skill||[]).concat(
+        `${u.name} の ${invDef(it).n} に ${spName(SP[g.id],u)} が刻まれた！`);
     }else{
       const sp=SP[g.id]; if(!sp)return;
       const cur=spLevel(u,sp);
@@ -7696,6 +7906,11 @@ function joinFromPending(rep,q,m){
 }
 /* テイムで連れ帰った魔物。**装備はできないが、種族専用の個性とスキルを持ってくる。** */
 function tameFromPending(rep,clsId){
+  /* ★ 図鑑の「テイム」はここだけで増える ★
+     枠が埋まっていて加入しなかった時も数える。
+     記録したいのは**手懐けられたかどうか**であって、
+     持ち帰れたかどうかではない（枠はこちらの都合）。 */
+  seenTame(clsId);
   if(G.roster.length>=maxRoster()){
     const o=overflowMember();
     rep.gold+=o.gold; rep.gained.push(o.text);
@@ -7718,7 +7933,8 @@ function tameFromPending(rep,clsId){
             達成＝全部の戦闘に勝った、なので rounds に出た魔物は全部倒しています。
             3戦目まで倒していても4戦目で負けたら「会った」だけ（そういう決め）。
    ========================================================= */
-const seenOf=id=>(G&&G.seen&&G.seen[id])||{met:0,kill:0};
+const seenOf=id=>{ const e=(G&&G.seen&&G.seen[id])||null;
+  return {met:(e&&e.met)||0,kill:(e&&e.kill)||0,tame:(e&&e.tame)||0}; };
 const seenMet=id=>seenOf(id).met>0;
 const seenKill=id=>seenOf(id).kill>0;
 const seenList=()=>MONSTERS.filter(c=>seenMet(c.id));
@@ -7727,9 +7943,19 @@ function seenRecord(ids,killed){
   G.seen=G.seen||{};
   ids.forEach(id=>{
     if(!CLS[id]||CLS[id].kind!=='monster')return;      // 人間職は図鑑に載せない
-    const e=G.seen[id]||(G.seen[id]={met:0,kill:0});
+    const e=G.seen[id]||(G.seen[id]={met:0,kill:0,tame:0});
     e.met++; if(killed) e.kill++;
   });
+}
+/* テイムに成功した数。
+   ★ 枠が無くて逃がした時も数える ★
+   「手懐けられた」ことの記録なので、持ち帰れたかどうかは別の話。
+   会っていない魔物はテイムできないので、met は必ず1以上になっている。 */
+function seenTame(id){
+  if(!G||!CLS[id]||CLS[id].kind!=='monster')return;
+  G.seen=G.seen||{};
+  const e=G.seen[id]||(G.seen[id]={met:0,kill:0,tame:0});
+  e.tame=(e.tame||0)+1;
 }
 
 function claimReport(rep){
@@ -7857,8 +8083,9 @@ function applyGuild(d){
   /* 図鑑。知らない職業idや壊れた数は捨てる（保存は手で触れるので素通しにしない）。 */
   const seenLoad=o=>{ const out={};
     Object.keys(o||{}).forEach(id=>{ if(!CLS[id]||CLS[id].kind!=='monster')return;
-      const v=o[id]||{}, met=Math.max(0,+v.met||0), kill=Math.max(0,+v.kill||0);
-      if(met) out[id]={met,kill:Math.min(kill,met)}; });
+      const v=o[id]||{}, met=Math.max(0,+v.met||0), kill=Math.max(0,+v.kill||0),
+            tame=Math.max(0,+v.tame||0);
+      if(met) out[id]={met,kill:Math.min(kill,met),tame:Math.min(tame,met)}; });
     return out; };
   GREV=+d.rev||0;     // この版を知っている、という記録。これより新しい保存を見たら古いタブ扱い
   G={gold:d.gold||0,gems:d.gems==null?10:d.gems,ext,tut,rev:GREV,cid:d.cid||'',
@@ -8188,7 +8415,7 @@ function renderGuild(){
      ★ 倒した扱いにする ★ 専用の個性・スキルまで開かないと、見たい所が見られない。
      自作依頼の選択肢も図鑑に連動しているので、これで全種が並ぶ。 */
   dbg('#dbgZ',()=>{ G.seen={};
-    MONSTERS.forEach(c=>{ G.seen[c.id]={met:1,kill:1}; });
+    MONSTERS.forEach(c=>{ G.seen[c.id]={met:1,kill:1,tame:1}; });
     GMSG=`【検証】図鑑を全部開いた（${MONSTERS.length}種）`; });
   dbg('#dbgZ0',()=>{ G.seen={}; GMSG='【検証】図鑑を空にした'; });
   dbg('#dbgM',()=>dbgJoin(false));
@@ -9977,7 +10204,8 @@ function gZukan(){
         <span class="rsub">${gEsc(c.desc||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
         <span class="rsub zstat">${stat(c)}</span>
         <span class="gchips">${chips}</span></span>
-      <span class="rbtn zcnt"><b>会った ${e.met}</b><b class="${open?'gok':''}">倒した ${e.kill}</b></span>
+      <span class="rbtn zcnt"><b>会った ${e.met}</b><b class="${open?'gok':''}">倒した ${e.kill}</b>
+        ${e.tame?`<b class="gtame">テイム ${e.tame}</b>`:''}</span>
     </div>`;
   };
   b.innerHTML=`<h2>魔物図鑑</h2>
