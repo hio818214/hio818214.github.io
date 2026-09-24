@@ -3143,6 +3143,62 @@ const canCast=(u,sp)=>!(u&&u.ail&&u.ail.seal&&sp&&!isArt(sp));
 
    ただし**自分で自分に掛けるもの**は通す（《石化》の休み・急降下の反動）。
    弾くと、その個性やスキルの代償だけ踏み倒せてしまう。 */
+/* =========================================================
+   個性の分類（→ backlog C-6 ①）
+
+   ★ 〈専用〉は分類ではなかった ★
+   `cat:'専用'` は**33件すべてが needs 持ち**で、例外はゼロ。
+   つまり「誰が持てるか」しか言っておらず、**何をするかは何も言っていない**のに、
+   108件中33件を占めて最大の塊になっていた。
+   絞り込みの上段に出しても、〈専用〉を押した先に壁も火力も回復も混ざって出てくる。
+
+   そこで、実装しているフックから「いつ働くか」を導いて、**既にある分類へ割り振る**。
+   フックはコードそのものなので、手で振り直す必要も、振り間違える余地もない。
+
+   導けないものは〈常時〉へ（9件）：
+     フックを持たない … 三首・魔法反射・首無し・無心・牙の共鳴・魔の共鳴・夜天
+                        （別の場所で id を直接見ているもの。ずっと効いている）
+     mod だけ        … 獣化・数の利（常時の掛け算で、いつとは言えない）
+   ただし **`field:true` は〈戦闘外〉**（テイムだけ）。
+   戦闘中は一度も働かないので、常時と言うと嘘になる。
+
+   結果：最大の塊が 33件 → 14件（対敵）になり、**〈専用〉という袋そのものが消える**。
+   ⚠️ **分類の数は減りません**（18→19）。「上段で絞れない」問題は別（→ C-6 ②③）。
+   ========================================================= */
+const CAT_BY_HOOK={
+  battleStart:'開幕',       turnStart:'開幕',
+  outgoing:'攻めた時',      dealt:'攻めた時',   kill:'攻めた時',
+  crit:'攻めた時',          missed:'攻めた時',  allyHit:'攻めた時',
+  incoming:'受けた時',      damaged:'受けた時', lethal:'受けた時',
+  eva:'受けた時',           aggro:'受けた時',
+  turnEnd:'手番の終わり',   actionEnd:'手番の終わり',
+  death:'倒れた後',
+  buffApplied:'掛かった時', healed:'掛かった時',
+  allySkill:'掛かった時',   swapped:'掛かった時',
+  mod:'常時',               healBoost:'常時',
+};
+/* ★ 軸1「いつ働くか」★（→ backlog C-6 軸1）
+   **タグの配列**を返す。1つに決められないものが現に10件あるので、単一では表せない
+   （《疾走》＝手番の終わり・受けた時・常時／《復讐》＝受けた時・攻めた時 など）。
+   108件中98件は1つだけなので、見た目はほとんど変わらない。
+
+   フックがそのまま答えなので**手で振る必要も、振り間違える余地も無い**。
+   フックを持たないものは〈常時〉、`field:true`（テイムだけ）は〈戦闘外〉。 */
+const TAG_CACHE={};
+function traitTags(t){
+  if(!t)return ['その他'];
+  /* ★ 控えはそのまま返さない ★
+     受け取った側が sort や reverse をすると、控えの中身まで書き換わる。
+     実際にテストで踏んだ（.sort() したら以後の並びが変わった）。写しを返す。 */
+  if(TAG_CACHE[t.name])return TAG_CACHE[t.name].slice();
+  const cs=[...new Set(Object.keys(t).filter(k=>typeof t[k]==='function')
+    .map(k=>CAT_BY_HOOK[k]).filter(Boolean))];
+  TAG_CACHE[t.name]=cs.length?cs:[t.field?'戦闘外':'常時'];
+  return TAG_CACHE[t.name].slice();
+}
+/* 1つだけ欲しい所（個性ピッカーの見出し）用。いちばん代表的なものを返す。 */
+const traitCat=t=>traitTags(t)[0];
+
 const AIL_IMMUNE=['kubinashi','mushin'];
 /* 状態異常を弾くもの。**生まれつき**（首無し・無心）と、
    **掛けてもらった状態**（予防薬）の2系統がある。
@@ -4585,7 +4641,9 @@ document.addEventListener('mousedown',e=>{
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePicker(); });
 
 const traitGroups=()=>{
-  const cats={}; TRAIT_IDS.forEach(id=>{ (cats[TRAITS[id].cat]=cats[TRAITS[id].cat]||[]).push(id); });
+  // ピッカーの見出しも同じ分類で（→ traitCat）。〈専用〉に全部集まると探せない
+  const cats={}; TRAIT_IDS.forEach(id=>{ const c=traitCat(TRAITS[id]);
+    (cats[c]=cats[c]||[]).push(id); });
   return [{label:'なし',items:[{v:'none',name:'— なし —',desc:TRAITS.none.desc}]}]
     .concat(Object.entries(cats).map(([label,ids])=>({label,
       items:ids.map(id=>({v:id,name:TRAITS[id].name,desc:TRAITS[id].desc}))})));
@@ -8773,9 +8831,9 @@ let GFILT={own:'all',open:[],cls:[],cat:[],abl:[]};
    分類だけ ON なら「その分類の何かを持つ人」、中身を選べば**選んだものだけ**。
    （中身を1つでも選んだら分類は器として働く。両方で絞ると結果が読めなくなる）
 
-   ⚠️ 分類（`TRAITS[].cat`）は**作る側の言葉**です。
-   「《軽減》が〈被弾〉だと知らないと辿り着けない」という穴が残っています（→ backlog C-6）。
-   分類の切り直しは別件なので、ここは cat をそのまま使っています。
+   ⚠️ 分類は**作る側の言葉**です。
+   「《軽減》が〈被弾〉だと知らないと辿り着けない」という穴が残っています（→ backlog C-6 ②③）。
+   〈専用〉だけは 9/24 に振り直しました（→ traitCat）。
 
    キーの形： 個性 `t:<id>` ／ スキル `s:<id>` ／ 分類 `T:<分類名>` `S:<分類名>`
    接頭辞で見分けるので、1つの配列に混ぜて持てる。
@@ -8791,10 +8849,13 @@ const ablName=k=>k[0]==='t'
 /* ★ スキルは skillCat ではなく type で分ける ★
    skillCat は特技37種をまるごと〈特技〉1つにまとめてしまうので、絞り込みには粗すぎる。
    攻撃／回復／強化／弱体…なら、魔法と特技をまたいで同じ役割が並ぶ。 */
-const ablCat=k=>{
-  if(k[0]==='t'){ const t=TRAITS[k.slice(2)]; return 'T:'+((t&&t.cat)||'その他'); }
-  const sp=SP[k.slice(2)]; return 'S:'+((sp&&TYPE_LABEL[sp.type])||'その他');
+/* 1つの個性が複数のタグを持つので、**配列**で返す。
+   スキルは type ひとつなので、いつも1件の配列になる。 */
+const ablCats=k=>{
+  if(k[0]==='t') return traitTags(TRAITS[k.slice(2)]).map(x=>'T:'+x);
+  const sp=SP[k.slice(2)]; return ['S:'+((sp&&TYPE_LABEL[sp.type])||'その他')];
 };
+const ablPre=k=>k[0]==='t'?'T':'S';
 const catName=c=>c.slice(2);
 
 function filtPass(u){
@@ -8805,7 +8866,8 @@ function filtPass(u){
   if(GFILT.abl.length||GFILT.cat.length){
     const ks=ablKeys(u);
     if(GFILT.abl.length){ if(!ks.some(k=>GFILT.abl.includes(k)))return false; }
-    else if(!ks.some(k=>GFILT.cat.includes(ablCat(k))))return false;
+    // タグは1つの個性に複数付く。どれか1つでも選ばれていれば通す
+    else if(!ks.some(k=>ablCats(k).some(c=>GFILT.cat.includes(c))))return false;
   }
   return true;
 }
@@ -8817,15 +8879,16 @@ function filtPass(u){
 function filtBar(pool0,ownLabels){
   // 保険。古い形の GFILT が残っていても落とさない（配列でなければ空にする）
   ['open','cls','cat','abl'].forEach(k=>{ if(!Array.isArray(GFILT[k])) GFILT[k]=[]; });
-  const clsCount={}, catCount={}, ablCount={}, catOf={};
+  const clsCount={}, catCount={}, ablCount={}, catsOf={};
   pool0.forEach(u=>{
     clsCount[u.clsId]=(clsCount[u.clsId]||0)+1;
-    ablKeys(u).forEach(k=>{ const c=ablCat(k); catOf[k]=c;
-      ablCount[k]=(ablCount[k]||0)+1; catCount[c]=(catCount[c]||0)+1; });
+    ablKeys(u).forEach(k=>{ const cs=ablCats(k); catsOf[k]=cs;
+      ablCount[k]=(ablCount[k]||0)+1;
+      cs.forEach(c=>{ catCount[c]=(catCount[c]||0)+1; }); });
   });
   GFILT.cls=GFILT.cls.filter(id=>clsCount[id]);
   GFILT.cat=GFILT.cat.filter(c=>catCount[c]);
-  GFILT.abl=GFILT.abl.filter(k=>ablCount[k]&&GFILT.cat.includes(catOf[k]));
+  GFILT.abl=GFILT.abl.filter(k=>ablCount[k]&&catsOf[k].some(c=>GFILT.cat.includes(c)));
 
   const byCount=(cnt,name)=>(a,b)=>cnt[b]-cnt[a]||String(name(a)).localeCompare(String(name(b)),'ja');
   const clsChips=Object.keys(clsCount).sort(byCount(clsCount,id=>CLS[id]?CLS[id].n:id)).map(id=>
@@ -8848,8 +8911,9 @@ function filtBar(pool0,ownLabels){
   const ablRow=pre=>{
     const on=Object.keys(catCount).filter(c=>c[0]===pre&&GFILT.cat.includes(c));
     if(!on.length)return '';
-    const ks=Object.keys(ablCount).filter(k=>on.includes(catOf[k])).sort(byCount(ablCount,ablName));
-    const mine=GFILT.abl.filter(k=>catOf[k]&&catOf[k][0]===pre);
+    const ks=Object.keys(ablCount).filter(k=>catsOf[k].some(c=>on.includes(c)))
+      .sort(byCount(ablCount,ablName));
+    const mine=GFILT.abl.filter(k=>ablPre(k)===pre);
     return `<div class="fchips fsub"><span class="flab">中身</span>${
       ks.map(k=>`<button class="fchip${GFILT.abl.includes(k)?' on':''}" data-fabl="${gEsc(k)}">${
         gEsc(ablName(k))}<i>${ablCount[k]}</i></button>`).join('')||'<span class="rnone">—</span>'}
@@ -8893,14 +8957,15 @@ function filtBind(b,redraw){
     const c=el.dataset.fcat;
     if(GFILT.cat.includes(c)){
       GFILT.cat=GFILT.cat.filter(x=>x!==c);
-      // 分類を閉じたら中身の選択も落とす。見えない絞り込みを残さないため
-      GFILT.abl=GFILT.abl.filter(k=>ablCat(k)!==c);
+      /* 分類を閉じたら中身の選択も落とす。見えない絞り込みを残さないため。
+         ★ タグは複数付く ★ 別のタグでまだ開いているものは残す。 */
+      GFILT.abl=GFILT.abl.filter(k=>ablCats(k).some(x=>GFILT.cat.includes(x)));
     }else GFILT.cat=GFILT.cat.concat(c);
     redraw(); });
   b.querySelectorAll('[data-fabl]').forEach(el=>el.onclick=()=>{
     const k=el.dataset.fabl;
     if(k[0]==='*'){ const pre=k[1];            // その列の「解除」だけを外す
-      GFILT.abl=GFILT.abl.filter(x=>ablCat(x)[0]!==pre); }
+      GFILT.abl=GFILT.abl.filter(x=>ablPre(x)!==pre); }
     else GFILT.abl=GFILT.abl.includes(k)?GFILT.abl.filter(x=>x!==k):GFILT.abl.concat(k);
     redraw(); });
   b.querySelectorAll('[data-fopen]').forEach(el=>el.onclick=()=>{
@@ -8910,7 +8975,7 @@ function filtBind(b,redraw){
       // 閉じた列の指定は落とす（開いていない絞り込みが効いていると、結果が読めない）
       if(k==='cls') GFILT.cls=[];
       else { GFILT.cat=GFILT.cat.filter(c=>c[0]!==k);
-             GFILT.abl=GFILT.abl.filter(x=>ablCat(x)[0]!==k); }
+             GFILT.abl=GFILT.abl.filter(x=>ablPre(x)!==k); }
     }else GFILT.open=GFILT.open.concat(k);
     redraw(); });
 }
