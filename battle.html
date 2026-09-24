@@ -1061,7 +1061,9 @@ share:{name:'共有',cat:'受け渡し',desc:'自分がバフを得た時、味�
     proc(s,'share',`${c.buff.label}を味方全体へ`);
     t.forEach(a=>addBuff(a,{...c.buff,value:c.buff.value*0.6,gen:1,src:'共有'},s));}},
 resonate:{name:'共鳴',cat:'受け渡し',desc:'誰かがバフを得た時、敵味方を問わず自分にも50%の値で同じバフが乗る。',
-  buffApplied(s,c){ if(c.unit===s||c.buff.kind!=='buff'||c.buff.gen>0)return;
+  /* noSpread … 値を持たないバフ（カガマシの反射など）は配らない。
+     「50%で配る」が意味をなさないうえ、丸ごと配れると強すぎる。 */
+  buffApplied(s,c){ if(c.unit===s||c.buff.kind!=='buff'||c.buff.gen>0||c.buff.noSpread)return;
     proc(s,'resonate',`${c.unit.name}の${c.buff.label}に共鳴`);
     addBuff(s,{...c.buff,value:c.buff.value*0.5,gen:1,src:'共鳴'},s);}},
 reflect:{name:'厄返し',cat:'受け渡し',desc:'自分がデバフを受けた時、発生源に同じデバフを返す。ダメージは返さない。',
@@ -1578,8 +1580,12 @@ yakkou:{name:'薬効',cat:'専用',needs:'ap',
    resetUnit・状態チップ・集計の控え・手動戦闘の控え、の4か所を同時に直す必要がある。
    手動戦闘の中断復帰（→ 保存するのは変わる値だけ）はまだ実機確認前なので、
    いま増やす場所ではない。既にある仕組みで同じ意味を出す。 */
-yobou:{name:'予防',cat:'専用',needs:'ap',
-  desc:'戦闘開始時、味方全体の魔防+30%（3ターン）。状態異常とデバフを受けにくくなる。薬師専用。',
+/* ★ 引退（9/24）★ 役目は特技《予防薬》へ移した。
+   魔防を上げる形だったので、**状態異常だけでなく攻撃魔法まで軽くして**いた。
+   「状態異常を防ぐ」と言いながら被ダメージが減るのは、読んで分からない。
+   ただし**消すと、持っている仲間の保存が壊れる**。定義は残したまま抽選から外す。 */
+yobou:{name:'予防',cat:'専用',needs:'ap',retired:true,
+  desc:'戦闘開始時、味方全体の魔防+30%（3ターン）。状態異常とデバフを受けにくくなる。',
   battleStart(s){ if(!s.alive)return; proc(s,'yobou','味方に予防薬を配った');
     allies(s).forEach(t=>{ if(t.alive)
       addBuff(t,{label:'予防',stat:'mdf',value:0.30,turns:3,kind:'buff',noSpread:true},s); });}},
@@ -1624,6 +1630,9 @@ function traitAllowed(t,cls){
   /* heroOnly は擬態でも素通しにしない。抽選で出てはいけないものなので、
      《擬態》の例外より先に弾く。付けるのは guildUnit の opt.fixed だけ。 */
   if(t.heroOnly)return false;
+  /* ★ 引退した個性 ★ 役目を別のものへ移したが、**消すと保存が壊れる**ので残してある。
+     持っている仲間はそのまま働くが、これから引かれることはない。 */
+  if(t.retired)return false;
   if(!t.needs)return true;
   if(!cls)return true;
   if(cls.tags&&cls.tags.includes('擬態'))return true;
@@ -1704,6 +1713,20 @@ const SPELLS=[
     攻め手（ワマシ／ママシ）は選ばせるが、守りは1枚で両方に効かせる。 */
  {id:'guardup',name:'ボマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:['def','mdf'],value:0.40, turns:3,
   desc:'味方単体の防御力${value}（${turns}ターン）。防御と魔防の両方が上がる。'},
+ /* ★ 語根「カガ」＝鏡。語尾はほかの強化と同じ マシ（増し） ★
+    数値を上げるのではなく**状態を付ける**強化なので、stat を持たない。
+    castSpell が flag を見て、呪いの鏡の《魔法反射》と同じ扱いにする。
+
+    ★ 《共有》《共鳴》では配らない（noSpread）★
+    あれは「60%・50%の値で配る」仕組みで、値を持たないものは割りようがない。
+    丸ごと配れると、指揮官1人で全員が3ターン反射になってしまう。
+
+    ⚠️ MP16 は ヨマシ(9) より重くしてあるが、根拠は「反射のほうが強いから」だけ。
+       魔法を撃たない相手には完全に無駄になるので、実戦で見て動かすこと。 */
+ {id:'kagami', name:'カガマシ',    kind:'magic',type:'buff',  scope:'one', mp:16,
+  flag:'reflect',value:0,turns:3,noSpread:true,
+  desc:'味方単体に「自分へ向けられた魔法を、撃った本人へ跳ね返す」状態を付与（${turns}ターン）。'
+      +'味方からの回復や強化も返るので、掛ける相手を選ぶこと。特技は返らない。'},
  {id:'blur',   name:'ヨマシ',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
   desc:'味方単体の回避率${value}（${turns}ターン）。素早さの差や《軽業》と足し合わさる。《必中》には無効。'},
  {id:'weaken', name:'ワソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
@@ -1839,6 +1862,17 @@ const SPELLS=[
     単体版は「解毒薬」なのに毒以外も解除していて、効果と名前が食い違っていた。
     単体＝万能薬、全体＝みんなに万能薬（全体魔法の「ミナ」と同じ考え方）。
     id は gedoku / bannou のまま。**保存データがスキルidで持っている**ので変えられない。 */
+ /* ★ 個性《予防》の置き換え（→ TRAITS.yobou）★
+    あちらは魔防を上げる形だったので、**攻撃魔法まで軽くして**いた。
+    こちらは状態異常だけを弾く。被ダメージには一切触らない。
+    仕組みはカガマシと同じ「値を持たないバフ」で、addAil が flag を見る。
+
+    ⚠️ 状態異常だけで、**デバフ（ワソギ等）は防がない**。
+       魔防で受けていた頃は両方に効いていたので、そこは弱くなっている。 */
+ {id:'yobouyaku',name:['予防薬','上予防薬','高級予防薬','特製予防薬'],kind:'art',type:'buff',scope:'one',mp:12,
+  flag:'noail',value:0,turns:[3,4,5,6],noSpread:true,alwaysHit:true,needs:'ap',
+  desc:'味方単体を${turns}ターンのあいだ状態異常にかからなくする。'
+      +'毒・眠り・休み・宣告・封魔のすべてを弾く。デバフは防げない。薬師専用。'},
  {id:'gedoku',   name:'万能薬',kind:'art',type:'cure',scope:'one',mp:10,alwaysHit:true,needs:'ap',
   desc:'味方単体の状態異常をすべて解除する。特技なので、封魔されていても使える。薬師専用。'},
  {id:'bannou',   name:'みんなに万能薬',kind:'art',type:'cure',scope:'all',mp:26,alwaysHit:true,needs:'ap',
@@ -1848,7 +1882,7 @@ const SPELLS=[
     回復量を「その職のおよそ1発ぶん」に置いてあるのが肝で、
     撃つ代わりに充電しても得はしない。**増幅装置ではなく、手が止まらないための保険。**
     薬なので魔力に依存せず、封魔されていても配れる。 */
- {id:'mayaku',   name:'魔薬',  kind:'art',type:'mp',  scope:'one',mp:0, flat:0.25,alwaysHit:true,needs:'ap',
+ {id:'mayaku',   name:['魔薬','上魔薬'],  kind:'art',type:'mp',  scope:'one',mp:0, flat:[0.25,0.33],alwaysHit:true,needs:'ap',
   desc:'味方単体のMPを、その人の最大MPの${flat}ぶん回復する。消費MPは無い。薬師専用。'},
 
  /* ---------- ケンタウロス ---------- */
@@ -2273,8 +2307,8 @@ const CLASSES=[
   tags:['人型'],
   desc:'薬で治す回復役。回復量は決まった割合で、魔力に左右されない。'
       +'封魔されても治療を続けられる唯一の職。',
-  bias:{yakkou:22,yobou:18,seijou:12,regen:10,share:8,surplus:6,gunshi:5},
-  spN:2, spBias:{kizugusuri:24,mayaku:20,gedoku:18,bannou:12,taiatari:6}},
+  bias:{yakkou:24,seijou:14,regen:12,share:10,surplus:8,gunshi:6,ryouyou:6},
+  spN:2, spBias:{kizugusuri:22,mayaku:18,gedoku:16,yobouyaku:14,bannou:10,taiatari:5}},
  /* ★ 戦闘の外で働く職 ★
     数値はどれも平凡で、7枠を1つ食うぶんは確実に弱くなる。**それがコスト。**
     見返りは戦闘ではなく「魔物が仲間になる」こと。
@@ -3014,6 +3048,9 @@ function runOn(u,ev,ctx){ for(const f of traitFns(u,ev)){ try{f(u,ctx);}catch(e)
    ガンビットの条件（label を見る）も状態チップの表示も今までどおり1件で済む。 */
 const bStats=b=>!b||!b.stat?[]:(Array.isArray(b.stat)?b.stat:[b.stat]);
 const bHits=(b,k)=>Array.isArray(b.stat)?b.stat.includes(k):b.stat===k;
+/* いま魔法を跳ね返すか。生まれつき（呪いの鏡の《魔法反射》）と、
+   掛けてもらった状態（カガマシ）の両方をここで見る。 */
+const isMirror=u=>!!u&&(hasT(u,'hansha')||(u.buffs||[]).some(b=>b.flag==='reflect'));
 const bStatKey=b=>bStats(b).join(',');
 const bStatLabel=b=>bStats(b).map(s=>SN[s]||'').filter(Boolean).join('・');
 
@@ -3107,12 +3144,26 @@ const canCast=(u,sp)=>!(u&&u.ail&&u.ail.seal&&sp&&!isArt(sp));
    ただし**自分で自分に掛けるもの**は通す（《石化》の休み・急降下の反動）。
    弾くと、その個性やスキルの代償だけ踏み倒せてしまう。 */
 const AIL_IMMUNE=['kubinashi','mushin'];
-const ailImmuneBy=(u,src)=>(src===u)?null:(AIL_IMMUNE.find(id=>hasT(u,id))||null);
+/* 状態異常を弾くもの。**生まれつき**（首無し・無心）と、
+   **掛けてもらった状態**（予防薬）の2系統がある。
+   前者は個性なので proc で発動回数を数え、後者はバフなのでログだけ出す。 */
+function ailImmuneBy(u,src){
+  if(src===u)return null;
+  const t=AIL_IMMUNE.find(id=>hasT(u,id));
+  if(t)return {trait:t};
+  const b=(u.buffs||[]).find(x=>x.flag==='noail');
+  return b?{label:b.label}:null;
+}
 
 function addAil(u,name,turns,src){
   if(!u.alive)return;
   const im=ailImmuneBy(u,src);
-  if(im){ proc(u,im,`${AIL_LABEL[name]||name}を受け付けなかった`); return; }
+  if(im){
+    const w=AIL_LABEL[name]||name;
+    if(im.trait) proc(u,im.trait,`${w}を受け付けなかった`);
+    else addLog(`${u.name} は ${w} を受け付けなかった（${im.label}）`,'l-sys');
+    return;
+  }
   // 眠りと休みは同時に付かない。後から付いた方で上書きする。
   if(name==='sleep') delete u.ail.rest;
   if(name==='rest')  delete u.ail.sleep;
@@ -3319,10 +3370,10 @@ function castSpell(a,sp,target,o={}){
   let reflected=false;
   const refl=list=>{
     if(art||!list||!list.length)return list;
-    const selfMirror=hasT(a,'hansha');
+    const selfMirror=isMirror(a);
     const out=[];
     list.forEach(t=>{
-      if(!t||t===a||!hasT(t,'hansha')){ out.push(t); return; }
+      if(!t||t===a||!isMirror(t)){ out.push(t); return; }
       if(!reflected){ reflected=true;
         proc(t,'hansha',selfMirror?`${a.name} の ${E.name} は鏡の間で消えた`
                                   :`${a.name} の ${E.name} を跳ね返した`); }
@@ -3435,7 +3486,9 @@ function castSpell(a,sp,target,o={}){
     // バフ・デバフの効果量は「威力」ではないので増幅を掛けない（追唱の減衰だけ効く）
     const bm=o.mult||1;
     const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
-    tg.forEach(t=>addBuff(t,{label:E.base,stat:sp.stat,value:E.value*bm,turns:E.turns,kind:'buff'},a));
+    /* flag … 数値ではない効果（いまは反射だけ）。stat/value を持たないバフになる。 */
+    tg.forEach(t=>addBuff(t,{label:E.base,stat:sp.stat,value:(E.value||0)*bm,turns:E.turns,
+      kind:'buff',flag:sp.flag,noSpread:sp.noSpread},a));
 
   } else if(sp.type==='debuff'){
     const bm=o.mult||1;
@@ -3664,7 +3717,11 @@ function rowForSpell(sp,act){
     case 'ail':    return {subj:'foe', cond:'no_ail', cnt:1,act};
     case 'evade':  return {subj:'self',cond:'hp_le75',cnt:1,act};
     // 強化は「上げた数字を実際に使う列」へ。決められないものは今までどおり自分へ
-    case 'buff':   return {subj:statSubj(sp,true) ||'self',cond:'no_buff',cnt:1,act};
+    /* 値を持たないバフ（カガマシ・予防薬）は、上げる数字が無いので置き場所を決められない。
+       守りに使うものなので、自分ではなく味方へ向ける。 */
+    case 'buff':   return sp.flag
+      ? {subj:'ally',cond:'no_buff',cnt:1,act}
+      : {subj:statSubj(sp,true) ||'self',cond:'no_buff',cnt:1,act};
     // 弱体は鏡写し。攻撃を下げるなら殴ってくる前衛、魔力を下げるなら撃ってくる後衛
     case 'debuff': return {subj:statSubj(sp,false)||'foe', cond:'no_deb', cnt:1,act};
   }
@@ -4233,7 +4290,10 @@ function unitHTML(u){
         const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${skillTip(s,u)}`;
         return `<span class="${cls}" data-tip="${tip}">${spName(s,u)}</span>`;}).join('')
     : '<span class="schip off">スキルなし</span>';
-  const states=[...u.buffs.map(b=>`<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}${b.perm?'':'·'+b.turns}</span>`),
+  const states=[...u.buffs.map(b=>b.flag
+      // 値を持たないバフ（反射など）は「+0%」と出しても意味が無いので名前だけ
+      ? `<span class="st up">${b.label}${b.perm?'':'·'+b.turns}</span>`
+      : `<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}${b.perm?'':'·'+b.turns}</span>`),
     ...Object.keys(u.ail).map(k=>`<span class="st ail">${AIL_LABEL[k]||k}${AIL_TIMED[k]?'·'+u.ail[k]:''}</span>`),
     ...(u.evade?[`<span class="st up">回避·${u.evade}</span>`]:[])].join('');
   return `<div class="${cls}" data-u="${u.id}">
