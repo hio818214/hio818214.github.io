@@ -1260,7 +1260,7 @@ seimei:{name:'生命転用',cat:'資源',desc:'MPが足りない時、不足分�
 kouun:{name:'強運',cat:'確率',desc:'会心率+18%、回避率+8%。', crit(){return 0.18;}, eva(){return 0.08;}},
 karuwaza:{name:'軽業',cat:'確率',desc:'回避率+14%。「ヨマシ」や素早さの差と足し合わさり、上限50%まで伸びる。',
   eva(){return 0.14;}},
-mustHit:{name:'必中',cat:'確率',desc:'通常攻撃と特技が外れなくなる。相手の回避が高いほど効く。'
+mustHit:{name:'必中',cat:'確率',desc:'物理攻撃が外れなくなる。相手の回避が高いほど効く。'
   +'ただし「攻撃1回回避」（ハガクレ）は貫けない。'},
 yonetsu:{name:'蓄勢',cat:'弱',desc:'攻撃が命中する度に次のダメージ+4%（5回まで累積）。外すと0に戻る。',
   dealt(s,c){ if(c.attacker!==s)return; s.cnt.yonetsu=Math.min(5,(s.cnt.yonetsu||0)+1);},
@@ -1303,6 +1303,35 @@ kuzushi:{name:'崩し',cat:'対敵',desc:'通常攻撃が命中した時、28%�
   dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target.alive)return;
     if(R(1)>=0.28)return;
     proc(s,'kuzushi',`${c.target.name}の体勢を崩した`); addAil(c.target,'rest',null,s);}},
+/* ★ 毒闘士の固有個性（確定ではない）★
+   needs:'毒' で毒タグを持つ者だけが引ける。毒が無効な相手＝首無し・無心・予防薬
+   の前で毒闘士が手ぶらになるのを埋めるもの。毒そのものの数字は触らないので、
+   瘴気持ちの魔物など他の毒使いには波及しません。 */
+fushoku:{name:'腐食',cat:'対敵',needs:'毒',
+  desc:'自分の毒が通らなかった相手の防御と魔防を50%下げる（3ターン）。',
+  /* ★ 勝率にはほとんど出ません（+1pt前後）★
+     -50%まで上げても、7体いる敵の1体を柔らかくするだけなので数字は動かない。
+     即金ダメージにすれば+3.2ptまで出ましたが、**腐食という言葉に合わない**ので
+     デバフのまま置いています。強さではなく手触りで選んだ個性。 */
+  ailWasted(s,c){ if(c.ail!=='poison'||!c.unit.alive)return;
+    proc(s,'fushoku',`${c.unit.name}を腐食させた`);
+    addBuff(c.unit,{label:'腐食',stat:['def','mdf'],value:-0.50,turns:3,kind:'debuff'},s);}},
+/* ★ 毒闘士の固有個性・その2 ★ 受け身の毒。殴られるほど場に毒が増える。 */
+dokuke:{name:'毒気',cat:'被弾',needs:'毒',
+  desc:'自分が毒の間、被弾した時に攻撃者を毒にする（2ターン）。',
+  /* ★ 確率ではなく持続で絞った ★
+     4ターンだと+9.8pt（敵7体に配り切ってしまう）。50%×4ターンでも同じ+4.2ptに
+     収まりますが、**確率にすると手番の計算ができなくなる**ので必ず発動・2ターンに。 */
+  damaged(s,c){ if(c.target!==s||!s.ail.poison||!c.attacker||!c.attacker.alive)return;
+    if(c.attacker.side===s.side)return;
+    proc(s,'dokuke',`${c.attacker.name}へ毒気`); addAil(c.attacker,'poison',2,s);}},
+/* ★ 毒闘士の固有個性・その3 ★ 毒で減るぶんを、硬さで取り返す。 */
+kutsuu:{name:'苦痛耐性',cat:'被弾',needs:'毒',
+  desc:'自分が毒の間、受けるダメージを25%軽減する。',
+  /* 15%→35%まで振っても勝率は63.8〜64.2でほぼ動きません（500戦）。
+     この職の詰まりは硬さではないので、控えめな選択肢として25%に置いています。 */
+  incoming(s,c){ if(c.target!==s||!s.ail.poison)return;
+    c.dmg*=0.75; c.tags.push('苦痛耐性'); fire(s,'kutsuu');}},
 dokugeki:{name:'毒撃',cat:'対敵',desc:'通常攻撃が命中した時、相手を毒状態にする。',
   dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target.alive||c.target.ail.poison)return;
     proc(s,'dokugeki',`${c.target.name}を毒に`); addAil(c.target,'poison',4,s);}},
@@ -1656,7 +1685,7 @@ tomaranu:{name:'止まらぬ剣',cat:'職業',cls:'sw',
      僧侶(+16.7)・薬師(+12.3)に次ぐ2〜3番手で、帯からは出ていません。 */
   },
 kakuran:{name:'かく乱',cat:'職業',cls:'rg',
-  desc:'通常攻撃と特技が当たった相手の、次の手番を70%遅らせる。全体特技なら当たった全員。'
+  desc:'物理攻撃が当たった相手の、次の手番を70%遅らせる。全体特技なら当たった全員。'
       +'魔法では起きない。同じ相手は1手番に1回まで。',
   /* ★ 火力ではなく手番を奪う特性 ★
      斥候は素早さ78（人間職で最高）なのに、45手番目に倒れるせいで
@@ -1705,8 +1734,28 @@ bouheki:{name:'防壁',cat:'職業',cls:'kn',
     proc(s,'bouheki',`防壁を${BARRIER_MAX}枚張った`);},
   turnStart(s,c){ if(c.unit!==s||!s.alive||s.barrier>=BARRIER_MAX)return;
     s.barrier++; proc(s,'bouheki',`防壁が1枚戻った（${s.barrier}枚）`);}},
+utsushimi:{name:'移し身',cat:'職業',cls:'dk',
+  desc:'自分が状態異常にかかっている間、物理攻撃が当たった相手に、'
+      +'自分がかかっている状態異常を移す（同じ相手には1手番に1回）。',
+  /* ★ 弱点を武器に変える ★
+     状態異常を「移す」ものは他にありません（《厄返し》は弱体を返すだけ）。
+     この職は《毒牙》で**自分に毒をかける**ので、移す種は自分で作れます。
+
+     ⚠️ 移すのは状態異常だけ。弱体は移しません（《厄返し》の領分）。
+     ⚠️ 魔法では起きません（攻撃依存の職なので、物理攻撃だけ）。 */
+  dealt(s,c){
+    if(c.attacker!==s||!c.target||c.target.side===s.side)return;
+    if(!(c.normal||c.art))return;
+    const t=c.target; if(!t.alive)return;
+    if(t.cnt.utsushimiTurn===turnNo)return;       // 多段で何度も移さない
+    const mine=Object.keys(s.ail||{});
+    if(!mine.length)return;
+    t.cnt.utsushimiTurn=turnNo;
+    let n=0;
+    mine.forEach(k=>{ if(t.ail[k])return; addAil(t,k,s.ail[k],s); if(t.ail[k])n++; });
+    if(n) proc(s,'utsushimi',`${t.name}へ${n}つ移した`);}},
 karitate:{name:'狩り立て',cat:'職業',cls:'tm',
-  desc:'自分の攻撃（通常攻撃・特技・魔法）が当たった時、味方の魔物全員が威力50%で追撃する。'
+  desc:'自分の攻撃が当たった時、味方の魔物全員が威力50%で追撃する。物理でも魔法でも乗る。'
       +'全体攻撃の時は魔物がそれぞれ別の相手を狙う。魔力の高い魔物は魔力で撃つ。',
   /* ★ テイマーの**行動**1回につき1度だけ ★
      魔物どうしが追撃し合う形（《群れ》）は、人数で倍率が壊れました
@@ -1829,7 +1878,7 @@ let NIJUU_POWER=1.0;
    ホヤキ(MP8)なら4.5回撃てて +6.0pt。**魔導士の主力がいちばん恩恵を受けない**形でした。 */
 let NIJUU_MP=0.5;
 const CLS_TRAIT={sw:'tomaranu',kn:'bouheki',rg:'kakuran',ar:'seiatsu',
-  tm:'karitate',pr:'junkyou',ap:'joubi',hx:'jubaku',cm:'saihai',mg:'nijuu'};
+  dk:'utsushimi',tm:'karitate',pr:'junkyou',ap:'joubi',hx:'jubaku',cm:'saihai',mg:'nijuu'};
 const clsTraitOf=u=>(u&&CLS_TRAIT[u.clsId])||null;
 const TRAIT_IDS=Object.keys(TRAITS).filter(id=>id!=='none');
 const hasT=(u,id)=>clsTraitOf(u)===id||u.traits.includes(id)
@@ -1860,6 +1909,12 @@ function traitAllowed(t,cls){
 **魔法はカタカナ、特技は漢字かひらがな。ここは絶対。**
    kind:'magic' … 魔力依存。命中判定なし（必ず当たる）
    kind:'art'   … 攻撃依存。命中判定あり（だから必中撃に価値が出る）
+
+   ★ 説明文での呼び方 ★
+   通常攻撃と特技をまとめて **物理攻撃** と書きます（「通常攻撃と特技」は冗長）。
+   ⚠️ 厳密には dmgAs:'mag' の特技（ドラゴンブレス）だけは、攻撃依存で命中判定も
+      あるのに受け手には魔法として届くので物理ではありません。魔物専用の1つだけ
+      なので説明文では割り切っています。
 
    両者は同じ 3 枠を奪い合う。物理型が魔法を切り捨てることで職業の性格が出る。
 
@@ -1967,7 +2022,7 @@ const SPELLS=[
     黙らせたいのは後衛の魔法職なのに、単体特技は前列にしか届かない。
     語根「マ」は魔力用に予約してあったので、そのまま マ＋ヨド ＝ マヨド。 */
  {id:'mseal',  name:'マヨド',      kind:'magic',type:'ail',   scope:'one', mp:12, ail:'seal',turns:3,
-  desc:'敵単体を封魔状態に（${turns}ターン）。その間、魔法だけが唱えられなくなる。特技と通常攻撃は止まらない。'},
+  desc:'敵単体を封魔状態に（${turns}ターン）。その間、魔法だけが唱えられなくなる。物理攻撃は止まらない。'},
  {id:'mnseal', name:'ミナマヨド',  kind:'magic',type:'ail',   scope:'all', mp:26, ail:'seal',turns:3,chance:0.3,
   desc:'敵全体を${chance}の確率で封魔状態に（${turns}ターン）。通ればその相手は魔法を失う。'},
  {id:'leafdance',name:'ハガクレ',  kind:'magic',type:'evade',scope:'one',mp:10,needs:'mandra',
@@ -1979,7 +2034,11 @@ const SPELLS=[
   desc:'対象へ攻撃×${power}の一撃。'},
  {id:'samidare',name:['五月雨斬','五月雨斬・改'],kind:'art',type:'atk',scope:'one',mp:16,power:[0.55,0.55],hits:[4,6],randomTarget:true,needs:'剣所持',
   desc:'${hits}回攻撃。毎回ランダムに対象を選び直す。集団戦向けで、単体には火力が散る。'},
- {id:'hicchuu', name:['必中撃','必中撃・改'],  kind:'art',type:'atk',scope:'one',mp:8, power:[0.8,1.0],alwaysHit:true,needs:'剣所持',
+ /* ★ 必中撃に needs を置かない ★
+    「当てる」は剣の専売ではありません。回避の高い相手に通したいのは
+    斥候も弓兵も毒闘士も同じで、剣技に縛ると**剣士だけの保険**になってしまう。
+    威力0.8と低いので、誰が持っても主力にはなりません。 */
+ {id:'hicchuu', name:['必中撃','必中撃・改'],  kind:'art',type:'atk',scope:'one',mp:8, power:[0.8,1.0],alwaysHit:true,
   desc:'攻撃×${power}。ダメージは低いが必ず当たる。回避の高い相手に通す手。'},
  /* ★ レベルが上がるスキルの書き方（見本） ★
     name を配列にすると、その**長さが最大レベル**になる。
@@ -2013,6 +2072,32 @@ const SPELLS=[
  {id:'issei',   name:['一斉射撃','一斉射撃・改'],kind:'art',type:'atk',scope:'all',mp:16,
   power:[0.5,0.6],needs:'射手',
   desc:'敵全体へ攻撃×${power}。'},
+
+/* ---------- 毒特技（HPで払う） ----------
+   ★ この4つだけ MP ではなく HP を払います（→ hpCost / canUse / payFor）★
+   消費は**最大HPに対する割合**。固定値だとHPを盛るほど得になってしまう。
+   `canUse` が「HPが消費より多い」を条件にしているので、**自分の技では倒れません**。
+
+   ★ 噛み合い ★
+   毒牙（自分と相手を毒に）→ 苛み（状態異常の相手に+80%）→ 移し身（殴るたび広がる）
+   → 毒血（自分が毒なので威力+45%）。払ったHPと受けた毒が、そのまま火力になります。 */
+ /* ★ 威力が高いのは、代償がこの作品でいちばん重いから ★
+    自分も毒になる＝最大HPの10%×4ターン＝**HP600なら240**。消費30と合わせて270。
+    毒矢（弓兵・威力0.9・MP10・自傷なし）や体当たり（威力1.3・MP6・反動10%）と
+    同じ物差しには置けません。
+    ⚠️ ただし自分の毒は《毒血》（威力+45%）と《移し身》の**種**でもあるので、
+       純粋な損ではない。そのぶん 1.9 まで上げず 1.5 に留めています。 */
+ {id:'dokuga',  name:['毒牙','猛毒牙'],kind:'art',type:'atk',scope:'one',hpCost:[0.05,0.05],
+  power:[1.5,1.8],ail:'poison',selfAil:'poison',turns:4,needs:'毒',
+  desc:'攻撃×${power}。相手を毒にし、**自分も毒になる**（${turns}ターン）。'},
+ {id:'sainami', name:['苛み','責め苛み'],kind:'art',type:'atk',scope:'one',hpCost:0.08,
+  power:[1.2,1.5],ailBonus:1.0,needs:'毒',
+  desc:'攻撃×${power}。相手が状態異常なら攻撃×${ailPower}。'},
+ {id:'ketsujin',name:['血刃','大血刃'],kind:'art',type:'atk',scope:'one',hpCost:[0.12,0.12],
+  power:[2.2,2.6],needs:'毒',
+  desc:'最大HPの${hpCost}を払い、攻撃×${power}の一撃。'},
+ {id:'kikoku',  name:'鬼哭',kind:'art',type:'atk',scope:'all',hpCost:0.10,power:0.5,needs:'毒',
+  desc:'最大HPの${hpCost}を払い、敵全体へ攻撃×${power}。'},
 
  {id:'taiatari',name:'体当たり',kind:'art',type:'atk',scope:'one',mp:6, power:1.3,recoil:0.1,
   desc:'対象へ攻撃×${power}。反動で与えたダメージの${recoil}を自分も受ける。'},
@@ -2084,7 +2169,7 @@ const SPELLS=[
  {id:'kamaitachi',name:'かまいたち',kind:'art',type:'atk',scope:'one',mp:12,power:0.5,hits:3,randomTarget:true,needs:'harpy',
   desc:'攻撃×${power}を${hits}回。毎回ランダムに対象を選び直す。ハーピィ専用。'},
  {id:'habataki',name:'羽撃き',kind:'art',type:'debuff',scope:'all',mp:12,stat:'acc',value:-0.20,turns:3,needs:'harpy',
-  desc:'敵全体の命中率${value}（${turns}ターン）。魔法は必中なので、通常攻撃と特技にだけ効く。ハーピィ専用。'},
+  desc:'敵全体の命中率${value}（${turns}ターン）。魔法は必中なので、物理攻撃にだけ効く。ハーピィ専用。'},
  /* この2つだけ種族ではなく**タグ**で縛ってある。
     毒と眠りを撒くのは「マンドラゴラだから」ではなく「植物だから」なので、
     植物が増えたら自動で共有される（いまはマンドラゴラとトレント）。 */
@@ -2226,8 +2311,8 @@ const magicResist=sp=>(sp&&!isArt(sp)&&(sp.type==='debuff'||sp.type==='ail'))
    昇格するキーは SP_LEVELED に明示的に並べたものだけ。
    ========================================================= */
 const SP_SIGNED=['value','debuffValue'];                                   // 符号を出す（強化/弱体）
-const SP_PCT=['chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','execHp'];
-const SP_POWER=['power','execPower','frontPower'];
+const SP_PCT=['chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','execHp','hpCost'];
+const SP_POWER=['power','execPower','frontPower','ailPower'];
 const spNum=(k,v)=>{
   if(typeof v!=='number')return String(v);
   if(SP_SIGNED.includes(k))return (v>0?'+':'')+Math.round(v*100)+'%';
@@ -2239,7 +2324,8 @@ const spNum=(k,v)=>{
 /* ★ レベルで段が変わるキー ★
    ここに無いキーは配列でもそのまま渡す（stat / needs を壊さないため）。 */
 const SP_LEVELED=new Set(['name','power','hits','multi','mp','value','turns',
-  'chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','mpDrain']);
+  'chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','mpDrain',
+  'hpCost','ailBonus']);
 /* 段が足りなければ末尾で止める。短く書いたキーは伸びないだけで壊れない。 */
 const atLv=(v,lv)=>Array.isArray(v)?v[Math.min(Math.max(1,lv)-1,v.length-1)]:v;
 /* 最大レベルは name の配列の長さ。文字列なら1。 */
@@ -2265,6 +2351,10 @@ function spEff(sp,u){
   // 文中でしか使わない派生値。計算式を desc 側に書かせないためにここで作る
   if(sp.exec){ e.execHp=sp.exec.hp; e.execPower=(e.power||0)*(sp.exec.mul||1); }
   if(sp.frontHalf) e.frontPower=(e.power||0)*0.5;
+  /* ★ 上乗せは「攻撃×N」に直してから見せる ★
+     説明の中で「攻撃×1.3」と「威力+80%」が混ざると、2つの物差しを並べることになる。
+     首刈り（execPower）・不意打ち（frontPower）と同じく、**掛けた後の値**を出す。 */
+  if(sp.ailBonus!=null) e.ailPower=Math.round((e.power||0)*(1+e.ailBonus)*100)/100;
   if(sp.debuffOn){ e.debuffValue=sp.debuffOn.value; e.debuffTurns=sp.debuffOn.turns; }
   return e;
 }
@@ -2279,7 +2369,7 @@ function spText(sp,u){
     return spNum(k,e[k]);
   });
 }
-const skillTip=(sp,u)=>`【${spName(sp,u)}】${skillKind(sp)}／MP${u?mpCost(u,sp):atLv(sp.mp,1)}／${scopeLabel(sp)}／${TYPE_LABEL[sp.type]}　${spText(sp,u)}${magicResist(sp)}`;
+const skillTip=(sp,u)=>`【${spName(sp,u)}】${skillKind(sp)}／${costLabel(u,sp)}／${scopeLabel(sp)}／${TYPE_LABEL[sp.type]}　${spText(sp,u)}${magicResist(sp)}`;
 
 /* この職業がそのスキルを抽選で引けるか。編集画面での手動選択には効かない。 */
 function skillAllowed(sp,cls){
@@ -2362,11 +2452,23 @@ const invSlot=slot=>INV.filter(x=>x.slot===slot);
    ★ 生成と刻印で同じ規則を使う ★
    needs の無いスキルはどの武器にも。剣技は名前に「剣」が入る武器だけ。
    種族専用（needs:'lich' など）は、どの武器にも載せない。 */
+/* ★ 武器の見た目とタグを結ぶ ★
+   「剣所持」の技は**剣と刃**に、「射手」の技は**弓**に刻めます。
+
+   ⚠️ 以前は `/剣/` だけを見ていたので、**呪われた刃に剣技が付きませんでした**（9/25 に発覚）。
+      名前で判定している以上、武器を足す時はここも見ること。
+   ⚠️ 毒特技（`hpCost` 持ち）は刻みません。HPで払う技が武器から出ると、
+      職業の芯（払う器を持っているのは毒闘士だけ）が崩れます。 */
+const EQ_ART_TAG=[[/[剣刃]/,'剣所持'],[/弓/,'射手']];
 function eqSpellOk(def,id){
   const sp=SP[id]; if(!def||!sp)return false;
+  /* ★ 引退したスキルは刻まない ★ いまは引退組が全部 needs 持ちなので素通りしているが、
+     needs の無いものを引退させた時に漏れる。防具の `eqTraitOk` と同じ理由で明示しておく。 */
+  if(sp.retired) return false;
+  if(sp.hpCost!=null) return false;
   if(!sp.needs) return true;
   const need=Array.isArray(sp.needs)?sp.needs:[sp.needs];
-  return /剣/.test(def.n)&&need.includes('剣所持');
+  return EQ_ART_TAG.some(([re,tag])=>re.test(def.n)&&need.includes(tag));
 }
 function rollEqSpellFor(def){
   const pool=SPELL_IDS.filter(id=>eqSpellOk(def,id));
@@ -2375,14 +2477,23 @@ function rollEqSpellFor(def){
 /* slot を渡すと武器／防具を指定して作る（生成ボタンは指定なし＝16種から1種）。 */
 /* opt.force … 付与（武器のスキル・防具の個性）を**確定で**付ける。
    闘技場の報酬がこれ。確率で「付与なし」が出ると報酬として成立しない。 */
+/* ★ 防具に付けてよい個性 ★
+   誰が着けるか分からないので、**その人のものでしかない個性**は付けません。
+
+   ・`needs` … 種族専用（ミミックの擬態など）
+   ・`cls`  … **職業特性**。重騎士でない人が《防壁》を持つのは筋が通らない
+   ・`retired` … 引退したもの（《予防》）。抽選から外したのに装備から出ては意味がない
+   ・`heroOnly` … 主人公専用 */
+const eqTraitOk=id=>{ const t=TRAITS[id];
+  return !!t&&!t.needs&&!t.cls&&!t.retired&&!t.heroOnly; };
 function invCreate(slot,opt){
   const def=pick(slot?EQUIPS.filter(e=>e.slot===slot):EQUIPS);
   const it={iid:++iidc,id:def.id,slot:def.slot,spell:null,trait:null};
   const force=!!(opt&&opt.force);
   // 付与は生成時に確定する。あとから引き直せると「良い個体を探す」意味が消えるため。
   if(def.slot==='w'){ if(force||R(1)<EQ_SPELL_CHANCE) it.spell=rollEqSpellFor(def); }
-  // 防具は誰が着けるか分からないので、種族専用（needs 付き）の個性は付けない
-  else             { if(force||R(1)<EQ_TRAIT_CHANCE) it.trait=pick(TRAIT_IDS.filter(id=>!TRAITS[id].needs)); }
+  /* 防具は誰が着けるか分からないので、付けてよい個性を絞る（→ eqTraitOk）。 */
+  else             { if(force||R(1)<EQ_TRAIT_CHANCE) it.trait=pick(TRAIT_IDS.filter(eqTraitOk)); }
   INV.push(it);
   return it;
 }
@@ -2633,6 +2744,33 @@ const CLASSES=[
     数値はどれも平凡で、7枠を1つ食うぶんは確実に弱くなる。**それがコスト。**
     見返りは戦闘ではなく「魔物が仲間になる」こと。
     《テイム》は確定なので、個性3枠のうち1枠は戦闘に使えない。 */
+/* ★ 基本職ではありません ★
+   主人公には選べず（HERO_EXCLUDE）、依頼からの加入だけで手に入ります。
+   指揮官ほど絞ってはおらず、毒・不死・呪いの依頼22件に重み10〜14で載せてあるので、
+   狙って通えばそれなりに来ます。「レアだが引けないほどではない」位置。
+
+   ★ `剣所持` を持たない初の前衛職 ★
+   剣技3つ（全力斬・五月雨斬・隼斬）が構造的に使えません。
+   代わりに `毒` タグの専用特技を持ちます（弓兵の `射手` と同じ作り）。
+
+   ★ HPは2番目に多いのに、防御は斥候並み ★
+   耐えるための器ではなく、**払うための器**。
+   重騎士が「硬くて減らない」なら、こちらは「でかいけど減る」。役割が被りません。
+
+   ★ 主役のいなかった個性が、まとめて仕事をする ★
+   毒血（毒中は威力+45%）・背水（HP50%以下で+60%）・火事場（25%以下で+50%）・
+   瘴気（開幕に敵全体を毒に）・毒撃（通常攻撃で毒に）。
+   この5つはどの職の主軸でもありませんでした。
+
+   ⚠️ 背水＋火事場＋毒血で威力+155%。低HPで暴れすぎないか要測定。 */
+ {id:'dk',n:'毒闘士', c:'DK',kind:'human',hp:600,mp:26,atk:76,def:42,mat:24,mdf:32,spd:56,
+  tags:['人型','毒'], fixed:['dokuchi'],
+  desc:'剣を持たない前衛。HPを払う特技で戦い、自分を毒に浸して威力を上げる。'
+      +'毒が抜けないほど強く、それを殴った相手へ移す。',
+  /* 《毒血》は fixed。毒が損にも得にもなるのがこの職の芯なので、
+     引けた個体と引けなかった個体で別物になってしまうのを避けます。 */
+  bias:{haisui:18,kajiba:16,dokuke:15,kutsuu:15,dokugeki:14,fushoku:14,shouki:10,fukutsu:8,thorns:8,shuunen:6},
+  spN:2, spBias:{dokuga:20,sainami:18,ketsujin:16,kikoku:12,taiatari:6}},
  {id:'tm',n:'テイマー', c:'TM',kind:'human',hp:450,mp:44,atk:48,def:44,mat:48,mdf:46,spd:56,
   tags:['人型'], fixed:['tame'],
   desc:'単体では戦力にならない。必ず《テイム》を持ち、依頼で戦った魔物を連れ帰る。'
@@ -3462,7 +3600,7 @@ function addBuff(u,b,src){
 const AIL_LABEL={poison:'毒',sleep:'眠',rest:'休',doom:'宣告',seal:'封魔'};
 const AIL_TIMED={poison:true,doom:true,seal:true};   // 時間で減るもの
 const asleep=u=>!!u.ail.sleep;
-/* ★ 封魔 ★ 魔法だけが撃てなくなる。特技と通常攻撃はそのまま。
+/* ★ 封魔 ★ 魔法だけが撃てなくなる。物理攻撃はそのまま。
    「魔法職を黙らせる」ための状態異常なので、物理で殴る側には何も起きない。
    判定はここ1か所に集め、オート・手動・追唱の3つの入口から必ず通す。 */
 const canCast=(u,sp)=>!(u&&u.ail&&u.ail.seal&&sp&&!isArt(sp));
@@ -3499,6 +3637,7 @@ const canCast=(u,sp)=>!(u&&u.ail&&u.ail.seal&&sp&&!isArt(sp));
 const CAT_BY_HOOK={
   battleStart:'開幕',       turnStart:'開幕',
   outgoing:'攻めた時',      dealt:'攻めた時',   kill:'攻めた時',
+  ailWasted:'攻めた時',
   crit:'攻めた時',          missed:'攻めた時',  allyHit:'攻めた時',
   incoming:'受けた時',      damaged:'受けた時', lethal:'受けた時',
   eva:'受けた時',           aggro:'受けた時',
@@ -3542,6 +3681,11 @@ function ailImmuneBy(u,src){
   return b?{label:b.label}:null;
 }
 
+/* ★ 通らなかった状態異常を、掛けた側に知らせる ★
+   emit（全員）ではなく runOn（掛けた本人だけ）。他人の不発で動いては困る。 */
+function wasteAil(src,u,name){
+  if(src&&src!==u&&src.alive) runOn(src,'ailWasted',{unit:u,ail:name,source:src});
+}
 function addAil(u,name,turns,src){
   if(!u.alive)return;
   const im=ailImmuneBy(u,src);
@@ -3549,8 +3693,15 @@ function addAil(u,name,turns,src){
     const w=AIL_LABEL[name]||name;
     if(im.trait) proc(u,im.trait,`${w}を受け付けなかった`);
     else addLog(`${u.name} は ${w} を受け付けなかった（${im.label}）`,'l-sys');
+    /* ★ 弾かれたことを、掛けた側に知らせる ★
+       《腐食》のように「効かなかった時に代わりの何かをする」個性のため。
+       emit（全員）ではなく runOn（掛けた本人だけ）。他人の不発で動いては困る。 */
+    wasteAil(src,u,name);
     return;
   }
+  /* すでに同じ状態異常なら、延ばすだけで新しくは入らない＝**無駄撃ち**。
+     無効で弾かれたのと同じ扱いにする（《腐食》の出番はどちらも同じ）。 */
+  if(u.ail[name]) wasteAil(src,u,name);
   // 眠りと休みは同時に付かない。後から付いた方で上書きする。
   if(name==='sleep') delete u.ail.rest;
   if(name==='rest')  delete u.ail.sleep;
@@ -3714,7 +3865,7 @@ function applyDamage(ctx){
 /* バフによる回避（ヨマシ）。stat() は atk〜spd しか見ないので、ここで別に拾う。 */
 const evaBuff=u=>u.buffs.reduce((s,b)=>s+(bHits(b,'eva')?b.value:0),0);
 /* 命中率デバフ（羽撃き）。攻撃側に乗り、相手の回避を押し上げる形で効かせる。
-   魔法は必中なのでここを通らない＝特技と通常攻撃にだけ効く。 */
+   魔法は必中なのでここを通らない＝物理攻撃にだけ効く。 */
 const accBuff=u=>u.buffs.reduce((s,b)=>s+(bHits(b,'acc')?b.value:0),0);
 function hitCheck(a,t){
   if(asleep(t)) return true;                 // 眠っている相手には必ず当たる
@@ -3856,6 +4007,9 @@ function castSpell(a,sp,target,o={}){
         let pw=E.power*mult;
         if(sp.frontHalf&&isFront(a)) pw*=0.5;                  // 不意打ち … 前列からでは活きない
         if(low) pw*=sp.exec.mul;
+        /* 弱った相手に食い込む技（苛み）。**状態異常なら**上乗せする。
+           弱体（ワソギ等）は数に入れない。狙って作れてしまうと重すぎるため。 */
+        if(sp.ailBonus&&Object.keys(t.ail||{}).length) pw*=1+E.ailBonus;
         const ctx=calcDamage(a,t,{power:pw,kind:dmgKind});
         ctx.art=art;              // 特技かどうか。《かく乱》が「魔法以外」を見分けるのに使う
         ctx.noCounter=!!o.isExtra;
@@ -3876,6 +4030,8 @@ function castSpell(a,sp,target,o={}){
         }
       }
     }
+    /* 自分にも状態異常がつく技（毒牙）。この職は毒を「種」として自分で作る。 */
+    if(sp.selfAil&&a.alive) addAil(a,sp.selfAil,E.turns,a);
     if(E.recoil&&dealt>0){                                   // 体当たりの反動
       rawDamage(a,Math.max(1,Math.round(dealt*E.recoil)),'反動');
     }
@@ -4031,6 +4187,32 @@ function pay(u,c){
   proc(u,'seimei',`HP${hp}をMPへ転用`); pop(u,hp,'dmg');
   if(u.hp<=0) checkDeath(u);
 }
+/* ★ HPで払うスキル（毒特技）★
+   `hpCost` は**最大HPに対する割合**。固定値にすると、HPを盛るほど得になってしまう。
+   割合なら装備でHPを増やしても釣り合いが保たれます。 */
+function hpCost(u,sp){
+  if(!sp||sp.hpCost==null)return 0;
+  const r=atLv(sp.hpCost,spLevel(u,sp))||0;
+  return Math.max(1,Math.round(u.maxHp*r));
+}
+/* ★ 支払いの判定と実行は必ずここを通す ★
+   AIの行選択（evalGambit）・実行（resolveAction）・手動の押せる判定が
+   同じ答えを返すように、1か所へ集めてあります。 */
+const canUse=(u,sp)=>{
+  const h=hpCost(u,sp);
+  if(h&&u.hp<=h)return false;          // ★ 自分の技では絶対に倒れない ★
+  return canPay(u,mpCost(u,sp));
+};
+function payFor(u,sp){
+  const h=hpCost(u,sp);
+  if(h){ u.hp-=h; pop(u,h,'dmg'); shake(u);
+    addLog(`${u.name} は命を削った（HP-${h}）`,'l-dmg'); }
+  pay(u,mpCost(u,sp));
+}
+/* 表示用。HPで払うものはHPで出す。 */
+const costLabel=(u,sp)=>{ const h=u?hpCost(u,sp):(sp&&sp.hpCost!=null?Math.round(atLv(sp.hpCost,1)*100)+'%':0);
+  if(sp&&sp.hpCost!=null) return u?('HP'+h):('HP'+h);
+  return 'MP'+(u?mpCost(u,sp):atLv(sp.mp,1)); };
 
 /* =========================================================
    6.5 オート行動（ガンビット）
@@ -4139,7 +4321,7 @@ const actLabel=(u,id)=>{
    **1行目が蓋になっている**のが肝。自分が既に前にいるなら殴るだけで、
    2行目へ落ちない。後列にいる時だけ「瀕死の前衛と入れ替わって庇う」が働く。
    逆順にすると、前衛どうしが延々と入れ替わり続ける。 */
-const FRONT_CLASSES=['sw','kn'];
+const FRONT_CLASSES=['sw','kn','dk'];
 /* ★ MPが尽きた魔法職は、殴るよりぼうぎょ ★
    ぼうぎょは最大MPの10%を戻します。魔導士なら8。
    一方この職の通常攻撃は攻撃34で、実ダメージは20前後。
@@ -4266,6 +4448,13 @@ function defaultGambits(u){
   const sps=allSpells(u);      // 本人3枠＋武器1枠。重複で無効な枠は 'none' で返る
   const slot=(t,sc)=>{ const i=sps.findIndex(id=>id!=='none'&&SP[id].type===t&&(!sc||SP[id].scope===sc));
     return i<0?null:'sp'+i; };
+  /* ★ 単体攻撃だけは「持っている分すべて」拾う ★
+     slot() は findIndex なので**最初の1つしか行になりません**。
+     毒闘士（毒牙・苛み・血刃）や弓兵（連射・止めの矢・足留めの矢・毒矢）のように
+     単体攻撃を3つ4つ持つ職が出てきたので、ここだけ全部並べます。 */
+  const slotsAll=(t,sc)=>sps.map((id,i)=>({id,i}))
+    .filter(x=>x.id!=='none'&&SP[x.id].type===t&&(!sc||SP[x.id].scope===sc))
+    .map(x=>'sp'+x.i);
   const add=act=>{ if(!act)return; const r=rowForSpell(SP[sps[+act[2]]],act); if(r)g.push(r); };
   /* ★ 治療は全体と単体を別の行にする ★
      以前は slot('cure') と範囲を指定せずに引いていたので、**先に見つかった枠1つ**しか行にならなかった。
@@ -4282,7 +4471,25 @@ function defaultGambits(u){
   add(slot('mp'));
   g.push(...traitGambits(u));      // 個性が要求する行動を、スキルより先に置く
   add(slot('atk','all')); add(slot('ail')); add(slot('evade'));
-  add(slot('buff')); add(slot('debuff')); add(slot('atk','one'));
+  add(slot('buff')); add(slot('debuff'));
+  /* ★ 単体攻撃の並べ方 ★ 狭い条件から順に置き、受け皿はいちばん下。
+     ① ailBonus（苛み）… 状態異常の敵がいればそちらへ
+     ② ail（毒牙・毒矢）… まだ掛かっていない敵へ。撒く技なので温存しない
+     ③ exec 持ち（止めの矢）… とどめ向きなので、普通の技より先に
+     ④ 残りの単体攻撃 … 特技は「HPが半分以下」、魔法は条件なし（→ E-0）
+     ⑤ ailBonus の受け皿 … 状態異常の敵がいない時に、条件なしで撃つ
+
+     ⚠️ ⑤を①の直後に置くと、**下の行を全部塞ぎます**（血刃が一度も撃たれない）。
+        受け皿は必ずいちばん下。 */
+  {
+    const one=slotsAll('atk','one').map(act=>({act,sp:SP[sps[+act[2]]]})).filter(x=>x.sp);
+    const plain=x=>x.sp.ailBonus==null&&!x.sp.ail;
+    one.filter(x=>x.sp.ailBonus!=null).forEach(x=>g.push({subj:'foe',cond:'has_ail',cnt:1,act:x.act}));
+    one.filter(x=>x.sp.ail).forEach(x=>g.push({subj:'foe',cond:'no_ail',cnt:1,act:x.act}));
+    one.filter(x=>plain(x)&&x.sp.exec).forEach(x=>{const r=rowForSpell(x.sp,x.act); if(r)g.push(r);});
+    one.filter(x=>plain(x)&&!x.sp.exec).forEach(x=>{const r=rowForSpell(x.sp,x.act); if(r)g.push(r);});
+    one.filter(x=>x.sp.ailBonus!=null).forEach(x=>g.push({subj:'foe',cond:'always',cnt:1,act:x.act}));
+  }
   g.push(...classGambits(u));      // 前衛職の締めくくり（→ FRONT_CLASSES）
   g.push(...lowMpGambit(u));       // 魔法職の締めくくり（MPが尽きたらぼうぎょ）
   return g;   // 末尾の「たたかう」は暗黙の既定行動なので入れない
@@ -4372,7 +4579,7 @@ function evalGambit(u,row){
     return {cmd:'attack',target:weightedPick(cand)};
   }
   const sp=rowSp; if(!sp)return null;
-  if(!canPay(u,mpCost(u,sp))||!canCast(u,sp))return null;   // 封魔なら魔法の行は飛ばす
+  if(!canUse(u,sp)||!canCast(u,sp))return null;   // 封魔なら魔法の行は飛ばす。HP不足もここで弾く
   const wantAlly=isAllySpell(sp);
   if(sp.scope==='all') return {cmd:'spell',sp};
   let cand=hit.filter(t=>wantAlly?t.side===u.side:t.side!==u.side);
@@ -4529,10 +4736,9 @@ function resolveAction(u,act){
        「自分で行を組んだ人だけ壊れる」ようにするだけなので、数字の側を 0 にしてあります。 */
   } else if(act.cmd==='spell'){
     const sp=act.sp;
-    const cost=mpCost(u,sp);
-    if(!canPay(u,cost)) addLog(`${u.name} はMPが足りない`,'l-sys');
+    if(!canUse(u,sp)) addLog(`${u.name} は${sp.hpCost!=null?'HP':'MP'}が足りない`,'l-sys');
     else{
-      attacked=sp.type==='atk'; markAct(u,'sp'+sp.id); pay(u,cost);
+      attacked=sp.type==='atk'; markAct(u,'sp'+sp.id); payFor(u,sp);
       /* 魔法は「唱えた」、特技は「〇〇 の 全力斬！」。
          特技は詠唱ではないので、同じ言い回しにすると気持ち悪い。
          名前は spName を通す（レベルで変わるので sp.name を直接出すと配列が並ぶ）。 */
@@ -4932,18 +5138,18 @@ function renderCmd(u){
     <div class="cmds"><button class="cmd" data-c="attack">たたかう</button><button class="cmd" data-c="guard">ぼうぎょ</button>${
       swapOptions(u).none?'':'<button class="cmd" data-c="swap">いれかえ</button>'}</div>
     <div class="spells">${spellSlots(u).filter(x=>x.id!=='none').map(x=>{const s=SP[x.id];
-      const cost=mpCost(u,s);
+      const cost=costLabel(u,s);
       const sealed=!canCast(u,s);
-      const poor=!canPay(u,cost);
+      const poor=!canUse(u,s);
       const ok=x.live&&!sealed&&!poor;
       /* ★ 押せないスキルは button にしない ★
          まるごと消すと**スキルを失ったように見え**、MPが増減するたび並びも動く。
          かといって灰色のボタンは「押せそうなのに押せない」ままになる。
          そこで**押せるものだけ button**、押せないものは理由を書いた札にする。
          場所も大きさも同じなので並びは動かず、押せるかどうかは見て分かる。 */
-      const why=!x.live?'重複':sealed?'封魔':`MP不足`;
+      const why=!x.live?'重複':sealed?'封魔':(s.hpCost!=null?'HP不足':'MP不足');
       const tip=`${x.src==='eq'?'[武器由来] ':''}${x.live?'':'【重複のため無効】'}${
-        sealed?'【封魔で唱えられない】':''}${poor&&!sealed&&x.live?`【MPが ${cost} 要ります】`:''}${skillTip(s,u)}`;
+        sealed?'【封魔で唱えられない】':''}${poor&&!sealed&&x.live?`【${cost} 要ります】`:''}${skillTip(s,u)}`;
       const cls=['sp',isArt(s)?'art':'',ok?'':'spoff'].filter(Boolean).join(' ');
       return ok
         ? `<button class="${cls}" data-sp="${x.id}" data-tip="${tip}"><b>${spName(s,u)}</b><i>${
@@ -4951,7 +5157,7 @@ function renderCmd(u){
         : `<span class="${cls}" data-tip="${tip}"><b>${spName(s,u)}</b><i>${why}</i><em>${cost}</em></span>`;
       }).join('')
       ||'<span class="hint">スキルを持っていません</span>'}</div>
-    ${u.ail.seal?`<div class="warn"><b>封魔</b> — あと ${u.ail.seal} 手番、魔法を唱えられません。特技と通常攻撃は使えます。</div>`:''}
+    ${u.ail.seal?`<div class="warn"><b>封魔</b> — あと ${u.ail.seal} 手番、魔法を唱えられません。物理攻撃は使えます。</div>`:''}
     <div class="hint" id="hint">個性: ${u.traits.filter(t=>t!=='none').map(t=>'<b>'+TRAITS[t].name+'</b>').join(' / ')||'なし'}</div>`;
   const atkBtn=box.querySelector('[data-c="attack"]');
   atkBtn.onclick=()=>chooseTarget(u,OP(),t=>send({cmd:'attack',target:t}),
@@ -4973,13 +5179,13 @@ function renderCmd(u){
         :(isAllySpell(sp)?'味方全体':'敵全体');
       return confirmAction(u,'sp:'+sp.id,()=>send({cmd:'spell',sp}),
         {el:b,title:spName(sp,u),
-         desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／<b>${to}</b>／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`});
+         desc:`${skillKind(sp)}／${costLabel(u,sp)}／<b>${to}</b>／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`});
     }
     const phys=isPhysSingle(sp);
     chooseTarget(u,isAllySpell(sp)?MY():OP(),
       t=>send({cmd:'spell',sp,target:t}),
       {el:b,title:spName(sp,u),
-       desc:`${skillKind(sp)}／MP${mpCost(u,sp)}／単体／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`
+       desc:`${skillKind(sp)}／${costLabel(u,sp)}／単体／${TYPE_LABEL[sp.type]}　${spText(sp,u)}`
            +(phys?'　※前列に生存者がいる間は前列しか狙えません':'')},phys);
   });
 }
@@ -5189,7 +5395,7 @@ function openEditor(u){
      手動戦闘の最中に盤面の敵をタップすると、そのままスキルや装備を書き換えられてしまう。 */
   if(GUILD && u.side==='foe'){ openViewer(u); return; }
   const spDesc=id=>id&&id!=='none'
-    ? `${skillKind(SP[id])}／MP${mpCost(u,SP[id])}／${scopeLabel(SP[id])}／${TYPE_LABEL[SP[id].type]}　${spText(SP[id])}`
+    ? `${skillKind(SP[id])}／${costLabel(u,SP[id])}／${scopeLabel(SP[id])}／${TYPE_LABEL[SP[id].type]}　${spText(SP[id])}`
     : SP.none.desc;
   const st=['atk','def','mat','mdf','spd'].map(k=>`<div class="sc"><u>${SN[k]}</u><b>${Math.round(stat(u,k))}</b></div>`).join('');
   const TSLOT=traitSlots(u), SSLOT=spellSlots(u);   // 重複判定つきの枠
@@ -5495,7 +5701,7 @@ function openViewer(u){
       <div class="sechead">個性</div>
       ${list(u.traits.filter(t=>t!=='none'),t=>`<div class="tdesc"><b>${TRAITS[t].name}</b> — ${TRAITS[t].desc}</div>`)}
       <div class="sechead">スキル</div>
-      ${list(spellsOf(u),id=>`<div class="tdesc"><b>${spName(SP[id],u)}</b>（${skillKind(SP[id])}・MP${mpCost(u,SP[id])}・${scopeLabel(SP[id])}） — ${spText(SP[id],u)}</div>`)}
+      ${list(spellsOf(u),id=>`<div class="tdesc"><b>${spName(SP[id],u)}</b>（${skillKind(SP[id])}・${costLabel(u,SP[id])}・${scopeLabel(SP[id])}） — ${spText(SP[id],u)}</div>`)}
       ${eqOn(u)?`<div class="sechead">装備</div>
         ${[['w','武器'],['a','防具']].map(([s,lb])=>{const it=eqItem(u,s); const dup=eqBonusDead(u,s);
           return it?`<div class="tdesc"><b>${invName(it,{dupBonus:dup})}</b>（${lb}） — ${invDescText(it,{dupBonus:dup})}</div>`:'';}).join('')}`:''}
@@ -6935,7 +7141,7 @@ const QUESTS=[
  {id:'q1b',name:'納屋のスライム',tier:1,kind:'short',sec:90,gph:20000,enemies:['slime'],
   desc:'納屋に粘体が住み着いた。硬くて鈍い。**物理は通りにくい。**',
   first:{gold:1500},
-  reward:{equipChance:0.2,memberChance:0.15,memberBias:{mg:14,hx:8}}},
+  reward:{equipChance:0.2,memberChance:0.15,memberBias:{sw:4,mg:14,hx:8}}},
  {id:'q1c',name:'街道のはぐれ狼',tier:1,kind:'short',sec:150,gph:24000,enemies:['wolf'],
   desc:'街道に現れる狼の退治。',
   first:{gold:1000,item:true},
@@ -6981,12 +7187,12 @@ const QUESTS=[
   enemies:['slime','slime','mandra','mandra'],
   desc:'毒と眠りが延々と飛んでくる。**速さで押し切るか、状態異常ごと耐えるか。**',
   first:{gold:22000},
-  reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,mg:10},rareChance:0.15}},
+  reward:{equipChance:0.5,memberChance:0.3,memberBias:{dk:12,sw:4,pr:18,mg:10},rareChance:0.15}},
  {id:'q2d',name:'ゴブリンの砦',tier:2,kind:'horde',sec:720,gph:32000,key:true,
   enemies:['goblin','goblin','goblin','goblin'],
   desc:'**4匹が一度に来る。**一体一体は弱いが、《数の利》で膨らむ。範囲が無いと削り切れない。',
   first:{gold:19000,item:true},
-  reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:16,hx:12}}},
+  reward:{equipChance:0.5,memberChance:0.3,memberBias:{sw:6,mg:16,hx:12}}},
  {id:'q2f',name:'三度の追い立て',tier:2,kind:'chain',sec:1080,gph:33000,key:true,
   waves:[['goblin','goblin','harpy'],['skeleton','skeleton'],['slime','mandra']],
   desc:'**回復なしで三連戦。**速い相手、硬い相手、毒の相手と順に当たる。'
@@ -7001,14 +7207,14 @@ const QUESTS=[
   enemies:['goblin','goblin','goblin',rare('skeleton','mimic',0.1)],
   desc:'市街を一巡り。**1時間半かかるが、その間は何も考えなくていい。**',
   first:{gold:60000,item:true},
-  reward:{equipChance:0.6,memberChance:0.4,memberBias:{kn:12,pr:12},rareChance:0.1}},
+  reward:{equipChance:0.6,memberChance:0.4,memberBias:{sw:5,kn:12,pr:12},rareChance:0.1}},
 
  /* ---------- 難度3：数十分 ---------- */
  {id:'q4',name:'古い墓所',tier:3,kind:'std',sec:1200,gph:42000,
   enemies:['skeleton','skeleton','skeleton'],
   desc:'不死が三体。倒しても立ち上がることがある。',
   first:{gold:42000,item:true},
-  reward:{equipChance:0.5,memberChance:0.3,memberBias:{pr:18,hx:14},rareChance:0.2}},
+  reward:{equipChance:0.5,memberChance:0.3,memberBias:{dk:10,sw:5,pr:18,hx:14},rareChance:0.2}},
  /* ★ キーは「その難度でいちばん重い」に置く ★
     4体ではこの難度の普通の依頼（平均4.9体）より軽く、関門になっていなかった。
     ゴブリンを外して狼へ。犬舎なので顔ぶれも揃う。 */
@@ -7023,12 +7229,12 @@ const QUESTS=[
   desc:'石像が道を塞ぎ、後ろから毒が飛ぶ。**前を抜けないと後ろに届かない。**'
       +'奥に何がいるかは掲示のたびに変わる。',
   first:{gold:55000,item:true},
-  reward:{equipChance:0.55,memberChance:0.3,memberBias:{mg:16,hx:14},rareChance:0.25}},
+  reward:{equipChance:0.55,memberChance:0.3,memberBias:{dk:10,sw:5,mg:16,hx:14},rareChance:0.25}},
  {id:'q3e',name:'屍の行進',tier:3,kind:'horde',sec:1800,gph:45000,key:true,
   enemies:['skeleton','skeleton','skeleton','skeleton','skeleton','skeleton','skeleton'],
   desc:'**7体が横一列で来る。**一体ずつは大したことがないが、《怨嗟》で倒すほど残りが育つ。',
   first:{gold:68000,member:true},
-  reward:{equipChance:0.6,memberChance:0.35,memberBias:{pr:20,mg:14},rareChance:0.25}},
+  reward:{equipChance:0.6,memberChance:0.35,memberBias:{dk:12,sw:6,pr:20,mg:14},rareChance:0.25}},
  {id:'q3d',name:'四連の門',tier:3,kind:'chain',sec:2400,gph:48000,key:true,
   // 3戦目だけ2体で、そこが息継ぎになっていた。連戦は波の谷を作らない
   waves:[['goblin','goblin','goblin','goblin'],['skeleton','skeleton','lich'],
@@ -7036,12 +7242,12 @@ const QUESTS=[
   desc:'**回復なしで四連戦。**門ごとに相手の型が変わる。'
       +'MPをどこで使うかがそのまま結果になる。',
   first:{gold:96000,item:true,member:true,rare:true},
-  reward:{equipChance:0.7,memberChance:0.4,memberBias:{kn:12,pr:12,mg:12},rareChance:0.3}},
+  reward:{equipChance:0.7,memberChance:0.4,memberBias:{sw:6,kn:12,pr:12,mg:12},rareChance:0.3}},
  {id:'q3c',name:'墓守の夜',tier:3,kind:'idle',sec:10800,gph:25000,
   enemies:['skeleton','skeleton','vampire','lich'],
   desc:'墓地に夜通し詰める。**3時間。**帰ってくる頃には朝になっている。',
   first:{gold:150000,item:true},
-  reward:{equipChance:0.8,memberChance:0.5,memberBias:{pr:18,hx:16},rareChance:0.25}},
+  reward:{equipChance:0.8,memberChance:0.5,memberBias:{dk:12,sw:6,pr:18,hx:16},rareChance:0.25}},
 
  /* ---------- 難度4：1〜2時間 ---------- */
  {id:'q5',name:'ハーピィの岩棚',tier:4,kind:'std',sec:2700,gph:55000,
@@ -7054,7 +7260,7 @@ const QUESTS=[
   desc:'防御が最も高い石像が三体、後ろに術者。**殴るほど返ってくる。**'
       +'物理で削り合うと先にこちらが尽きる。',
   first:{gold:140000,item:true},
-  reward:{equipChance:0.65,memberChance:0.4,memberBias:{mg:20,hx:14},rareChance:0.3}},
+  reward:{equipChance:0.65,memberChance:0.4,memberBias:{sw:5,mg:20,hx:14},rareChance:0.3}},
  /* 3体はこの難度で最少だった（普通の依頼は平均5.3体）。
     飛竜はそのままに、足元を固める幼竜を3体足して6体に。 */
  {id:'q4a',name:'竜の通り道',tier:4,kind:'std',sec:3600,gph:58000,key:true,
@@ -7062,7 +7268,7 @@ const QUESTS=[
   desc:'最速級が三体、その足元に幼竜が三体。'
       +'**《竜鱗》で大技が通らない。**手数で削るしかない。',
   first:{gold:175000,item:true},
-  reward:{equipChance:0.7,memberChance:0.4,memberBias:{rg:16,ar:16},rareChance:0.35}},
+  reward:{equipChance:0.7,memberChance:0.4,memberBias:{sw:6,rg:16,ar:16},rareChance:0.35}},
  {id:'q6',name:'巣穴の掃討',tier:4,kind:'horde',sec:7200,gph:62000,key:true,
   enemies:['goblin','goblin','goblin','werewolf','wyvern','wyvern'],
   desc:'数と火力の両方が来る。**人の形をしたものも巣に居着いている。**'
@@ -7077,12 +7283,12 @@ const QUESTS=[
          ['cerberus','cerberus',['cerberus','vampire']]],
   desc:'**回復なしで五連戦。**どの段も三体。総HPより、MPと状態異常の管理で落ちる。',
   first:{gold:300000,item:true,member:true,rare:true},
-  reward:{equipChance:0.85,memberChance:0.5,memberBias:{pr:16,kn:12,mg:12},rareChance:0.45}},
+  reward:{equipChance:0.85,memberChance:0.5,memberBias:{sw:6,pr:16,kn:12,mg:12},rareChance:0.45}},
  {id:'q4c',name:'長夜の哨戒',tier:4,kind:'idle',sec:21600,gph:33000,
   enemies:['wyvern','wyvern','harpy','harpy','lich'],
   desc:'国境を6時間見張る。**時給は半分だが、寝ている間も進む。**',
   first:{gold:400000,item:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{ar:14,rg:14,kn:10},rareChance:0.4}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{sw:5,ar:14,rg:14,kn:10},rareChance:0.4}},
 
  /* ---------- 難度5：数時間 ---------- */
  /* ★ 難度5のキーは4本で形を分けてある ★
@@ -7101,14 +7307,14 @@ const QUESTS=[
   desc:'**回復なしで五連戦。**街道をたどるほど首無しが増える。'
       +'**《宣告》で確実に落としにくる。**最後の二騎まで手を残せるか。',
   first:{gold:550000,item:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{kn:16,pr:16},rareChance:0.5}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{dk:12,sw:7,kn:16,pr:16},rareChance:0.5}},
  {id:'q5a',name:'吸血鬼の館',tier:5,kind:'chain',sec:9000,gph:88000,key:true,
   waves:[['vampire','skeleton','skeleton','skeleton','lich',rare('skeleton','mimic',0.1)],
          ['vampire','vampire',['skeleton','dullahan'],'dullahan','lich','lich']],
   desc:'**表の広間と、奥の寝室。**削っても削っても戻る。'
       +'**吸血と再生を止める手立てが要る。**門番が誰かは掲示のたびに変わる。',
   first:{gold:660000,item:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{hx:18,pr:14},rareChance:0.55}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{dk:14,sw:6,hx:18,pr:14},rareChance:0.55}},
  {id:'q5d',name:'七つの石像',tier:5,kind:'horde',sec:10800,gph:100000,key:true,
   // 7体×1 はこのままで基準どおり。7体目だけ10%で石像ではないものが混じる
   enemies:['gargoyle','gargoyle','gargoyle','gargoyle','gargoyle','gargoyle',
@@ -7116,7 +7322,7 @@ const QUESTS=[
   desc:'**石像が7体。**全員が軽減と棘返しを持ちうる。'
       +'殴った分だけ返る盤面で、どうやって総量を削るか。',
   first:{gold:900000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{mg:22,hx:16},rareChance:0.6}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{sw:6,mg:22,hx:16},rareChance:0.6}},
  {id:'q7',name:'古城の最奥',tier:5,kind:'chain',sec:10800,gph:95000,key:true,
   waves:[['skeleton','skeleton','skeleton','goblin',rare('goblin','mimic',0.1)],
          ['gargoyle','gargoyle','gargoyle','lich','skeleton'],
@@ -7124,13 +7330,13 @@ const QUESTS=[
   desc:'**回復なしで三連戦。**門番、石像、そして城主。どの門も五体。'
       +'最後まで立っていられる編成でないと、奥までは行けない。',
   first:{gold:850000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.7,memberBias:{kn:12,pr:12,mg:12},rareChance:0.8}},
+  reward:{equipChance:1,memberChance:0.7,memberBias:{sw:6,kn:12,pr:12,mg:12},rareChance:0.8}},
  {id:'q5c',name:'果ての塔',tier:5,kind:'idle',sec:43200,gph:50000,
   waves:[['gargoyle','gargoyle','gargoyle','lich'],
          ['dullahan','dullahan','vampire','vampire']],
   desc:'塔をひと晩かけて登る。**12時間の二連戦。**時給は落ちるが、置いておけば額は大きい。',
   first:{gold:1200000,item:true},
-  reward:{equipChance:1,memberChance:0.7,memberBias:{kn:14,mg:14,pr:14},rareChance:0.7}},
+  reward:{equipChance:1,memberChance:0.7,memberBias:{sw:6,kn:14,mg:14,pr:14},rareChance:0.7}},
 
  /* ---------- 難度6：壁。クリア者が出ない前提で置いてある ---------- */
  {id:'q6a',name:'大侵攻',tier:6,kind:'horde',sec:21600,gph:150000,
@@ -7138,7 +7344,7 @@ const QUESTS=[
          ['dullahan','dullahan','gargoyle','vampire','vampire','lich','lich']],
   desc:'**7体x2。前は硬く、後ろは全員が術者。**',
   first:{gold:5000000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.8,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
+  reward:{equipChance:1,memberChance:0.8,memberBias:{dk:10,sw:6,kn:12,pr:12,mg:12,hx:12},rareChance:1}},
  {id:'q6b',name:'黙示の五夜',tier:6,kind:'chain',sec:43200,gph:170000,
   waves:[['skeleton','skeleton','skeleton','skeleton','skeleton','skeleton','skeleton'],
          ['gargoyle','gargoyle','gargoyle','slime','slime','mandra','mandra'],
@@ -7147,14 +7353,14 @@ const QUESTS=[
          ['dullahan','dullahan','dullahan','vampire','lich','lich','lich']],
   desc:'**7体を相手に、回復なしで五連戦。**この依頼の想定解は無い。',
   first:{gold:30000000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:1,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
+  reward:{equipChance:1,memberChance:1,memberBias:{dk:10,sw:6,kn:12,pr:12,mg:12,hx:12},rareChance:1}},
  {id:'q6c',name:'終わりなき行軍',tier:6,kind:'idle',sec:172800,gph:85000,
   waves:[['goblin','goblin','goblin','goblin','skeleton','skeleton','skeleton'],
          ['cerberus','cerberus','wyvern','wyvern','harpy','harpy','harpy'],
          ['dullahan','dullahan','gargoyle','gargoyle','vampire','lich','lich']],
   desc:'**2日がかりの三連戦。**時給は割に合わないが、出してしまえば忘れていられる。',
   first:{gold:20000000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:1,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
+  reward:{equipChance:1,memberChance:1,memberBias:{dk:10,sw:6,kn:12,pr:12,mg:12,hx:12},rareChance:1}},
 
  /* ---------- 特効の効く依頼（1タグ1色の大群） ----------
     ★ タグ特効に「刺さる場所」を用意する ★
@@ -7191,13 +7397,13 @@ const QUESTS=[
   desc:'**5体すべてが「不死」。**倒しても起き上がるものが混じる。'
       +'《不死狩り》がそのまま答えになる。',
   first:{gold:82000,item:true},
-  reward:{equipChance:0.55,memberChance:0.3,memberBias:{pr:16,ap:12}}},
+  reward:{equipChance:0.55,memberChance:0.3,memberBias:{dk:10,sw:5,pr:16,ap:12}}},
  {id:'k6u',name:'不滅の軍勢',tier:6,kind:'horde',sec:21600,gph:155000,
   waves:[tagWave(7,'不死'),tagWave(7,'不死')],
   desc:'**7体の不死が二度。**フェニックスもデュラハンも混じる。'
       +'削り切れない相手をどう畳むか。',
   first:{gold:2800000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{pr:14,ap:14,sw:12},rareChance:0.7}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{dk:12,pr:14,ap:14,sw:12},rareChance:0.7}},
 
  {id:'k3f',name:'空からの影',tier:3,kind:'horde',sec:1500,gph:44000,
   waves:[tagWave(5,'飛行',{max:3})],
@@ -7224,7 +7430,7 @@ const QUESTS=[
   desc:'**7体の獣が二度。**ケルベロスとケンタウロスしかいない。'
       +'どちらも速く、追い詰めるほど強くなる。速度で押し込まれる前に何を通すか。',
   first:{gold:2900000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{ar:16,kn:14},rareChance:0.7}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{sw:6,ar:16,kn:14},rareChance:0.7}},
 
  /* 竜の依頼。他のタグと同じく**中難度と最高難度の2本**立て。
     k4d は max:4 で古竜（lv5）を外し、幼竜と飛竜だけにしてある。
@@ -7247,13 +7453,13 @@ const QUESTS=[
   desc:'**5体すべてが「無機」。**硬く、殴り返してくる。'
       +'《石砕き》を持っていれば景色が変わる。',
   first:{gold:78000,item:true},
-  reward:{equipChance:0.55,memberChance:0.3,memberBias:{mg:14,hx:12}}},
+  reward:{equipChance:0.55,memberChance:0.3,memberBias:{sw:5,mg:14,hx:12}}},
  {id:'k5m',name:'無音の列',tier:5,kind:'horde',sec:9000,gph:97000,
   waves:[tagWave(7,'無機',{min:2})],
   desc:'**7体すべてが「無機」。**ゴーレムが混じれば状態異常は通らない。'
       +'硬さを正面から削れる編成でないと、手数だけが尽きる。',
   first:{gold:700000,item:true,member:true,rare:true},
-  reward:{equipChance:0.85,memberChance:0.45,memberBias:{mg:18,hx:14},rareChance:0.4}},
+  reward:{equipChance:0.85,memberChance:0.45,memberBias:{sw:5,mg:18,hx:14},rareChance:0.4}},
 
  /* ---------- スタンピード ----------
     ★ 21枠すべてが全魔物からの一様抽選 ★
@@ -7272,7 +7478,7 @@ const QUESTS=[
   desc:'**種を問わず魔物が溢れ出した。**何が出るかは着いてみるまで分からない。'
       +'7体の群れが三度。**得意な相手だけを選ぶことはできない。**',
   first:{gold:3000000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.7,memberBias:{kn:12,pr:12,mg:12,ap:12},rareChance:0.8}},
+  reward:{equipChance:1,memberChance:0.7,memberBias:{dk:10,sw:6,kn:12,pr:12,mg:12,ap:12},rareChance:0.8}},
 
  /* ---------- 追加の魔物が出る依頼 ----------
     ★ 新しい魔物は、依頼に置かないと一生出てこない ★
@@ -7284,7 +7490,7 @@ const QUESTS=[
   desc:'森の奥で木が動いたという。**根を張った相手は落ちにくい。**'
       +'倒しても、朽ちる時に周りを立て直していく。',
   first:{gold:80000,item:true},
-  reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:14,hx:12,tm:10},rareChance:0.2}},
+  reward:{equipChance:0.5,memberChance:0.3,memberBias:{dk:10,sw:5,mg:14,hx:12,tm:10},rareChance:0.2}},
  {id:'q4i',name:'草原の狩人',tier:4,kind:'std',sec:3000,gph:57000,
   enemies:['centaur','centaur','harpy','wyvern'],
   desc:'**後列を射抜いてくる。**前に壁を置いても、狙われるのは後ろ。'
@@ -7296,12 +7502,12 @@ const QUESTS=[
   desc:'**毒も眠りも封魔も通らない。**殴っても硬い。'
       +'ただし魔に対しては脆いという話もある。',
   first:{gold:700000,item:true,member:true,rare:true},
-  reward:{equipChance:0.8,memberChance:0.45,memberBias:{mg:18,hx:16},rareChance:0.4}},
+  reward:{equipChance:0.8,memberChance:0.45,memberBias:{sw:6,mg:18,hx:16},rareChance:0.4}},
  {id:'q5j',name:'灰の巣',tier:5,kind:'horde',sec:10800,gph:99000,
   enemies:['phoenix','phoenix','harpy','wyvern','wyvern'],
   desc:'**倒したはずのものが起き上がる。**癒やす者を先に落とせるかどうか。',
   first:{gold:880000,item:true,member:true,rare:true},
-  reward:{equipChance:0.85,memberChance:0.5,memberBias:{ar:16,pr:14,ap:14},rareChance:0.45}},
+  reward:{equipChance:0.85,memberChance:0.5,memberBias:{sw:5,ar:16,pr:14,ap:14},rareChance:0.45}},
 
  /* ---------- 少数精鋭（3人編成の部隊がある時だけ掲示） ----------
     ★ 7枠のうち3枠しか使えない ★
@@ -7322,17 +7528,17 @@ const QUESTS=[
   enemies:['gargoyle','skeleton','skeleton','skeleton','mandra'],
   desc:'**相手は5体。**石像が道を塞ぎ、後ろから毒が飛ぶ。3人では削り合いにならない。',
   first:{gold:40000,item:true},
-  reward:{equipChance:0.6,memberChance:0.3,memberBias:{pr:16,mg:14},rareChance:0.25}},
+  reward:{equipChance:0.6,memberChance:0.3,memberBias:{sw:6,pr:16,mg:14},rareChance:0.25}},
  {id:'f4',name:'三人の竜殺し',tier:4,kind:'few',sec:2400,gph:75000,partySize:3,
   enemies:['wyvern','wyvern','gargoyle','harpy','harpy','slime'],
   desc:'**相手は6体。**速い相手と硬い相手が同時に来る。3人では前も後ろも守れない。',
   first:{gold:110000,item:true,member:true,rare:true},
-  reward:{equipChance:0.8,memberChance:0.4,memberBias:{kn:14,ar:14},rareChance:0.4}},
+  reward:{equipChance:0.8,memberChance:0.4,memberBias:{sw:6,kn:14,ar:14},rareChance:0.4}},
  {id:'f5',name:'三人の城攻め',tier:5,kind:'few',sec:5400,gph:110000,partySize:3,
   enemies:['dullahan','gargoyle','gargoyle','vampire','skeleton','lich','lich'],
   desc:'**相手は7体。**3人で城門を抜ける話。正面から数えれば、どう見ても足りない。',
   first:{gold:330000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{mg:18,pr:16},rareChance:0.6}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{sw:6,mg:18,pr:16},rareChance:0.6}},
  {id:'f6',name:'三人の終焉',tier:6,kind:'few',sec:14400,gph:190000,partySize:3,
   waves:[['skeleton','skeleton','skeleton','gargoyle','gargoyle','mandra','mandra'],
          ['cerberus','cerberus','wyvern','wyvern','harpy','harpy','harpy'],
@@ -7340,7 +7546,7 @@ const QUESTS=[
   desc:'**3人で、7体を三度。**回復は挟めない。'
       +'これを抜ける編成があるなら、それがこのゲームの答えになる。',
   first:{gold:3000000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:1,memberBias:{kn:12,pr:12,mg:12,hx:12},rareChance:1}},
+  reward:{equipChance:1,memberChance:1,memberBias:{dk:10,sw:6,kn:12,pr:12,mg:12,hx:12},rareChance:1}},
 
  /* ---------- 決闘（主人公出撃必須・手動戦闘） ----------
     hero:true   … 主人公のいる部隊しか受けられない
@@ -7385,7 +7591,7 @@ const QUESTS=[
    enemies:['goblin','goblin','slime'],
    desc:'隣町までの往復護衛。**1時間かかる。**',
    first:{gold:15000},
-   reward:{equipChance:0.5,memberChance:0.35,memberBias:{kn:16,pr:12}}},
+   reward:{equipChance:0.5,memberChance:0.35,memberBias:{sw:6,kn:16,pr:12}}},
 
   /* =========================================================
      追加分：難度2（十数分〜数時間の放置）
@@ -7394,22 +7600,22 @@ const QUESTS=[
    enemies:['harpy','harpy'],
    desc:'空から荷物を狙う輩が2体。**遠距離攻撃がないと泥沼化する。**',
    first:{gold:5000},
-   reward:{equipChance:0.35,memberChance:0.25,memberBias:{ar:20,rg:10}}},
+   reward:{equipChance:0.35,memberChance:0.25,memberBias:{sw:5,ar:20,rg:10}}},
   {id:'q2h',name:'墓暴きの討伐',tier:2,kind:'std',sec:600,gph:29000,
    enemies:['skeleton','skeleton','goblin'],
    desc:'不死を盾にして小鬼が後ろから石を投げてくる。**前衛の処理速度が問われる。**',
    first:{gold:13000},
-   reward:{equipChance:0.45,memberChance:0.3,memberBias:{pr:16,sw:12}}},
+   reward:{equipChance:0.45,memberChance:0.3,memberBias:{dk:10,pr:16,sw:12}}},
   {id:'q2i',name:'スライムの大分裂',tier:2,kind:'horde',sec:900,gph:31000,
    enemies:['slime','slime','slime','slime','slime','slime'],
    desc:'**6体に分裂した粘体。**物理主体の編成だと時間が足りず削り負ける。',
    first:{gold:25000,item:true},
-   reward:{equipChance:0.5,memberChance:0.3,memberBias:{mg:20,hx:14}}},
+   reward:{equipChance:0.5,memberChance:0.3,memberBias:{sw:5,mg:20,hx:14}}},
   {id:'q2j',name:'関所の警備補佐',tier:2,kind:'idle',sec:7200,gph:18000,
    enemies:['skeleton','skeleton','harpy'],
    desc:'関所で兵士の手伝い。',
    first:{gold:75000,item:true},
-   reward:{equipChance:0.65,memberChance:0.45,memberBias:{kn:16,ar:12},rareChance:0.15}},
+   reward:{equipChance:0.65,memberChance:0.45,memberBias:{sw:6,kn:16,ar:12},rareChance:0.15}},
 
   /* =========================================================
      追加分：難度3（数十分〜半日の放置）
@@ -7423,17 +7629,17 @@ const QUESTS=[
    enemies:['mandra','mandra','mandra','harpy'],
    desc:'状態異常の雨あられ。**動けなくなる前になぎ払う火力が要る。**',
    first:{gold:48000,item:true},
-   reward:{equipChance:0.5,memberChance:0.3,memberBias:{hx:18,mg:14},rareChance:0.2}},
+   reward:{equipChance:0.5,memberChance:0.3,memberBias:{dk:12,sw:5,hx:18,mg:14},rareChance:0.2}},
   {id:'q3h',name:'魔窟の入り口',tier:3,kind:'chain',sec:2700,gph:47000,
    waves:[['goblin','goblin','slime'],['skeleton','skeleton','mandra'],['gargoyle','gargoyle','gargoyle','gargoyle']],
    desc:'**回復なしで三連戦。**最後には硬い石像が待つ。息切れしない編成が求められる。',
    first:{gold:100000,item:true,member:true},
-   reward:{equipChance:0.65,memberChance:0.35,memberBias:{kn:14,pr:14,mg:10},rareChance:0.25}},
+   reward:{equipChance:0.65,memberChance:0.35,memberBias:{sw:6,kn:14,pr:14,mg:10},rareChance:0.25}},
   {id:'q3i',name:'遺跡の定点観測',tier:3,kind:'idle',sec:14400,gph:26000,
    enemies:['gargoyle','gargoyle','skeleton','skeleton','skeleton'],
    desc:'古代遺跡を監視する。**4時間。**',
    first:{gold:180000,item:true},
-   reward:{equipChance:0.7,memberChance:0.5,memberBias:{mg:16,hx:14,pr:10},rareChance:0.25}},
+   reward:{equipChance:0.7,memberChance:0.5,memberBias:{sw:4,mg:16,hx:14,pr:10},rareChance:0.25}},
 
   /* =========================================================
      追加分：難度4（1〜2時間〜長時間の放置）
@@ -7447,7 +7653,7 @@ const QUESTS=[
    enemies:['cerberus','cerberus','cerberus','cerberus','vampire','vampire','vampire'],
    desc:'前衛は追い詰められるほど狂暴化し、後衛は削っても回復する。**火力の集中が必要。**',
    first:{gold:150000,item:true},
-   reward:{equipChance:0.65,memberChance:0.4,memberBias:{sw:16,hx:16},rareChance:0.35}},
+   reward:{equipChance:0.65,memberChance:0.4,memberBias:{dk:14,sw:16,hx:16},rareChance:0.35}},
   {id:'q4g',name:'鳥人たちの集会',tier:4,kind:'horde',sec:5400,gph:64000,
    enemies:['wyvern','harpy','harpy','harpy','harpy','harpy'],
    desc:'**空を飛ぶ敵が6体。**こちらの攻撃が届く前にズタズタにされる。範囲と速さが必須。',
@@ -7466,17 +7672,17 @@ const QUESTS=[
    enemies:['dullahan','dullahan','dullahan','dullahan','dullahan','dullahan','dullahan'],
    desc:'首無し。**《宣告》を受ける前に火力を叩き込めるか**のダメージチェック。',
    first:{gold:350000,item:true},
-   reward:{equipChance:0.8,memberChance:0.5,memberBias:{sw:20,mg:16},rareChance:0.55}},
+   reward:{equipChance:0.8,memberChance:0.5,memberBias:{dk:14,sw:20,mg:16},rareChance:0.55}},
   {id:'q5f',name:'死霊術師の実験場',tier:5,kind:'std',sec:8000,gph:90000,
    enemies:['skeleton','skeleton','skeleton','lich','lich'],
    desc:'前衛が倒れても後衛が無限に立たせる。**後衛から落とす手段がなければ詰む。**',
    first:{gold:600000,item:true},
-   reward:{equipChance:0.95,memberChance:0.6,memberBias:{ar:18,rg:18},rareChance:0.55}},
+   reward:{equipChance:0.95,memberChance:0.6,memberBias:{dk:10,ar:18,rg:18},rareChance:0.55}},
   {id:'q5g',name:'魔城の番犬たち',tier:5,kind:'horde',sec:12000,gph:98000,
    enemies:['cerberus','cerberus','cerberus','cerberus','cerberus','vampire','vampire'],
    desc:'**発狂する猟犬が5頭と、吸血鬼が2体。**生半可な壁役では一瞬で溶かされる。',
    first:{gold:950000,item:true,member:true,rare:true},
-   reward:{equipChance:1,memberChance:0.65,memberBias:{kn:24,hx:16},rareChance:0.65}},
+   reward:{equipChance:1,memberChance:0.65,memberBias:{dk:12,sw:7,kn:24,hx:16},rareChance:0.65}},
   {id:'q5h',name:'王都防衛戦線の維持',tier:5,kind:'idle',sec:86400,gph:52000,
    enemies:['dullahan','dullahan','gargoyle','gargoyle','lich','lich','lich'],
    desc:'最前線で陣地を死守する。**24時間。**',
@@ -7501,7 +7707,7 @@ const QUESTS=[
           ['dullahan','dullahan','vampire','vampire','vampire','lich','lich']],
    desc:'**ギルドが定めた最高難度。回復なしで五連戦。**これを突破できる部隊は果たしているのか。',
    first:{gold:50000000,item:true,member:true,rare:true},
-   reward:{equipChance:1,memberChance:1,memberBias:{kn:15,pr:15,mg:15,hx:15},rareChance:1}},
+   reward:{equipChance:1,memberChance:1,memberBias:{dk:12,sw:8,kn:15,pr:15,mg:15,hx:15},rareChance:1}},
 
   /* =========================================================
      追加分：決闘（主人公出撃必須）
@@ -8702,9 +8908,14 @@ function applyGuild(d){
        tier:(qf.tier==='all'||(+qf.tier>=1&&+qf.tier<=QMAX_TIER)) ? (qf.tier||'all') : 'all',
        kind:Array.isArray(qf.kind)?qf.kind.filter(k=>QKIND[k]):[],
        newOnly:!!qf.newOnly,keyOnly:!!qf.keyOnly};
+  /* ★ 古い保存の掃除 ★
+     以前は防具の付与が `needs` しか見ておらず、**職業特性や引退した個性が付いた防具**が
+     生まれていました（9/25 に発覚）。読み込む時に落とします。
+     装備そのものは残るので、数値の補正は今までどおり効きます。 */
   const put=(o,arr)=>{ const def=EQ[o.id]; if(!def)return;
     const iid=+o.iid||(iidc+1);
-    arr.push({iid,id:o.id,slot:def.slot,spell:o.spell||null,trait:o.trait||null});
+    const tr=(o.trait&&eqTraitOk(o.trait))?o.trait:null;
+    arr.push({iid,id:o.id,slot:def.slot,spell:o.spell||null,trait:tr});
     iidc=Math.max(iidc,iid); };
   // 自作依頼。保存してあるのは素材だけで、依頼の形はここで組み直す
   (d.custom||[]).forEach(o=>{
@@ -9131,8 +9342,13 @@ function useSkip(kind,obj){
    以前は剣士で固定だった。主人公は一点物で除名もできないので、
    **せめて職業だけは自分で決められる**ようにする。
    個性までは選ばせない — 始めたばかりで72個から3つ選べる材料が無い。
-   指揮官とテイマーを外してある（指揮官は「向こうから移ってくる参謀」なので、主人公にすると筋が通らない。テイマーはゲーム性が変わってしまう）。 */
-const HERO_CLASSES=()=>HUMANS.filter(c=>c.id!=='cm').filter(c=>c.id!=='tm');
+   ★ 選べない職 ★
+   cm 指揮官 … 「向こうから移ってくる参謀」なので、主人公にすると筋が通らない
+   tm テイマー … ゲーム性が変わってしまう
+   dk 毒闘士  … 基本職ではない。自分を毒に浸して戦う職を**最初の1人**に据えると、
+                 毒という仕組みを知る前に毒で死ぬ。依頼からは普通に加入します。 */
+const HERO_EXCLUDE=['cm','tm','dk'];
+const HERO_CLASSES=()=>HUMANS.filter(c=>!HERO_EXCLUDE.includes(c.id));
 let GNEWCLS='sw';
 function renderGuildStart(){
   const list=HERO_CLASSES().map(c=>`<button class="fchip${GNEWCLS===c.id?' on':''}" data-hc="${c.id}"
