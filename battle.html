@@ -145,6 +145,13 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .tchip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
 /* 職業特性。3枠とも装備とも別物だと一目で分かるよう、金寄りの色にしてある */
 .tchip.cls{background:#3a3117;border-color:#8a7434;color:#e7d194}
+/* 自動配置の確認に出す一覧。枠・名前・職業だけ（個性まで出すと携帯で読めない） */
+.aflist{margin-top:8px;border:1px solid var(--line2);border-radius:3px;overflow:hidden}
+.afrow{display:flex;align-items:center;gap:8px;padding:4px 8px;border-top:1px solid var(--line2)}
+.afrow:first-child{border-top:none}
+.afrow .afs{flex:0 0 2.6em;font-size:11px;opacity:.7}
+.afrow b{flex:1 1 auto;overflow-wrap:anywhere}
+.afrow i{flex:0 0 auto;font-style:normal;font-size:11px;opacity:.75}
 .schip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
 /* 重複して無効になった枠。消さずに「引きが無駄になった」ことを見せる */
 .tchip.dup,.schip.dup{opacity:.35;border-style:dashed;text-decoration:line-through}
@@ -9519,6 +9526,8 @@ function gPartyEdit(p){
     <div class="rlist">${pool.map(line).join('')
       ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'ほかに仲間がいません。'}</div>`}</div>
     <div class="cmds">
+      ${slots.some(x=>x==null)
+        ?'<button class="btn" id="pAuto">空きに控えを入れる</button>':''}
       <button class="btn" id="pBack">部隊一覧へ</button>
     </div>`;
   const redraw=()=>{ saveGuild(); gPartyEdit(p); };
@@ -9566,8 +9575,78 @@ function gPartyEdit(p){
   /* 部隊名は引き直すだけ。手で書かせると名付けで手が止まる。 */
   const pr=$('#pRoll');
   if(pr) pr.onclick=()=>{ p.name=freshPartyName(); saveGuild(); gPartyEdit(p); };
+  /* 空きに控えを入れる。**案を見せてから**入れる（→ planAutoFill）。 */
+  const pa=$('#pAuto');
+  if(pa) pa.onclick=async()=>{
+    const plan=planAutoFill(p);
+    if(!plan.length){
+      await gNotice('入れられる控えがいません。<br>'
+        +'<b>療養中の仲間</b>と<b>他の部隊の仲間</b>は入りません。',{title:'空きに控えを入れる'});
+      return;
+    }
+    const free=partySlots(p).filter(x=>x==null).length;
+    const rows=plan.map(x=>`<div class="afrow"><span class="afs">${
+      x.slot<3?'前':'後'}${x.slot+1}</span><b>${gEsc(x.u.name)}</b><i>${gEsc(x.u.clsName)}</i></div>`).join('');
+    const ok=await gConfirm(
+      (plan.length<free
+        ? `空き <b>${free}枠</b> のうち <b>${plan.length}枠</b> を埋めます。`
+        : `空いている <b>${free}枠</b> を埋めます。`)
+      +'<div class="aflist">'+rows+'</div>',
+      {title:'この配置にしますか？',ok:'この配置にする'});
+    if(!ok)return;
+    /* ★ 窓を開けている間に状況が変わっていないか見直す ★
+       いまは GSUB で裏の描き直しを止めているが、それに頼らない形にしておく。 */
+    const s2=partySlots(p);
+    let n=0;
+    plan.forEach(x=>{
+      if(s2[x.slot]!=null)return;                    // 枠が埋まっていたら飛ばす
+      if(partyOf(x.u)||injured(x.u))return;           // 本人の状況が変わっていたら飛ばす
+      s2[x.slot]=x.u.gid; n++;
+    });
+    GPICK=null; if(n) tutDone('place');
+    redraw();
+  };
   $('#pBack').onclick=()=>{ GPICK=null; renderGuild(); };
   tickLabels();
+}
+
+/* ★ 空き枠に控えを並べる「案」を作るだけ。盤面には一切触らない ★
+   確認の窓に出す内容と、実際に入る内容を**必ず一致させる**ためにこう分けてあります。
+   （見せている物と動いている物がずれる事故を、構造で防ぐ）
+
+   決めごと（→ C-8）
+   ・**配置済みは動かさない。**空いている枠だけを埋める
+   ・**控えだけを見る。**他の部隊からは引き抜かない（`partyOf`）
+   ・**負傷者は入れない。**出撃時に弾かれるので入れても出せない（`injured`）
+   ・**強さは見ない。**名簿順に詰める。見るのは前後だけ
+     — 剣士・重騎士（`FRONT_CLASSES`）を前へ、残りを後ろへ。
+       **3段階で詰めます**：①前枠へ前衛職 ②後枠へ後衛職 ③余った人を残りの枠へ。
+       ⚠️ ①②を先に済ませないと、**前衛職がいない時に後衛を前へ押し出します**
+       （後列が空いているのに魔導士が前に立つ事故）
+
+   ★ 強さ順にしないのは意図です ★
+   同じ職を並べるのが強いと測定で出ているので（→ E-3・E-5）、
+   強さで詰めると**ボタンが最適解の教科書**になり、編成を考える遊びが終わります。
+   「間違い」だけ防いで「最適」は教えない、という線引き。 */
+function planAutoFill(p){
+  const slots=partySlots(p);
+  const free=[];
+  for(let i=0;i<PSLOTS;i++) if(slots[i]==null) free.push(i);
+  if(!free.length) return [];
+  const bench=G.roster.filter(u=>!partyOf(u)&&!injured(u));
+  if(!bench.length) return [];
+  const isF=u=>FRONT_CLASSES.includes(u.clsId);
+  const fs=bench.filter(isF), bs=bench.filter(u=>!isF(u));
+  const plan=[], used=new Set();
+  const put=(slot,u)=>{ plan.push({slot,u}); used.add(slot); };
+  // ① 前枠へ前衛職　② 後枠へ後衛職
+  free.filter(i=>i<3 ).forEach(i=>{ if(fs.length) put(i,fs.shift()); });
+  free.filter(i=>i>=3).forEach(i=>{ if(bs.length) put(i,bs.shift()); });
+  // ③ 余った人を、残っている枠へ（前衛職を優先して前の空きから）
+  const rest=fs.concat(bs);
+  free.filter(i=>!used.has(i)).forEach(i=>{ if(rest.length) put(i,rest.shift()); });
+  plan.sort((a,b2)=>a.slot-b2.slot);
+  return plan;
 }
 
 /* 1人の詳細。検証盤の編集画面をそのまま開く。
