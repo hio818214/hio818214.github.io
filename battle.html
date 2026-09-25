@@ -143,6 +143,8 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .schip{font-size:11px;padding:1px 5px;border-radius:2px;background:#1b2740;border:1px solid #35507a;color:#9dc2ea;line-height:1.5}
 .schip.art{background:#30251b;border-color:#7a5a35;color:#e0b98a}
 .tchip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
+/* 職業特性。3枠とも装備とも別物だと一目で分かるよう、金寄りの色にしてある */
+.tchip.cls{background:#3a3117;border-color:#8a7434;color:#e7d194}
 .schip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
 /* 重複して無効になった枠。消さずに「引きが無駄になった」ことを見せる */
 .tchip.dup,.schip.dup{opacity:.35;border-style:dashed;text-decoration:line-through}
@@ -852,8 +854,8 @@ document.body.className=/[?&]sim(=1)?(&|$)/.test(location.search)?'':'guildmode'
 
   <p class="legend"><b>職業</b>は人間職8種と魔物12種。<b>編成では職業・種族が重複します</b>（同じ職が並ぶこともあります）。
   <b>指揮官</b>だけは必ず《共有》を持ち、素質系の個性を引きやすい代わりに本人の数値は平凡です。職業ごとにHP・攻撃・防御などの配分が違い、<b>引きやすい個性・魔法</b>も決まっています（ヴァンパイアは<b>吸血</b>、スライムは<b>ドヨド</b>など）。ただし固定ではなく<b>重み付き抽選</b>なので、そうならない個体も出ます。味方は人間職、敵は魔物から生成され、どちらもユニットをクリックして<b>職業を変更</b>できます。ユニットをクリックすると<b>個性3枠・スキル3枠</b>の付け替えと実効ステータスを開けます（敵味方とも自由・戦闘中も可）。スキルは<b>魔法</b>（魔力依存）と<b>特技</b>（攻撃依存・命中判定あり）が同じ3枠を奪い合います。
-  <b>魔法のダメージと回復は必ず当たります</b>が、<b>敵に掛けるデバフと状態異常だけは「魔力 ÷ 魔防」で弾かれることがあります</b>
-  （味方へのバフ・回復・状態回復は必ず通ります）。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
+  <b>魔法のダメージと回復は必ず当たります</b>が、<b>敵に掛ける弱体と状態異常だけは「魔力 ÷ 魔防」で弾かれることがあります</b>
+  （味方への強化・回復・状態回復は必ず通ります）。特技には<b>タグ制限</b>があり、剣技は<b>剣所持</b>を持つ職業だけ、専用スキルはその種族だけが抽選で覚えます（ミミックは<b>擬態</b>で全部無視）。状態異常は<b>毒</b>のほかに<b>眠り</b>（次の手番を失い、その間は被ダメ2倍・個性が働かない。殴れば起きる）と<b>休み</b>（次の手番を失うだけ）があります。どちらの枠も<b>「なし」</b>を選択でき、<b>配置から外す</b>でユニット自体を戦線から消せます（点線の枠をクリックで復帰）。上部の<b>人数</b>で味方・敵を0〜7人に即変更。カード上の<b>個性チップ（紫）と魔法チップ（青）にカーソルを合わせると説明</b>が出ます。個性が発動した瞬間はチップが<b>金色</b>に光り、ログに<b>紫色</b>で残ります。<br>
   <b>タグ特効</b> — 《人斬り》《射落とし》《不死狩り》《獣狩り》《石砕き》は、相手の<b>職業タグ</b>を見て与ダメージを上げます。
   倍率は<b>どれも+40%で同じ</b>です。珍しいタグの特効は、<b>単一種族の依頼</b>（7体すべてスケルトン、
   7体すべて石像など）を選べば確実に刺さるので、倍率を上げなくても十分に強くなります。
@@ -1055,23 +1057,23 @@ function talent(id,name,stat,value,desc,vital){
 }
 const TRAITS = {
 /* ---------- バフ・デバフの受け渡し ---------- */
-share:{name:'共有',cat:'受け渡し',desc:'自分がバフを得た時、味方全体に同じバフを60%の値で配る（連鎖は1段まで）。',
+share:{name:'共有',cat:'受け渡し',desc:'自分が強化を得た時、味方全体に同じ強化を60%の値で配る（連鎖は1段まで）。',
   buffApplied(s,c){ if(c.unit!==s||c.buff.kind!=='buff'||c.buff.gen>0||c.buff.noSpread)return;
     const t=allies(s).filter(x=>x!==s&&x.alive); if(!t.length)return;
     proc(s,'share',`${c.buff.label}を味方全体へ`);
     t.forEach(a=>addBuff(a,{...c.buff,value:c.buff.value*0.6,gen:1,src:'共有'},s));}},
-resonate:{name:'共鳴',cat:'受け渡し',desc:'誰かがバフを得た時、敵味方を問わず自分にも50%の値で同じバフが乗る。',
+resonate:{name:'共鳴',cat:'受け渡し',desc:'誰かが強化を得た時、敵味方を問わず自分にも50%の値で同じ強化が乗る。',
   /* noSpread … 値を持たないバフ（カガマシの反射など）は配らない。
      「50%で配る」が意味をなさないうえ、丸ごと配れると強すぎる。 */
   buffApplied(s,c){ if(c.unit===s||c.buff.kind!=='buff'||c.buff.gen>0||c.buff.noSpread)return;
     proc(s,'resonate',`${c.unit.name}の${c.buff.label}に共鳴`);
     addBuff(s,{...c.buff,value:c.buff.value*0.5,gen:1,src:'共鳴'},s);}},
-reflect:{name:'厄返し',cat:'受け渡し',desc:'自分がデバフを受けた時、発生源に同じデバフを返す。ダメージは返さない。',
+reflect:{name:'厄返し',cat:'受け渡し',desc:'自分が弱体を受けた時、発生源に同じ弱体を返す。ダメージは返さない。',
   buffApplied(s,c){ if(c.unit!==s||c.buff.kind!=='debuff'||c.buff.gen>0)return;
     if(!c.source||c.source.side===s.side||!c.source.alive)return;
     proc(s,'reflect',`${c.buff.label}を${c.source.name}へ返した`);
     addBuff(c.source,{...c.buff,gen:1,src:'厄返し'},s);}},
-steal:{name:'奪取',cat:'受け渡し',desc:'自分の通常攻撃が命中した時、その相手が持っているバフをすべて奪い取る。素質は生まれつきなので奪えない。特技・魔法では働かない。',
+steal:{name:'奪取',cat:'受け渡し',desc:'自分の通常攻撃が命中した時、その相手が持っている強化をすべて奪い取る。素質は生まれつきなので奪えない。特技・魔法では働かない。',
   dealt(s,c){ if(c.attacker!==s||!c.normal||!s.alive)return;
     const t=c.target, got=t.buffs.filter(b=>b.kind==='buff'&&!b.perm);
     if(!got.length)return;
@@ -1245,7 +1247,7 @@ kasoku:{name:'先導',cat:'習熟',desc:'自分の手番終了時、最も出番
 /* ---------- 状態・資源・確率・弱い個性 ---------- */
 dokuchi:{name:'毒血',cat:'状態',desc:'自分が毒状態の間、威力+45%。受ける毒ダメージも半減する。',
   mod(s,k){ if(!s.ail.poison)return 1; if(k==='atk'||k==='mat'){s.fired.dokuchi=2;return 1.45;} return 1;}},
-seijou:{name:'無垢解放',cat:'状態',desc:'バフ・デバフ・状態異常が1つも無い間、全能力+10%。素質は生まれつきなので数に入らない。',
+seijou:{name:'無垢解放',cat:'状態',desc:'強化・弱体・状態異常が1つも無い間、全能力+10%。素質は生まれつきなので数に入らない。',
   mod(s,k){ if(s.buffs.some(b=>!b.perm)||s.ail.poison)return 1; s.fired.seijou=2; return 1.10;}},
 seimei:{name:'生命転用',cat:'資源',desc:'MPが足りない時、不足分の2倍のHPを支払って魔法を唱えられる。'},
 kouun:{name:'強運',cat:'確率',desc:'会心率+18%、回避率+8%。', crit(){return 0.18;}, eva(){return 0.08;}},
@@ -1266,14 +1268,14 @@ kibunya:{name:'気分屋',cat:'弱',desc:'自分の手番開始時、ランダ�
 /* ---------- 素質（基礎パラメータの底上げ） ----------
    役割の狭いものほど数値を厚くしてある。素早さは「手番そのものが増える」ので抑えめ。 */
 kyoujin: talent('kyoujin','強靭','def',0.40,
-  '最大HP+40%。さらに戦闘開始時、防御+40%の永続バフが自分に乗る。',{hp:1.4}),
+  '最大HP+40%。さらに戦闘開始時、防御+40%の永続の強化が自分に乗る。',{hp:1.4}),
 eichi:   talent('eichi','叡智','mat',0.40,
-  '最大MP+60%。さらに戦闘開始時、魔力+40%の永続バフが自分に乗る。'
+  '最大MP+60%。さらに戦闘開始時、魔力+40%の永続の強化が自分に乗る。'
   +'MPは魔法を使わない職には無価値なので厚め。',{mp:1.6}),
 makekkai:talent('makekkai','魔結界','mdf',0.60,
-  '戦闘開始時、魔防+60%の永続バフが自分に乗る。'),
+  '戦闘開始時、魔防+60%の永続の強化が自分に乗る。'),
 idaten:  talent('idaten','韋駄天','spd',0.30,
-  '戦闘開始時、素早さ+30%の永続バフが自分に乗る。'),
+  '戦闘開始時、素早さ+30%の永続の強化が自分に乗る。'),
 
 /* ---------- 資源（MPまわり） ---------- */
 mashield:{name:'魔盾',cat:'資源',desc:'HPが減る時、MPがあればMPで肩代わりする。毒や反動にも効く。'},
@@ -1391,7 +1393,7 @@ ryouyou:{name:'療養',cat:'専用',needs:['pr','cm'],
     if(n) proc(s,'ryouyou',`戦いの合間に${n}人を手当てした`);}},
 
 /* ---------- 持続の操作 ---------- */
-tazuna:{name:'自律清流',cat:'持続',desc:'自分にバフ・デバフが掛かった時、自分のバフを1ターン延長し、デバフを1ターン縮める。状態異常には効かない。',
+tazuna:{name:'自律清流',cat:'持続',desc:'自分に強化・弱体が掛かった時、自分の強化を1ターン延長し、弱体を1ターン縮める。状態異常には効かない。',
   buffApplied(s,c){ if(c.unit!==s||!s.alive)return;
     let up=0,dn=0;
     // 今まさに掛かったものも対象。デバフは掛かった瞬間に1ターン削られる。
@@ -1508,7 +1510,7 @@ sekika:{name:'石化',cat:'専用',needs:'gargoyle',
     pop(s,'+'+(s.maxHp-before),'heal');
     addAil(s,'rest',null,s); s.ail.rest=2;}},
 fudou:{name:'不動',cat:'専用',needs:['gargoyle','golem'],
-  desc:'素早さを下げるデバフを受け付けず、行動順を早められたり遅らされたりしない。「いれかえ」で動かされることもない。ガーゴイル・ゴーレム専用。',
+  desc:'素早さを下げる弱体を受け付けず、行動順を早められたり遅らされたりしない。「いれかえ」で動かされることもない。ガーゴイル・ゴーレム専用。',
   buffApplied(s,c){ if(c.unit!==s||c.buff.kind!=='debuff'||!bHits(c.buff,'spd'))return;
     s.buffs=s.buffs.filter(b=>b!==c.buff);
     proc(s,'fudou',`${c.buff.label}を受け付けなかった`);}},
@@ -1585,7 +1587,7 @@ yakkou:{name:'薬効',cat:'専用',needs:'ap',
    「状態異常を防ぐ」と言いながら被ダメージが減るのは、読んで分からない。
    ただし**消すと、持っている仲間の保存が壊れる**。定義は残したまま抽選から外す。 */
 yobou:{name:'予防',cat:'専用',needs:'ap',retired:true,
-  desc:'戦闘開始時、味方全体の魔防+30%（3ターン）。状態異常とデバフを受けにくくなる。',
+  desc:'戦闘開始時、味方全体の魔防+30%（3ターン）。状態異常と弱体を受けにくくなる。',
   battleStart(s){ if(!s.alive)return; proc(s,'yobou','味方に予防薬を配った');
     allies(s).forEach(t=>{ if(t.alive)
       addBuff(t,{label:'予防',stat:'mdf',value:0.30,turns:3,kind:'buff',noSpread:true},s); });}},
@@ -1619,10 +1621,212 @@ saitan:{name:'再誕',cat:'専用',needs:'phoenix',
     proc(s,'saitan','灰から蘇った');
     allies(s).forEach(a=>{ if(a.alive&&a!==s) clearAils(a); });}},
 
+/* ---------- 職業特性 ----------
+   ★ これは3枠に入りません ★
+   clsId から導く別枠なので、保存には持ちません（→ CLS_TRAIT / traitSlots）。
+   定義を直せば、既に居る仲間にも次の描画から効きます。
+
+   ・cls を書いた個性は抽選に出ません（traitAllowed で弾いています）
+   ・needs を持たないので、図鑑の「専用の個性」にも出ません
+   ・3枠に同じものを引くことは無いので、重複で灰色になることもありません */
+tomaranu:{name:'止まらぬ剣',cat:'職業',cls:'sw',
+  desc:'手番のたびに2回行動できる。《二の太刀》と違って休みは付かない。',
+  /* ★ フックを持ちません ★ 手番の輪（loop / simOneBattle）が hasT で直接見ます。
+     《二の太刀》と同じ作りで、そちらに合わせてあります。
+
+     ★ なぜ「倒した時」をやめたか（9/25・実測）★
+     7人（前3・後4）で測ると、剣士は**1戦で1体しか倒しません**（味方全体でも4.4体）。
+     「倒すと」を引き金にする限り、1戦1回の縛りを外しても**上限が1回弱**で、
+     勝率は +0.5pt しか動きませんでした。
+
+     ★ なぜ確率にしなかったか ★
+     「攻撃が当たった時40%」なら +5.3pt になりますが、
+     **TURN ORDER の表示が嘘をつきます**。この作品は並びを見て計画を立てる遊びなので、
+     確率で手番が増えるのは噛み合いません。しかも確率だと表示のしようがない。
+     確定なら `upcoming()` に2回並べられます（→ そちらに実装）。
+
+     ★ 強さ ★ 常に2回で +13.3pt（剣士の手番 6.4→12.5・火力の取り分 17.4%→27.4%）。
+     僧侶(+16.7)・薬師(+12.3)に次ぐ2〜3番手で、帯からは出ていません。 */
+  },
+kakuran:{name:'かく乱',cat:'職業',cls:'rg',
+  desc:'通常攻撃と特技が当たった相手の、次の手番を70%遅らせる。全体特技なら当たった全員。'
+      +'魔法では起きない。同じ相手は1手番に1回まで。',
+  /* ★ 火力ではなく手番を奪う特性 ★
+     斥候は素早さ78（人間職で最高）なのに、45手番目に倒れるせいで
+     手番数は剣士(52)より少ない。素早さを足しても積み上がらないので、
+     速さを「自分の手番」ではなく「相手の手番を削る」方へ使います。
+
+     既存の《遅滞》と同じ仕組みですが、あちらは殴られた時の受け身。こちらは攻め手。
+     魔法を外しているのは、斥候の攻め手が通常攻撃66%＋特技だからです
+     （魔力34では魔法をほとんど引きません）。
+     MPが要るので特技は連発できず、全体特技での全体遅らせも撃ち放題にはなりません。 */
+  dealt(s,c){
+    if(c.attacker!==s||!c.target||c.target.side===s.side)return;
+    if(!(c.normal||c.art))return;                    // 魔法では起きない
+    const t=c.target;
+    if(!t.alive||hasT(t,'fudou'))return;             // 《不動》は行動順を動かされない
+    if(t.cnt.kakuranTurn===turnNo)return;            // 多段で同じ相手を何度も遅らせない
+    t.cnt.kakuranTurn=turnNo;
+    t.ct+=(10000/stat(t,'spd'))*KAKURAN_DELAY;
+    proc(s,'kakuran',`${t.name}の次の手番を遅らせた`);}},
+seiatsu:{name:'制圧射撃',cat:'職業',cls:'ar',
+  desc:'通常攻撃が、狙った相手と同じ列にいる他の敵にも威力25%で当たる。',
+  /* ★ doAttack を使わず calcDamage + applyDamage で撃っています ★
+     doAttack だと canReach の振り替えが働いて、巻き込みのはずが
+     「届く相手」へ勝手に向き直ってしまうため。列を指定して撃つのが目的なので直接撃ちます。
+     splash 旗は自己再帰を止める安全弁。applyDamage → dealt → ここ、と戻ってくるので。 */
+  dealt(s,c){
+    if(c.attacker!==s||!c.normal||c.isExtra||c.splash)return;
+    if(!c.target||c.target.side===s.side)return;
+    const row=allies(c.target).filter(x=>x!==c.target&&x.alive&&isFront(x)===isFront(c.target));
+    if(!row.length)return;
+    proc(s,'seiatsu',`同じ列の${row.length}体を巻き込む`);
+    row.forEach(x=>{ if(!x.alive)return;
+      const k=calcDamage(s,x,{power:0.25,kind:'phys'});
+      k.splash=true; k.isExtra=true; k.noCounter=true; k.tags.push('制圧');
+      applyDamage(k); });}},
+bouheki:{name:'防壁',cat:'職業',cls:'kn',
+  desc:'戦闘開始時に防壁5枚。手番の頭ごとに1枚戻る（上限5枚）。'
+      +'防壁は大きさを問わずダメージ1発を丸ごと吸い、1枚割れる。毒や反動では割れない。',
+  /* 肩代わりと噛み合います（かばった被弾も防壁で受けるので、味方の被弾を丸ごと消せる）。
+     裏を返すと連撃や巻き込みであっという間に割れます。そこが重騎士の使いどころ。
+
+     ★ 手番ごとに1枚戻るので「戦闘の前半だけの特性」になりません ★
+     重騎士は素早さ36で人間職の最低＝手番が少ないので、1枚では被弾に追いつきません。
+     常に薄く張り直し続ける形になり、籠って固める形にはなりません（→ resolveAction の注記）。 */
+  battleStart(s){ if(!s.alive)return; s.barrier=BARRIER_MAX;
+    proc(s,'bouheki',`防壁を${BARRIER_MAX}枚張った`);},
+  turnStart(s,c){ if(c.unit!==s||!s.alive||s.barrier>=BARRIER_MAX)return;
+    s.barrier++; proc(s,'bouheki',`防壁が1枚戻った（${s.barrier}枚）`);}},
+karitate:{name:'狩り立て',cat:'職業',cls:'tm',
+  desc:'自分の攻撃（通常攻撃・特技・魔法）が当たった時、味方の魔物全員が威力50%で追撃する。'
+      +'全体攻撃の時は魔物がそれぞれ別の相手を狙う。魔力の高い魔物は魔力で撃つ。',
+  /* ★ テイマーの**行動**1回につき1度だけ ★
+     魔物どうしが追撃し合う形（《群れ》）は、人数で倍率が壊れました
+     （開幕1発目が6体で3.5倍・定常150%）。引き金をテイマーの手番に縛ると、
+     魔物が何体いても**1巡に1度のまとまった一撃**になります。
+
+     追撃は isExtra なので allyHit を出さず、連鎖しません。
+     KARITATE_MAG を true にすると、魔力の高い魔物は魔力で撃ちます
+     （リッチ・呪いの鏡・マンドラゴラ・フェニックスの4種は攻撃が30前後しかないため）。 */
+  /* 実際の処理は karitateFire()。doAttack と castSpell から1回ずつ呼びます。
+     dealt フックだと全体攻撃で6回鳴ってしまうので、呼び出し側から撃つ形にしてあります。 */
+  },
+junkyou:{name:'殉教',cat:'職業',cls:'pr',
+  desc:'自分が倒れた時、生きている味方を最大HPの25%回復し、'
+      +'倒れている味方全員が最大HPの25%で立ち上がる。',
+  /* death は runOn（倒れた本人だけ）なので、engine を触らずに書けます。
+
+     ★ 回復と蘇生は、前に出す動機を打ち消し合います（9/25・実測600戦）★
+     ・回復は**生きている味方**にしか効かない → 早く倒れるほど対象が多い＝前に出す得
+     ・蘇生は**倒れている味方**が対象 → 長く生き残るほど対象が多い＝後ろに置く得
+     片方だけだと符号が出ます（回復25%＋蘇生25%で前列が+6.3pt有利、
+     蘇生100%だけだと後列が+4.5pt有利）。両方入れると **+1.2pt** でほぼ中立になりました。 */
+  /* ★ 1戦1回の錠 ★ 無いと僧侶2人で永久機関になります（実測 10.3% → 91.8%）。
+     A が倒れて B を起こし、B が倒れて A を起こし、A がまた倒れて…と無限に回るため。
+     cnt は戦闘開始でしか消えないので、立ち上がっても錠は残ります。 */
+  death(s,c){ if(c.unit!==s||s.cnt.junkyouUsed)return;
+    s.cnt.junkyouUsed=1;
+    let rev=0;
+    allies(s).forEach(a=>{ if(a===s)return;
+      if(a.alive){ healRaw(a,Math.max(1,Math.round(a.maxHp*JUNKYOU_HEAL))); return; }
+      if(R(1)>=JUNKYOU_REV)return;
+      a.alive=true; a.hp=Math.max(1,Math.round(a.maxHp*JUNKYOU_HP));
+      a.ct=time+10000/stat(a,'spd'); rev++;
+      addLog(`${a.name} が立ち上がった`,'l-heal'); });
+    proc(s,'junkyou',rev?`味方を癒やし、${rev}人を立たせた`:'最後に味方を癒やした');}},
+joubi:{name:'常備薬',cat:'職業',cls:'ap',
+  desc:'戦闘開始時、味方全体に薬を1つずつ配る。HPが30%を割った瞬間、'
+      +'その薬を飲んで最大HPの15%回復する（1人1戦1回）。自分の手番は使わない。',
+  /* ★ 薬の性能ではなく「配ってある」こと自体が特性 ★
+     スキル側に書ける話ではないので（他人に・事前に・薬師の手番を使わずに起きる）、
+     職業特性の置き場として筋が通ります。
+
+     ★ 僧侶《加護》との住み分け ★
+     僧侶は**倒れる瞬間**に踏みとどまらせる（奇跡）。
+     薬師は**倒れる前**に立て直す（備え）。重なり77%だった2職が別の時間帯を持ちます。
+
+     実装は perm のフラグバフ。新しい欄を作らずに済み、
+     状態チップにも出て、中断復帰の控えにもそのまま乗ります。
+     noSpread なので《共有》《共鳴》では配られません（薬師が配るものなので）。 */
+  battleStart(s){ if(!s.alive)return;
+    const t=allies(s).filter(x=>x.alive);
+    if(!t.length)return;
+    /* ★ 薬師が複数いる時 ★ stack:true なので**量が積み上がります**（枚数は増えない）。
+       1人1戦1回という約束は保ったまま、薬師を重ねる意味が出ます。
+       枚数で積むと「1人が何度でも立ち直る」ことになり、
+       僧侶《加護》で避けたかった「全滅しないパーティ」に寄ってしまうため。 */
+    t.forEach(x=>addBuff(x,{kind:'buff',label:'常備薬',flag:'kusuri',value:KUSURI_HEAL,
+      stack:true,turns:999,perm:true,noSpread:true,src:'常備薬'},s));
+    proc(s,'joubi',`味方${t.length}人に薬を配った`);}},
+jubaku:{name:'呪縛',cat:'職業',cls:'hx',
+  desc:'自分がかけた弱体と状態異常の持続が5ターン延びる。',
+  /* 単体を範囲化する案は取り下げました（魔導士から「単体を選ぶ」選択肢を奪うため）。
+     持続を延ばす形なら、誰の選択肢も減りません。
+     ★ durBonus は「誰に・どんなものを掛けたか」を受け取ります ★
+     指揮官《采配》が同じフックで**強化の側**を延ばすので、向きを見分ける必要があります。
+     自分にかけた反動（背水など）は延ばしません。 */
+  durBonus(s,c){ return (c&&c.buff.kind!=='buff'&&c.unit!==s)?DUR_BONUS:0; }},
+nijuu:{name:'二重詠唱',cat:'職業',cls:'mg',
+  desc:'攻撃魔法は2回撃てる。2回目のMPは半額（威力は同じ）。'
+      +'MPが足りなければ1回で終わる。',
+  /* ★ 実装は castSpell の中 ★ ここはフックを持たないので「常時」タグになります。
+     ・攻撃魔法だけ（特技は対象外）。回復や強化は2回撃っても意味が薄いので
+     ・MPが足りない時は撃ちません（＝MPを温存する選択肢を奪わない）
+     ・2回目は isExtra なので allySkill を出さず、連鎖しません */
+  },
+saihai:{name:'采配',cat:'職業',cls:'cm',
+  desc:'自分がかけた強化の持続が5ターン延びる。自分にかけたものも延びる。',
+  /* 《共有》で配ったぶんも、配ったのが指揮官なので延びます（そこが噛み合いどころ）。
+     「ターン経過で減らない」案は強すぎたのでやめました。 */
+  durBonus(s,c){ return (c&&c.buff.kind==='buff')?DUR_BONUS:0; }},
+
 none:{name:'—',cat:'なし',desc:'個性なし（空き枠）。素の性能を確かめたい時に使います。'},
 };
+/* 職業 → 職業特性。ここに無い職はまだ持っていません（順に足していきます）。 */
+/* 防壁の上限。戦闘開始時もここまで張る。 */
+/* 毒の1手番あたりのダメージ（最大HP比）。
+   ★ 5%では状態異常解除を持ち込む理由が薄かったので上げた（9/25）★ */
+let POISON_PCT=0.10;
+/* 《呪縛》《采配》で延びるターン数。 */
+let DUR_BONUS=5;
+const BARRIER_MAX=5;
+/* 《かく乱》で遅らせる量（相手の1手番ぶんに対する割合）。
+   ★ 実測（7人・300戦）★ 20%で+0.3pt・40%で+4.3pt・70%で+8.3pt。
+   20%では130手番の戦闘で敵の手番を1つ奪うだけでした。 */
+let KAKURAN_DELAY=0.70;
+/* 《常備薬》… いつ飲むか（最大HP比）と、どれだけ戻るか。
+   ★ 測ったら、効きを決めているのは戻る量だけでした（9/25・500戦）★
+   飲む線を 30%／20%／15% と変えても勝率はほぼ同じ。どのみち割り込むからです。
+   戻る量は 25%で+15.0pt・15%で+7.8pt・10%で+4.0pt。
+   他の職業特性が +1〜+9pt なので 15% に置いています。 */
+let KUSURI_AT=0.30, KUSURI_HEAL=0.15;
+/* 《殉教》… 生きている味方への回復量、蘇生率、立ち上がった時のHP（すべて最大HP比）。
+   ★ 実測（600戦）★ 回復25%＋蘇生100% で 後列+11.8pt・前列+13.0pt（＝置き場所に寄らない）。 */
+let JUNKYOU_REV=1.00, JUNKYOU_HP=0.25, JUNKYOU_HEAL=0.25;
+/* 《狩り立て》… 魔力の高い魔物は魔力で追撃するか。
+   ★ false にすると魔法型の魔物（リッチ・呪いの鏡・マンドラゴラ・フェニックス）が
+   ほぼ働きません（実測 +0.6pt 対 +3.4pt）。攻撃が30前後しかないためです。 */
+let KARITATE_MAG=true;
+/* 《二重詠唱》の2回目の威力とMP（1発目に対する割合）。
+   ★ 等倍 / 半額 に落ち着きました（9/25・実測）★
+   ・0.5/0.5 は **MP1.5倍で効果1.5倍**＝比率が変わらず、得をした感じがしない（+1.8pt）
+   ・等倍/等倍 も比率は同じうえ、MPが重くて発動が減る（+2.8pt）
+   ・等倍/**半額** … 威力2.0をMP1.5で買う＝**1.33倍**。ここで初めて「得」になる（+6.3pt）
+   ・等倍/無料 は +10.0〜14.8pt で帯から出るうえ、
+     **倒れた時のMPが46〜53%に増える**（2発目にMPを払わないため）。
+     「余ったMPを火力に変える」という狙いから遠ざかるので採らない。 */
+let NIJUU_POWER=1.0;
+/* ★ 満額だと「主力ほど効かない」★
+   ミナホヤキ(MP24)は満額だと 24×2=48 で **1戦1.2回しか撃てず +0.8pt**。
+   ホヤキ(MP8)なら4.5回撃てて +6.0pt。**魔導士の主力がいちばん恩恵を受けない**形でした。 */
+let NIJUU_MP=0.5;
+const CLS_TRAIT={sw:'tomaranu',kn:'bouheki',rg:'kakuran',ar:'seiatsu',
+  tm:'karitate',pr:'junkyou',ap:'joubi',hx:'jubaku',cm:'saihai',mg:'nijuu'};
+const clsTraitOf=u=>(u&&CLS_TRAIT[u.clsId])||null;
 const TRAIT_IDS=Object.keys(TRAITS).filter(id=>id!=='none');
-const hasT=(u,id)=>u.traits.includes(id)||(typeof eqTraits==='function'&&eqTraits(u).includes(id));
+const hasT=(u,id)=>clsTraitOf(u)===id||u.traits.includes(id)
+  ||(typeof eqTraits==='function'&&eqTraits(u).includes(id));
 /* 個性の needs（種族専用）。スキルの skillAllowed と同じ考え方。
    ミミックは《擬態》で全部素通しにする（スキル側と揃える）。 */
 function traitAllowed(t,cls){
@@ -1630,6 +1834,9 @@ function traitAllowed(t,cls){
   /* heroOnly は擬態でも素通しにしない。抽選で出てはいけないものなので、
      《擬態》の例外より先に弾く。付けるのは guildUnit の opt.fixed だけ。 */
   if(t.heroOnly)return false;
+  /* ★ 職業特性は抽選に出ない ★ 職業に付いてくるものなので、引いても二重になるだけ。
+     《擬態》の例外より先に弾く（ミミックが剣士の特性を拾ってはいけない）。 */
+  if(t.cls)return false;
   /* ★ 引退した個性 ★ 役目を別のものへ移したが、**消すと保存が壊れる**ので残してある。
      持っている仲間はそのまま働くが、これから引かれることはない。 */
   if(t.retired)return false;
@@ -1685,7 +1892,7 @@ const SPELLS=[
  {id:'fire',   name:['ホヤキ','ホヤキ・強','ホヤキ・極'],
   kind:'magic',type:'atk',   scope:'one', mp:8, power:[1.7,2.1,2.6],
   desc:'単体に魔力×${power}の魔法ダメージ。魔防で軽減される。'},
- {id:'inferno',name:['ミナホヤキ','ミナホヤキ・強'],  kind:'magic',type:'atk',   scope:'all', mp:24, power:[1.0,1.1],
+ {id:'inferno',name:['ミナホヤキ','ミナホヤキ・強'],  kind:'magic',type:'atk',   scope:'all', mp:24, power:[0.8,0.9],
   desc:'敵全体に魔力×${power}の魔法ダメージ。敵が多いほど総ダメージが伸びる。'},
  {id:'blast',  name:['ダホヤキ','ダホヤキ・強'],    kind:'magic',type:'atk',   scope:'one', mp:16, power:[2.8,3.0],
   desc:'単体に魔力×${power}の大魔法ダメージ。単体火力の最上位。'},
@@ -1717,16 +1924,24 @@ const SPELLS=[
     数値を上げるのではなく**状態を付ける**強化なので、stat を持たない。
     castSpell が flag を見て、呪いの鏡の《魔法反射》と同じ扱いにする。
 
-    ★ 《共有》《共鳴》では配らない（noSpread）★
-    あれは「60%・50%の値で配る」仕組みで、値を持たないものは割りようがない。
-    丸ごと配れると、指揮官1人で全員が3ターン反射になってしまう。
+    ★ 《共有》《共鳴》で配れます（noSpread を外した・9/25）★
+    値を持たないので「60%で配る」は効かず、**丸ごと**配られます。
+    指揮官1人で全員が3ターン反射になりますが、**それでも軸としては成立しません**
+    （実測：全員に配れる形で平均44.6%。物理前衛と耐久に0%）。
+    反射は物理にまったく効かないので、手番を払うぶん物理編成には損になります。
+
+    ⚠️ **《共鳴》は敵味方を問わず乗ります。**敵に共鳴持ちがいると、
+       こちらがカガマシを掛けた瞬間に**敵まで反射持ちになります**。
+       ⚠️ **《奪取》で奪われます**（perm ではないので）。
+       この2つが「使うキャラで効果が変わる」の本体で、狙いどころでもあります。
 
     ⚠️ MP16 は ヨマシ(9) より重くしてあるが、根拠は「反射のほうが強いから」だけ。
        魔法を撃たない相手には完全に無駄になるので、実戦で見て動かすこと。 */
  {id:'kagami', name:'カガマシ',    kind:'magic',type:'buff',  scope:'one', mp:16,
-  flag:'reflect',value:0,turns:3,noSpread:true,
+  flag:'reflect',value:0,turns:3,
   desc:'味方単体に「自分へ向けられた魔法を、撃った本人へ跳ね返す」状態を付与（${turns}ターン）。'
-      +'味方からの回復や強化も返るので、掛ける相手を選ぶこと。特技は返らない。'},
+      +'味方からの回復や強化も返るので、掛ける相手を選ぶこと。特技は返らない。'
+      +'《共有》で味方全体へ、《共鳴》で敵にも広がる。'},
  {id:'blur',   name:'ヨマシ',      kind:'magic',type:'buff',  scope:'one', mp:9,  stat:'eva',value:0.22, turns:3,
   desc:'味方単体の回避率${value}（${turns}ターン）。素早さの差や《軽業》と足し合わさる。《必中》には無効。'},
  {id:'weaken', name:'ワソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'atk',value:-0.30,turns:3,
@@ -1738,7 +1953,7 @@ const SPELLS=[
  {id:'slow',   name:'ハソギ',      kind:'magic',type:'debuff',scope:'one', mp:7,  stat:'spd',value:-0.30,turns:3,
   desc:'敵単体の素早さ${value}（${turns}ターン）。行動順を後ろへ落とす。'},
  {id:'venom',  name:'ドヨド',      kind:'magic',type:'ail',   scope:'one', mp:9,  ail:'poison',turns:4,
-  desc:'敵単体を毒状態に（${turns}ターン）。毎手番終了時に最大HPの5%を失う。'},
+  desc:'敵単体を毒状態に（${turns}ターン）。毎手番終了時に最大HPの10%を失う。'},
  {id:'sleep',  name:'ネヨド',      kind:'magic',type:'ail',   scope:'one', mp:10, ail:'sleep',
   desc:'敵単体を眠らせる。次の手番を失い、その間は被ダメージ+100%・個性が働かない。殴れば起きる。'},
  /* 封魔。**与える側も魔法にしてある** —
@@ -1767,6 +1982,31 @@ const SPELLS=[
  {id:'hayabusa',name:['隼斬','隼斬・改','真隼斬'],
   kind:'art',type:'atk',scope:'one',mp:10,power:[0.8,1.0,1.2],hits:[2,2,3],needs:'剣所持',
   desc:'同じ対象へ攻撃×${power}を${hits}回。命中判定も${hits}回行う。'},
+/* ---------- 射手の特技 ----------
+   ★ `射手` タグは既に**すべての攻撃で列を無視します**（→ reachable）★
+   なので「後列を撃てる」系は弓兵には意味がありません。手数・とどめ・妨害で分けます。
+
+   これが無いと、弓兵の特技は体当たり1つしかなく、
+   **必ず「体当たり＋魔法2つ」**になっていました（spBias が3件だけだった）。
+
+   ケンタウロスにも入ります（剣所持と同じ、タグで共有する形）。 */
+ {id:'rensha',  name:['連射','連射・改'],kind:'art',type:'atk',scope:'one',mp:12,
+  power:[0.7,0.85],hits:3,needs:'射手',
+  desc:'同じ対象へ攻撃×${power}を${hits}回。命中判定も${hits}回行う。'},
+ {id:'tomeya',  name:['止めの矢','止めの矢・改'],kind:'art',type:'atk',scope:'one',mp:12,
+  power:[1.2,1.5],exec:{hp:0.3,mul:2},needs:'射手',
+  desc:'攻撃×${power}。相手のHPが30%以下なら威力が2倍になる。'},
+ {id:'ashidome',name:['足留めの矢','足留めの矢・改'],kind:'art',type:'atk',scope:'one',mp:10,
+  power:1.0,debuffOn:{stat:'spd',value:-0.35,turns:3},needs:'射手',
+  desc:'攻撃×${power}。当たった相手の素早さ${debuffValue}（${debuffTurns}ターン）。'
+      +'特技なので封魔されない。'},
+ {id:'dokuya',  name:['毒矢','毒矢・改'],kind:'art',type:'atk',scope:'one',mp:10,
+  power:0.9,ail:'poison',ailChance:[0.5,0.7],turns:4,needs:'射手',
+  desc:'攻撃×${power}。${ailChance}の確率で毒（${turns}ターン）。'},
+ {id:'issei',   name:['一斉射撃','一斉射撃・改'],kind:'art',type:'atk',scope:'all',mp:16,
+  power:[0.5,0.6],needs:'射手',
+  desc:'敵全体へ攻撃×${power}。'},
+
  {id:'taiatari',name:'体当たり',kind:'art',type:'atk',scope:'one',mp:6, power:1.3,recoil:0.1,
   desc:'対象へ攻撃×${power}。反動で与えたダメージの${recoil}を自分も受ける。'},
  /* 飛竜から獣を外したので、牙と爪は竜にも開けてある。
@@ -1869,12 +2109,32 @@ const SPELLS=[
 
     ⚠️ 状態異常だけで、**デバフ（ワソギ等）は防がない**。
        魔防で受けていた頃は両方に効いていたので、そこは弱くなっている。 */
+ /* ★ 引退（9/25）★ 役目は《万能薬》へ畳みました。
+    単体に3〜6ターンの予防を貼る形は、**7人を覆えないのに手番を食う**ので、
+    実測で**勝率を1.3pt下げていました**（既定行が「強化がない味方」へ順に貼りに行くため）。
+    予防そのものは「解除のついで」に付ける方が、手番を無駄にしません。
+    定義は残す（消すと持っている仲間の保存が壊れる）。 */
  {id:'yobouyaku',name:['予防薬','上予防薬','高級予防薬','特製予防薬'],kind:'art',type:'buff',scope:'one',mp:12,
-  flag:'noail',value:0,turns:[3,4,5,6],noSpread:true,alwaysHit:true,needs:'ap',
+  flag:'noail',value:0,turns:[3,4,5,6],noSpread:true,alwaysHit:true,needs:'ap',retired:true,
   desc:'味方単体を${turns}ターンのあいだ状態異常にかからなくする。'
-      +'毒・眠り・休み・宣告・封魔のすべてを弾く。デバフは防げない。薬師専用。'},
- {id:'gedoku',   name:'万能薬',kind:'art',type:'cure',scope:'one',mp:10,alwaysHit:true,needs:'ap',
-  desc:'味方単体の状態異常をすべて解除する。特技なので、封魔されていても使える。薬師専用。'},
+      +'毒・眠り・休み・宣告・封魔のすべてを弾く。弱体は防げない。薬師専用。'},
+ /* ★ 解除＋予防のひとまとめ（9/25）★
+    「いま付いているものを剥がし、しばらく付かなくする」。
+    既定の行が **has_ail（状態異常にかかっている味方）** なので、
+    予防だけを貼りに行って手番を無駄にすることがありません。
+
+    ★ みんなに万能薬との住み分け ★
+    こちらは**1人を深く**（解除＋予防）、あちらは**全員を浅く**（解除だけ）。
+    どちらかが上位互換にならないよう、全体側には予防を付けていません。 */
+ {id:'gedoku',   name:['万能薬','上万能薬','秘伝の万能薬'],kind:'art',type:'cure',scope:'one',mp:14,
+  flag:'noail',turns:[3,4,5],alwaysHit:true,needs:'ap',
+  desc:'味方単体の状態異常をすべて解除し、さらに${turns}ターンのあいだ状態異常にかからなくする。'
+      +'特技なので、封魔されていても使える。薬師専用。'},
+ /* 薬師は魔法をほとんど引かない（魔力20）ので、**強化の手段を持っていません**。
+    特技のバフなら封魔で止まらないので、「封魔されても働ける職」という筋とも合います。 */
+ {id:'kyousou',  name:['強壮薬','上強壮薬'],kind:'art',type:'buff',scope:'one',mp:12,
+  stat:['atk','def'],value:[0.30,0.40],turns:4,alwaysHit:true,needs:'ap',
+  desc:'味方単体の攻撃と防御${value}（${turns}ターン）。特技なので封魔されない。薬師専用。'},
  {id:'bannou',   name:'みんなに万能薬',kind:'art',type:'cure',scope:'all',mp:26,alwaysHit:true,needs:'ap',
   desc:'味方全体の状態異常をすべて解除する。薬師専用。'},
  /* ★ 消費0のMP回復 ★
@@ -2016,7 +2276,11 @@ const skillTip=(sp,u)=>`【${spName(sp,u)}】${skillKind(sp)}／MP${u?mpCost(u,s
 
 /* この職業がそのスキルを抽選で引けるか。編集画面での手動選択には効かない。 */
 function skillAllowed(sp,cls){
-  if(!sp||!sp.needs)return true;
+  if(!sp)return true;
+  /* ★ 引退したスキル ★ 役目を別のものへ移したが、**消すと保存が壊れる**ので残してある。
+     持っている仲間はそのまま使えるが、これから引かれることはない（個性の retired と同じ）。 */
+  if(sp.retired)return false;
+  if(!sp.needs)return true;
   if(!cls)return true;
   if(cls.tags&&cls.tags.includes('擬態'))return true;   // ミミックは何でも出る
   const need=Array.isArray(sp.needs)?sp.needs:[sp.needs];
@@ -2060,11 +2324,14 @@ const EQUIPS=[
  {id:'w_sage',  n:'賢者の杖',    slot:'w',stats:{mat:0.14,mp:0.20},    desc:'魔力を溜めておける。'},
  {id:'w_cursed',n:'呪われた刃',  slot:'w',stats:{atk:0.34,hp:-0.18},   desc:'持ち主の生命を削って斬る。'},
  /* ---------- 防具 ---------- */
- {id:'a_leather',n:'革鎧',       slot:'a',stats:{def:0.15},            desc:'軽くて動ける。'},
- {id:'a_plate',  n:'鋼鎧',       slot:'a',stats:{def:0.26,spd:-0.10},  desc:'硬いが重い。'},
+ /* ★ 鎧は魔力を下げる ★ 金属や厚い革で身体を固めると詠唱の邪魔になる、という筋。
+    ローブ・護符・マント・軽装には付けません（防具＝鎧ではないので）。
+    これが無いと、防御と魔防を両方上げる竜鱗の鎧が**10職中7職で最良**になっていました。 */
+ {id:'a_leather',n:'革鎧',       slot:'a',stats:{def:0.15,mat:-0.08},  desc:'軽くて動ける。少しだけ詠唱の邪魔になる。'},
+ {id:'a_plate',  n:'鋼鎧',       slot:'a',stats:{def:0.26,spd:-0.10,mat:-0.25},  desc:'硬いが重い。魔力はかなり落ちる。'},
  {id:'a_robe',   n:'ローブ',     slot:'a',stats:{mdf:0.20},            desc:'魔に強い。'},
  {id:'a_mrobe',  n:'魔導のローブ',slot:'a',stats:{mdf:0.15,mp:0.15},   desc:'魔を退け、魔力も溜まる。'},
- {id:'a_scale',  n:'竜鱗の鎧',   slot:'a',stats:{def:0.20,mdf:0.20,spd:-0.10},desc:'物理にも魔にも強いが鈍い。'},
+ {id:'a_scale',  n:'竜鱗の鎧',   slot:'a',stats:{def:0.20,mdf:0.20,spd:-0.10,mat:-0.20},desc:'物理にも魔にも強いが鈍く、魔力も落ちる。'},
  {id:'a_amulet', n:'守りの護符', slot:'a',stats:{hp:0.18},             desc:'身体を保たせる。'},
  {id:'a_cloak',  n:'疾風のマント',slot:'a',stats:{spd:0.18},           desc:'行動順が繰り上がる。'},
  {id:'a_light',  n:'軽装',       slot:'a',stats:{def:0.08,spd:0.12},   desc:'守りは薄いが身軽。'},
@@ -2129,13 +2396,50 @@ const canEquip=u=>u.clsKind==='human';
 const emptyEquip=()=>({w:null,a:null});
 /* 生成直後のユニットには、所持品から空いているものを当てる。
    在庫が無ければ新しく作る（初期化時はここで在庫が育つ）。 */
+/* ★ その職にとっての装備の点数 ★
+   「+12%」のような割合は、**元の数字が大きい人ほど得**です。
+   なので素の能力値を重みに使えば、職業ごとの向き不向きがそのまま出ます。
+   剣士(攻撃78)なら 鋼の剣 0.20 → 15.6、魔道書 0.20 → 5.6（魔力28なので）。
+
+   HPとMPだけは桁が違うので割って揃えています（HPは1/12、MPは1/2）。
+   根拠のある数字ではないので、効きを見ておかしければここを動かしてください。 */
+function eqScore(u,it){
+  const d=invDef(it); if(!d)return -1e9;
+  const b=u.base||{};
+  /* ★ 魔力とMPは「魔法を持っている人」にだけ意味がある ★
+     これが無いと、魔力28の剣士が鎧の「魔力-25%」を嫌って軽装を選びます。
+     持っている魔法の数で割り引くので、**同じ職でも持ち物で選ぶ装備が変わります**。 */
+  const magic=spellsOf(u).filter(id=>SP[id]&&!isArt(SP[id])).length;
+  const mw=magic?1:0.2;
+  let s=0;
+  for(const k in (d.stats||{})){
+    const v=d.stats[k];
+    if(k==='hp')      s+=(u.maxHp/12)*v;
+    else if(k==='mp') s+=(u.maxMp/2)*v*mw;
+    else if(k==='mat')s+=(b.mat||0)*v*mw;
+    else              s+=(b[k]||0)*v;
+  }
+  /* 付与は「その人が使えて、まだ持っていない」時だけ加点。
+     重複は無効になるので（→ liveFlags）、点にしない。 */
+  const cls=clsOf(u);
+  if(it.spell&&SP[it.spell]&&skillAllowed(SP[it.spell],cls)
+     &&!spellsOf(u).includes(it.spell)) s+=10;
+  if(it.trait&&TRAITS[it.trait]&&traitAllowed(TRAITS[it.trait],cls)
+     &&!u.traits.includes(it.trait)) s+=8;
+  return s;
+}
+/* 所持品から**その職に合うもの**を選ぶ。同点なら引き直しで変わるよう、乱数で崩す。 */
 function rollEquip(u){
   if(!canEquip(u)) return null;
   const e=emptyEquip();
   ['w','a'].forEach(s=>{
     let free=invSlot(s).filter(x=>!equippedBy(x.iid));
     if(!free.length&&INV.length<invCap()) free=[invCreate(s)];
-    if(free.length) e[s]=pick(free).iid;
+    if(!free.length) return;
+    let best=null,bv=-1e9;
+    free.forEach(it=>{ const v=eqScore(u,it)+R(0.5);   // 同点をほぐすぶんだけの揺らぎ
+      if(v>bv){bv=v;best=it;} });
+    e[s]=best.iid;
   });
   return e;
 }
@@ -2163,7 +2467,13 @@ function liveFlags(ids){
 /* 個性の枠。本人3枠 ＋ 防具の1枠。 */
 function traitSlots(u){
   const t=eqTraitRaw(u);
-  const list=u.traits.map(id=>({id,src:'base'}));
+  /* ★ 職業特性を先頭に置く ★
+     重複を落とすのは「先に出てくる方だけを有効にする」仕組みなので、
+     先頭に置けば装備や3枠の側が灰色になり、職業特性は必ず生き残ります。
+     （職業特性は抽選に出ないので、実際にぶつかるのは装備の付与くらいです） */
+  const ct=clsTraitOf(u);
+  const list=ct?[{id:ct,src:'cls'}]:[];
+  u.traits.forEach(id=>list.push({id,src:'base'}));
   if(t) list.push({id:t,src:'eq'});
   const live=liveFlags(list.map(x=>x.id));
   list.forEach((x,i)=>x.live=live[i]);
@@ -2279,7 +2589,9 @@ const CLASSES=[
   tags:['人型','射手'],
   desc:'後列から高い攻撃を通す。速さと火力の両立型。',
   bias:{iotoshi:18,atooi:16,mustHit:14,mekiki:12,kanjuku:12,tsuitou:10,kemonogari:8,shokei:7,jukkou:5},
-  spN:2, spBias:{taiatari:10,fire:10,slow:12}},
+  /* 特技が体当たり1つしかなく「体当たり＋魔法2つ」に固まっていたので、
+     射手の特技5つを足して配分を組み直した（9/25）。 */
+  spN:2, spBias:{rensha:20,tomeya:18,ashidome:14,dokuya:12,issei:10,taiatari:6,fire:8,slow:8}},
  {id:'hx',n:'呪術師', c:'HX',kind:'human',hp:390,mp:70,atk:36,def:36,mat:80,mdf:60,spd:50,
   tags:['人型'],
   desc:'毒と呪いで削る魔法職。継続ダメージが本体。相手の魔法を封じる唯一の職でもある。',
@@ -2290,7 +2602,7 @@ const CLASSES=[
  {id:'cm',n:'指揮官', c:'CM',kind:'human',hp:480,mp:50,atk:52,def:52,mat:52,mdf:52,spd:50,
   tags:['人型','剣所持'], fixed:['share'],
   desc:'本人の数値はすべて平凡。ただし必ず《共有》を持ち、素質系の個性を引きやすい。'
-      +'自分に掛かったバフを味方全体へ配るのが仕事。',
+      +'自分に掛かった強化を味方全体へ配るのが仕事。',
   bias:{gourei:20,tazuna:14,kyoujin:14,eichi:14,makekkai:10,idaten:10,resonate:10,gunshi:8,mitodoke:6},
   spN:2, spBias:{rally:18,guardup:14,haste:12,mrally:12,manacharge:10}},
  /* ★ 物理系の回復役 ★
@@ -2308,7 +2620,8 @@ const CLASSES=[
   desc:'薬で治す回復役。回復量は決まった割合で、魔力に左右されない。'
       +'封魔されても治療を続けられる唯一の職。',
   bias:{yakkou:24,seijou:14,regen:12,share:10,surplus:8,gunshi:6,ryouyou:6},
-  spN:2, spBias:{kizugusuri:22,mayaku:18,gedoku:16,yobouyaku:14,bannou:10,taiatari:5}},
+  /* 予防薬を引退させ、役目を万能薬へ畳んだぶん、空いた枠に強壮薬を入れた（9/25）。 */
+  spN:2, spBias:{kizugusuri:22,mayaku:18,gedoku:16,bannou:14,kyousou:14,taiatari:5}},
  /* ★ 戦闘の外で働く職 ★
     数値はどれも平凡で、7枠を1つ食うぶんは確実に弱くなる。**それがコスト。**
     見返りは戦闘ではなく「魔物が仲間になる」こと。
@@ -2490,7 +2803,7 @@ const CLASSES=[
   tags:['獣','四足','射手'],
   desc:'後列を直接射抜いてくる。速く、狙いが正確で、前に出て守る意味を薄れさせる。',
   bias:{nerai:24,shissou:16,iotoshi:14,mekiki:12,sakigake:10,tsuitou:8,kemonogari:6},
-  spN:2, spBias:{yatsugi:20,teigeki:16,kamitsuki:10,taiatari:6}},
+  spN:2, spBias:{yatsugi:20,teigeki:16,rensha:12,ashidome:10,kamitsuki:10,issei:8,taiatari:6}},
 
  /* 状態異常が一切効かない壁。**ただし物理に硬く魔法に脆い**（防御92／魔防30）。
     毒・眠り・封魔で削る編成に「通じない相手」を作りつつ、
@@ -2925,7 +3238,7 @@ function resetUnit(u){
   u.name=u.name0||u.name;
   u.gunshiMp=0;                           // maxMpを職業から組み直したので《軍資》の控えも消す
   u.carried=false;                        // 持ち越しではない＝連戦の1戦目
-  u.hp=u.maxHp; u.mp=u.maxMp; u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0;
+  u.hp=u.maxHp; u.mp=u.maxMp; u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0; u.barrier=0;
   u.alive=true; u.guard=false; u.lastAct=null; u.ct=time+10000/stat(u,'spd');
 }
 /* =========================================================
@@ -3100,6 +3413,17 @@ function addBuff(u,b,src){
   /* 《共有》《共鳴》《厄返し》《奪取》は {...c.buff} でバフを写すので、
      配列の stat をそのまま渡すと複数ユニットが同じ配列を共有してしまう。ここで切る。 */
   if(Array.isArray(b.stat)) b.stat=b.stat.slice();
+  /* ★ 持続の延長（呪縛・采配）★ 掛けた側の個性で見る。
+     向き（強化か弱体か）と相手（自分か他人か）は**フック側で見分けます**。
+     ここで決め打ちすると、呪術師と指揮官で条件が食い違うため。
+     perm は期限そのものが無いので触りません。
+     sumHook なので、将来ほかの職が同じフックを持っても素直に積めます。 */
+  /* ★ gen>0 は除く ★ 《共有》《共鳴》《奪取》は {...c.buff} で**延長済みの写し**を配るので、
+     ここで数えると二重に延びます（3 → 本人5 → 配られた先7）。
+     延ばすのは「自分が最初に掛けた1回」だけ。 */
+  if(src&&src.traits&&!b.perm&&!b.gen&&b.turns>0){
+    const d=sumHook(src,'durBonus',{buff:b,unit:u}); if(d) b.turns+=d;
+  }
   const ex=u.buffs.find(x=>x.label===b.label&&bStatKey(x)===bStatKey(b));
   if(ex){ ex.turns=Math.max(ex.turns,b.turns);
           // stack 同士なら足して積む（素質を複数人から配られる場合）。
@@ -3122,7 +3446,7 @@ function addBuff(u,b,src){
   finally{ buffDepth--; }
 }
 /* 状態異常
-   poison … ターン制。手番終了ごとに削れる
+   poison … ターン制。手番終了ごとに**最大HPの10%**削れる（→ POISON_PCT）
    sleep  … 次の手番を 1 回失う。時間では減らない
               ・受けるダメージが2倍
               ・ダメージを受けると即座に解除（起きる）
@@ -3175,7 +3499,7 @@ const CAT_BY_HOOK={
   death:'倒れた後',
   buffApplied:'掛かった時', healed:'掛かった時',
   allySkill:'掛かった時',   swapped:'掛かった時',
-  mod:'常時',               healBoost:'常時',
+  mod:'常時',               healBoost:'常時',  durBonus:'常時',
 };
 /* ★ 軸1「いつ働くか」★（→ backlog C-6 軸1）
    **タグの配列**を返す。1つに決められないものが現に10件あるので、単一では表せない
@@ -3223,7 +3547,13 @@ function addAil(u,name,turns,src){
   // 眠りと休みは同時に付かない。後から付いた方で上書きする。
   if(name==='sleep') delete u.ail.rest;
   if(name==='rest')  delete u.ail.sleep;
-  u.ail[name]=AIL_TIMED[name]?(turns||3):1;
+  /* ターン制の状態異常だけ延長する。眠り・休みは「次の手番を1回失う」ので
+     ターン数という概念が無く、延ばしても意味がない（AIL_TIMED でない＝1固定）。 */
+  let tn=AIL_TIMED[name]?(turns||3):1;
+  if(AIL_TIMED[name]&&src&&src.traits){
+    const d=sumHook(src,'durBonus',{buff:{kind:'ail'},unit:u}); if(d) tn+=d;
+  }
+  u.ail[name]=tn;
   addLog(`${u.name} は ${AIL_LABEL[name]||name} 状態になった`,'l-debuff');
   emit('ailApplied',{unit:u,ail:name,source:src});
 }
@@ -3278,6 +3608,19 @@ function loseHp(u,d){
     pop(u,'-'+paid,'mp');
   }
   u.hp-=d;
+  /* ★ 《常備薬》（薬師の職業特性）★ HPが30%を割った瞬間に1回だけ効く。
+     ここ（loseHp）に置くので、通常攻撃でも魔法でも毒でも反動でも等しく働きます。
+     薬は戦闘前に配ってあるので、薬師が先に倒れていても残ります。 */
+  if(u.alive&&u.hp>0&&u.hp<u.maxHp*KUSURI_AT){
+    const i=(u.buffs||[]).findIndex(b=>b.flag==='kusuri');
+    if(i>=0){
+      const rate=u.buffs[i].value||KUSURI_HEAL;   // 薬師が複数なら積み上がっている
+      u.buffs.splice(i,1);
+      const h=Math.max(1,Math.round(u.maxHp*rate));
+      healRaw(u,h);
+      addLog(`${u.name} は常備薬を飲んだ（HP+${h}）`,'l-heal');
+    }
+  }
   return d;
 }
 /* スキルの実消費MP。増幅で1.5倍、消費軽減で3/4。両方持てば相殺されて等倍。 */
@@ -3338,6 +3681,15 @@ function calcDamage(a,t,opt){
 function applyDamage(ctx){
   if(ctx.redirected&&ctx.redirected.alive&&ctx.redirected!==ctx.target) ctx.target=ctx.redirected;
   const t=ctx.target;
+  /* ★ 防壁 ★ 大きさを問わず1発を丸ごと吸って1枚割れる。
+     肩代わりの振り替えが済んだ**あと**に見るので、かばった側の防壁で受ける。
+     毒・反動・棘返しは rawDamage を通るのでここに来ない＝防壁を削らない。 */
+  if(t.barrier>0){
+    t.barrier--;
+    pop(t,'防壁','miss'); shake(t);
+    addLog(`${ctx.attacker.name} の攻撃は ${t.name} の防壁が吸った（残り${t.barrier}）`,'l-sys');
+    return;
+  }
   /* 総与ダメージの集計。
      通常攻撃とスキルで相手へ直接与えたぶんだけを数える。
      毒・反動・棘返しは rawDamage を通るのでここには来ない（＝計上されない）。
@@ -3376,6 +3728,20 @@ function dodged(a,t){
   emit('missed',{attacker:a,target:t});
   return true;
 }
+/* 《狩り立て》の本体。テイマーの行動1回につき1度だけ呼ばれます。
+   pick は狙う相手を返す関数。単体なら毎回同じ相手、全体なら魔物ごとに引き直します。 */
+function karitateFire(a,pick){
+  if(!a||!a.alive||!hasT(a,'karitate'))return;
+  const mons=allies(a).filter(x=>x!==a&&x.alive&&x.clsKind==='monster'&&!asleep(x));
+  if(!mons.length)return;
+  proc(a,'karitate',`魔物${mons.length}体を差し向けた`);
+  mons.forEach(m=>{ if(!m.alive)return;
+    const t=pick(); if(!t||!t.alive)return;
+    /* 魔力の高い魔物は魔力で撃ちます。物理固定だとリッチ・呪いの鏡・マンドラゴラ・
+       フェニックスの4種（攻撃30前後）がほとんど働かないため。 */
+    const useMag=KARITATE_MAG&&stat(m,'mat')>stat(m,'atk');
+    doAttack(m,t,{power:0.5,isExtra:true,kind:useMag?'mag':'phys'}); });
+}
 function doAttack(a,t,opt={}){
   if((!a.alive&&!opt.fromDead)||!t||!t.alive)return;
   // 通常攻撃は列の制限を受ける。届かない相手を指定されたら届く相手へ振り替える。
@@ -3383,12 +3749,15 @@ function doAttack(a,t,opt={}){
   if(dodged(a,t))return;
   if(!hitCheck(a,t)){ pop(t,'MISS','miss'); addLog(`${a.name} の攻撃は外れた`,'l-sys');
     emit('missed',{attacker:a,target:t}); return; }
-  const ctx=calcDamage(a,t,{power:opt.power||1,kind:'phys'});
+  const ctx=calcDamage(a,t,{power:opt.power||1,kind:opt.kind||'phys'});
   ctx.noCounter=!!(opt.noCounter||opt.isExtra);
   ctx.isExtra=!!opt.isExtra;
   ctx.normal=true;          // 「通常攻撃命中時」系の個性（奪取・崩し・毒撃・吸魔）はこれを見る
   applyDamage(ctx);
-  if(!opt.isExtra) emit('allyHit',{attacker:a,target:ctx.target});
+  if(!opt.isExtra){
+    emit('allyHit',{attacker:a,target:ctx.target});
+    karitateFire(a,()=>ctx.target);
+  }
 }
 function castSpell(a,sp,target,o={}){
   /* ★ 値は必ず spEff を通す ★
@@ -3481,6 +3850,7 @@ function castSpell(a,sp,target,o={}){
         if(sp.frontHalf&&isFront(a)) pw*=0.5;                  // 不意打ち … 前列からでは活きない
         if(low) pw*=sp.exec.mul;
         const ctx=calcDamage(a,t,{power:pw,kind:dmgKind});
+        ctx.art=art;              // 特技かどうか。《かく乱》が「魔法以外」を見分けるのに使う
         ctx.noCounter=!!o.isExtra;
         applyDamage(ctx);
         dealt+=ctx.dmg; firstHit=firstHit||ctx.target;
@@ -3504,6 +3874,13 @@ function castSpell(a,sp,target,o={}){
     }
     if(sp.selfRest&&a.alive) addAil(a,'rest',null,a);          // 急降下 … 撃ったら次が飛ぶ
     if(!o.isExtra&&firstHit) emit('allyHit',{attacker:a,target:firstHit});
+    /* 《狩り立て》… 特技でも魔法でも、ダメージが通ったら1度だけ。
+       全体攻撃の時は魔物ごとに相手を引き直します（1体に全部集めると過剰なので）。 */
+    if(!o.isExtra&&dealt>0&&hasT(a,'karitate')){
+      const all=sp.scope==='all';
+      karitateFire(a,()=>{ if(!all)return firstHit;
+        const c=aliveOf(otherSide); return c.length?c[RI(c.length)]:null; });
+    }
 
   } else if(sp.type==='heal'){
     const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
@@ -3530,7 +3907,11 @@ function castSpell(a,sp,target,o={}){
   } else if(sp.type==='cure'){
     const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
     let any=false;
-    tg.forEach(t=>{ if(t.alive&&clearAils(t)) any=true; });
+    tg.forEach(t=>{ if(!t.alive)return;
+      if(clearAils(t)) any=true;
+      /* 解除のついでに予防を貼る（万能薬）。値を持たないフラグのバフ。 */
+      if(sp.flag) addBuff(t,{label:E.base,turns:E.turns,value:0,
+        kind:'buff',flag:sp.flag,noSpread:true},a); });
     if(!any) addLog(`${E.name} — 治す状態異常が無かった`,'l-sys');
 
   } else if(sp.type==='evade'){
@@ -3552,7 +3933,7 @@ function castSpell(a,sp,target,o={}){
     tg.forEach(t=>{
       if(!t.alive)return;
       // 魔法のデバフだけ 魔力 vs 魔防 で抜ける。特技（咆哮・羽撃き）は今までどおり確定
-      if(!isArt(sp)&&R(1)>=magicLand(a,t,1)){
+      if(!isArt(sp)&&!sureHex(a,sp)&&R(1)>=magicLand(a,t,1)){
         addLog(`${a.name} の ${E.name} は ${t.name} の魔防に弾かれた`,'l-sys'); return; }
       addBuff(t,{label:E.base,stat:sp.stat,value:E.value*bm,turns:E.turns,kind:'debuff'},a);
     });
@@ -3563,7 +3944,9 @@ function castSpell(a,sp,target,o={}){
       if(!t.alive)return;
       /* 魔法 … 元の確率に 魔力vs魔防 を掛ける（元が確定なら倍率そのもの）
          特技 … 今までどおり、書いてある確率と命中判定だけ */
-      const p=isArt(sp)?(E.chance==null?1:E.chance):magicLand(a,t,E.chance);
+      const p=isArt(sp)?(E.chance==null?1:E.chance)
+             :sureHex(a,sp)?(E.chance==null?1:E.chance)
+             :magicLand(a,t,E.chance);
       if(R(1)>=p){
         addLog(isArt(sp)?`${t.name} には効かなかった`
                         :`${a.name} の ${E.name} は ${t.name} の魔防に弾かれた`,'l-sys'); return; }
@@ -3573,6 +3956,23 @@ function castSpell(a,sp,target,o={}){
     });
   }
   if(!o.isExtra) emit('allySkill',{actor:a,spell:sp,target});
+  /* ★ 《二重詠唱》（魔導士の職業特性）★ 攻撃魔法をもう一度、同じ威力で。
+     ・o.isExtra を見るので、2回目が3回目を呼ぶことはありません
+     ・MPが足りない時は撃たない＝MPを温存する選択肢を奪いません
+     ・特技は対象外（魔法だけ）。回復や強化も対象外（2回掛けても値が上書きされるだけ）
+     ・対象は撃ち直しではなく最初に決めた target をそのまま使います
+       （全体魔法は target を見ないので影響なし。単体は同じ相手へ2発） */
+  if(!o.isExtra&&a.alive&&sp.type==='atk'&&!isArt(sp)&&hasT(a,'nijuu')){
+    const c2=Math.max(0,Math.round(mpCost(a,sp)*NIJUU_MP));
+    if(a.mp>=c2){
+      a.mp-=c2;
+      proc(a,'nijuu',`${E.name} をもう一度`);
+      /* 1発目で倒れていたら target を渡さない。渡すと死体に撃って無駄になる。
+         null を渡せば castSpell 側が選び直します（叫ぶ等と同じ扱い）。 */
+      const t2=(target&&target.alive)?target:null;
+      castSpell(a,sp,t2,{...o,isExtra:true,mult:(o.mult||1)*NIJUU_POWER});
+    }
+  }
 }
 /* --- 魔法の通りやすさ（魔力 vs 魔防） -------------------------------
    **敵に掛けるデバフ・状態異常だけ**が対象。
@@ -3604,6 +4004,12 @@ function castSpell(a,sp,target,o={}){
    「魔法は必中／特技は命中判定あり」という切り分けそのものが崩れる。
    個性由来のデバフ（睨み・呪詛・威圧・強者崩し・溶解・瘴気）も対象外。
    開幕1回きりや条件付きばかりなので、確率を足すと空振りが二段になる。 */
+/* ★ 呪術師の単体だけは魔防で弾かれない ★
+   この職は1戦で7回しか動けないのに、魔法が通るのは79%しかなく、
+   **5回に1回を空振りに使っていました**。
+   全体は対象外（7体ぶん確定で通ると重すぎる）。書いてある確率（ミナマヨドの30%など）は残す。
+   ⚠️ いまのところ説明文には出していません。出すかどうかは決めの問題。 */
+let sureHex=(a,sp)=>!!a&&a.clsId==='hx'&&sp&&sp.scope!=='all';
 const MAGIC_LAND_MIN=0.15, MAGIC_LAND_MAX=1.50;
 function magicLand(a,t,base){
   const p=(base==null)?1:base;
@@ -3694,6 +4100,13 @@ const CONDS=[
  {id:'front',    label:'前列にいる',           test:t=>isFront(t)},
  {id:'back',     label:'後列にいる',           test:t=>!isFront(t)},
  {id:'alone',    label:'隣に味方がいない',     test:t=>!adjacentAllies(t).length},
+ /* ★ only を書いた条件は、持っている仲間の画面にしか出ません ★
+    《防壁》は重騎士だけのものなので、他の9職の選択肢に並べても
+    「選べるのに絶対に成立しない行」を作れてしまうだけ。 */
+ /* ★ 0枚という条件は置けません ★ 手番の頭で必ず1枚戻るので、
+    行動を決める時点の防壁は必ず1枚以上。「絶対に成立しない行」になってしまう。 */
+ {id:'barrier1', label:'防壁が1枚以下',        test:t=>(t.barrier||0)<=1, only:u=>hasT(u,'bouheki')},
+ {id:'barrier2', label:'防壁が2枚以下',        test:t=>(t.barrier||0)<=2, only:u=>hasT(u,'bouheki')},
 ];
 const CONDMAP=Object.fromEntries(CONDS.map(c=>[c.id,c]));
 const CNTS=[{v:1,l:'1体以上'},{v:2,l:'2体以上'},{v:3,l:'3体以上'},{v:'all',l:'全員'}];
@@ -3720,6 +4133,22 @@ const actLabel=(u,id)=>{
    2行目へ落ちない。後列にいる時だけ「瀕死の前衛と入れ替わって庇う」が働く。
    逆順にすると、前衛どうしが延々と入れ替わり続ける。 */
 const FRONT_CLASSES=['sw','kn'];
+/* ★ MPが尽きた魔法職は、殴るよりぼうぎょ ★
+   ぼうぎょは最大MPの10%を戻します。魔導士なら8。
+   一方この職の通常攻撃は攻撃34で、実ダメージは20前後。
+   8MP は ダホヤキ(16) の半分＝通常攻撃3〜4回ぶんの火力なので、
+   **殴るより2〜3倍得**です。おまけに被ダメージも0.45倍になります。
+
+   付けるのは「魔力が攻撃より明らかに高く、MPを使う攻撃魔法を持っている」個体だけ。
+   剣士（攻撃78）が殴るのをやめたら、ただの損になるので。
+   いちばん下に置くので、撃てる魔法が1つでもあればそちらが先に成立します。 */
+function lowMpGambit(u){
+  const b=u.base||{};
+  if(!(b.mat>=b.atk*1.5))return [];
+  const ok=allSpells(u).some(id=>id&&id!=='none'&&SP[id]&&SP[id].type==='atk'
+    &&!isArt(SP[id])&&mpCost(u,SP[id])>0);
+  return ok?[{subj:'self',cond:'mp_low',cnt:1,act:'guard'}]:[];
+}
 function classGambits(u){
   if(!FRONT_CLASSES.includes(u.clsId))return [];
   return [{subj:'self', cond:'front',   cnt:1,act:'attack'},
@@ -3768,8 +4197,16 @@ function rowForSpell(sp,act){
     /* 全体の治療は「2人以上が掛かっている時」。1人のために全体を撃つと、
        MP26（単体の2.6倍）を1人分に使うことになる。全体回復（heal/all）と同じ考え方。 */
     case 'cure':   return {subj:'ally',cond:'has_ail',cnt:sp.scope==='all'?2:1,act};
+    /* ★ 単体の攻撃 ★ 魔法と特技で分けます。
+       「敵のHPが半分以下」は**MPを温存してとどめに使う**ための条件で、
+       全力斬（攻撃78の剣士）のような特技には妥当です。
+
+       ですが**攻撃魔法に付けると致命的**でした。魔導士の通常攻撃は34しかなく、
+       魔力88のダホヤキを全快の敵に撃たないまま殴り続けます。
+       実測：ダホヤキだけ持たせた魔導士6人＝勝率2.4%・MPを93%残したまま。
+       魔法は「撃つために持っている」ので常時にします。 */
     case 'atk':    return sp.scope==='all'?{subj:'foe',cond:'always',cnt:3,act}
-                                          :{subj:'foe',cond:'hp_le50',cnt:1,act};
+                   :{subj:'foe',cond:isArt(sp)?'hp_le50':'always',cnt:1,act};
     case 'ail':    return {subj:'foe', cond:'no_ail', cnt:1,act};
     case 'evade':  return {subj:'self',cond:'hp_le75',cnt:1,act};
     // 強化は「上げた数字を実際に使う列」へ。決められないものは今までどおり自分へ
@@ -3840,6 +4277,7 @@ function defaultGambits(u){
   add(slot('atk','all')); add(slot('ail')); add(slot('evade'));
   add(slot('buff')); add(slot('debuff')); add(slot('atk','one'));
   g.push(...classGambits(u));      // 前衛職の締めくくり（→ FRONT_CLASSES）
+  g.push(...lowMpGambit(u));       // 魔法職の締めくくり（MPが尽きたらぼうぎょ）
   return g;   // 末尾の「たたかう」は暗黙の既定行動なので入れない
 }
 
@@ -4015,9 +4453,21 @@ function aiAction(u){
    8. ターン制御（速度順ウェイトターン）
    ========================================================= */
 const nextActor=()=>{ const a=U.filter(x=>x.alive); return a.length?a.reduce((m,x)=>x.ct<m.ct?x:m):null; };
+/* ★ 追加行動を持つ人は2回並べる ★
+   TURN ORDER は「並びを見て計画を立てる」ための表示なので、
+   1手番に2回動く人を1回しか出さないと**表示が嘘をつきます**。
+   《止まらぬ剣》は常に2回、《二の太刀》も2回（ただし直後に休みが付くので次を1回飛ばす）。
+   確率で増える形にしなかったのは、確率だとここに描きようがないためです。 */
 function upcoming(n=10){
   const snap=U.filter(u=>u.alive).map(u=>({u,ct:u.ct,spd:stat(u,'spd')})), out=[];
-  for(let i=0;i<n&&snap.length;i++){ const m=snap.reduce((a,b)=>b.ct<a.ct?b:a); out.push(m.u); m.ct+=10000/m.spd; }
+  while(out.length<n&&snap.length){
+    const m=snap.reduce((a,b)=>b.ct<a.ct?b:a);
+    const step=10000/m.spd;
+    out.push(m.u);
+    const nino=hasT(m.u,'nino'), tom=hasT(m.u,'tomaranu');
+    if((nino||tom)&&out.length<n) out.push(m.u);
+    m.ct+=nino?step*2:step;      // 二の太刀は休みが付くぶん、次の出番が1回ぶん遠い
+  }
   return out;
 }
 const sleep=ms=>new Promise(r=>setTimeout(r,Math.max(0,ms/speedF)));
@@ -4064,6 +4514,12 @@ function resolveAction(u,act){
     const g=Math.max(1,Math.round(u.maxMp*0.10));
     gainMp(u,g);
     addLog(`${u.name} はぼうぎょの構え（MP+${g}）`,'l-sys');
+    /* ★ ここに「ぼうぎょで防壁+N」は置きません（9/25・実測）★
+       +1 でも +2 でも、重騎士がぼうぎょを 78〜88% 選ぶようになりました。
+       防壁が戻るぶん、この職にとって**殴るよりぼうぎょの方が常に得**になるためで、
+       枚数を減らしても直りません（+1 と +2 でほとんど差が出なかった）。
+       既定のガンビット行を外して隠す手もありますが、それは
+       「自分で行を組んだ人だけ壊れる」ようにするだけなので、数字の側を 0 にしてあります。 */
   } else if(act.cmd==='spell'){
     const sp=act.sp;
     const cost=mpCost(u,sp);
@@ -4163,6 +4619,19 @@ async function loop(){
       render(); netSync(false); await sleep(340);
     }
 
+    /* 《止まらぬ剣》（剣士の職業特性）— 手番のたびに2回行動。休みは付かない。 */
+    if(u.alive&&hasT(u,'tomaranu')){
+      proc(u,'tomaranu','剣を止めずにもう一度動く');
+      MNINO=true;                       // 《二の太刀》と同じ理由で、この行動は控えない
+      const act3=await chooseAction(u);
+      MNINO=false;
+      if(!running||gen!==loopGen)return;
+      logGambit(u,act3);
+      lunge(u);
+      attacked=resolveAction(u,act3)||attacked;
+      render(); netSync(false); await sleep(340);
+    }
+
     endTurn(u,{attacked});
     render(); netSync(false); await sleep(160);
   }
@@ -4181,7 +4650,7 @@ async function loop(){
 function endTurn(u,info){
   if(!info.silent) emit('actionEnd',{actor:u});
   if(u.ail.poison&&u.alive){
-    let d=Math.round(u.maxHp*0.05); if(u.traits.includes('dokuchi')) d=Math.round(d*0.5);
+    let d=Math.round(u.maxHp*POISON_PCT); if(u.traits.includes('dokuchi')) d=Math.round(d*0.5);
     rawDamage(u,d,'毒');
   }
   if(!info.silent) emit('turnEnd',{unit:u,attacked:info.attacked});
@@ -4351,7 +4820,8 @@ function unitHTML(u){
       ? `<span class="st up">${b.label}${b.perm?'':'·'+b.turns}</span>`
       : `<span class="st ${b.value>0?'up':'dn'}">${b.label}${b.value>0?'+':''}${Math.round(b.value*100)}${b.perm?'':'·'+b.turns}</span>`),
     ...Object.keys(u.ail).map(k=>`<span class="st ail">${AIL_LABEL[k]||k}${AIL_TIMED[k]?'·'+u.ail[k]:''}</span>`),
-    ...(u.evade?[`<span class="st up">回避·${u.evade}</span>`]:[])].join('');
+    ...(u.evade?[`<span class="st up">回避·${u.evade}</span>`]:[]),
+    ...(u.barrier?[`<span class="st up">防壁·${u.barrier}</span>`]:[])].join('');
   return `<div class="${cls}" data-u="${u.id}">
     <div class="uh">${u.clsKind==='human'?`<span class="pip">${u.clsName}</span>`:''}<span class="un">${u.name}</span><span class="uc">${u.guard?'防御':''}</span></div>
     <div class="bar hpb"><span style="width:${Math.max(0,hpR(u))*100}%"></span></div>
@@ -4798,7 +5268,7 @@ function openEditor(u){
           武器にはスキル、防具には個性が<b>生成時に確定で</b>付いていることがあり、どちらも本人の3枠とは<b>別枠</b>です
           （最大で個性4・スキル4）。<br>
           付与スキルの着脱に合わせて<b>オート行動も自動で増減</b>します。</div>
-        <div class="cmds"><button class="btn" id="rollEq">所持品から着け直す</button>
+        <div class="cmds"><button class="btn" id="rollEq">所持品から職に合うものを着ける</button>
           <button class="btn" id="clrEq">装備を外す</button>
           <button class="btn" id="toInv">装備の一覧へ</button></div>`}`
         :'<div class="tdesc">魔物は装備できません。</div>'}
@@ -4938,7 +5408,7 @@ function renderGambits(u){
   const sel=(k,v,opts)=>`<select data-g="${k}">`+opts.map(o=>
     `<option value="${o.v}"${o.v===v?' selected':''}>${o.l}</option>`).join('')+'</select>';
   const subjOpts=Object.entries(SUBJ).map(([v,l])=>({v,l}));
-  const condOpts=CONDS.map(c=>({v:c.id,l:c.label}));
+  const condOpts=CONDS.filter(c=>!c.only||c.only(u)).map(c=>({v:c.id,l:c.label}));
   const cntOpts=CNTS.map(c=>({v:c.v,l:c.l}));
   const actOpts=ACTS.map(a=>({v:a.id,l:actLabel(u,a.id)}));
   let blocked=-1;   // ここより下は絶対に判定されない
@@ -5108,7 +5578,7 @@ let SIMPOS=null;
    倒れた者は起き上がらない — これが「回復なしの連戦」の重さになる。 */
 function carryOver(u){
   u.carried=true;                 // 2波目以降の目印（《療養》がこれを見る）
-  u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0;
+  u.buffs=[]; u.ail={}; u.cnt={}; u.fired={}; u.evade=0; u.barrier=0;
   u.guard=false; u.lastAct=null; u.ct=10000/stat(u,'spd');
 }
 function simOneBattle(limit,keepAllies){
@@ -5134,6 +5604,10 @@ function simOneBattle(limit,keepAllies){
       proc(u,'nino','続けてもう一度動く');
       attacked=resolveAction(u,aiAction(u))||attacked;
       if(u.alive) addAil(u,'rest',null,u);
+    }
+    if(u.alive&&hasT(u,'tomaranu')){                         // 止まらぬ剣
+      proc(u,'tomaranu','剣を止めずにもう一度動く');
+      attacked=resolveAction(u,aiAction(u))||attacked;
     }
     endTurn(u,{attacked});
     const a=aliveOf('ally').length, f=aliveOf('foe').length;
@@ -5248,7 +5722,7 @@ function snapBattle(){
   const cp=o=>{const r={};for(const k in o){const v=o[k];r[k]=(v&&typeof v==='object')?{...v}:v;}return r;};
   return {time,turnNo,dmg:{...DMG},result:battleResult,started:battleStarted,seed:battleSeed,
     cur:current?current.id:null,logs:logs.slice(),
-    units:[...U,...BENCH].map(u=>({u,hp:u.hp,mp:u.mp,evade:u.evade,alive:u.alive,ct:u.ct,
+    units:[...U,...BENCH].map(u=>({u,hp:u.hp,mp:u.mp,evade:u.evade,barrier:u.barrier,alive:u.alive,ct:u.ct,
       guard:u.guard,lastAct:u.lastAct,name:u.name,slot:u.slot,
       buffs:(u.buffs||[]).map(b=>({...b})),ail:cp(u.ail||{}),cnt:{...u.cnt},fired:{...u.fired}}))};
 }
@@ -5256,7 +5730,7 @@ function restoreBattle(s){
   time=s.time; turnNo=s.turnNo; DMG={...s.dmg}; battleResult=s.result; logs=s.logs;
   battleStarted=s.started; battleSeed=s.seed;
   s.units.forEach(o=>{ const u=o.u;
-    u.hp=o.hp; u.mp=o.mp; u.evade=o.evade; u.alive=o.alive; u.ct=o.ct;
+    u.hp=o.hp; u.mp=o.mp; u.evade=o.evade; u.barrier=o.barrier; u.alive=o.alive; u.ct=o.ct;
     u.guard=o.guard; u.lastAct=o.lastAct; u.name=o.name;
     // slot を戻し忘れると、集計中の「いれかえ」「吹き飛ばす」で動いた隊列が
     // そのまま盤面に残り、buildSig が変化して自動集計が永久に回り続ける。
@@ -5867,7 +6341,7 @@ function buildUnit(o){
     traits:(o.traits&&o.traits.length===3)?o.traits.slice():['none','none','none'],
     spells:(o.spells&&o.spells.length===3)?o.spells.slice():['none','none','none'],
     gambits:Array.isArray(o.gambits)?JSON.parse(JSON.stringify(o.gambits)):[],
-    buffs:[],ail:{},cnt:{},fired:{},evade:0,
+    buffs:[],ail:{},cnt:{},fired:{},evade:0,barrier:0,
     alive:true,ct:0,guard:false,lastAct:null,
     foeBoost:!!o.foeBoost,varia:o.varia||0.9+R(0.2),
     equip:normEquip(o.equip)};
@@ -6125,7 +6599,7 @@ function openDataPanel(){
       <button class="btn x" id="closeM">閉じる</button></header>
     <div class="mbody">
       <div class="seghint">保存されるのは<b>編成・職業・個性・スキル・装備・オート行動</b>です。
-        戦闘中のHPやバフは保存しません（読み込むと全回復した状態から始まります）。<br>
+        戦闘中のHPや強化・弱体は保存しません（読み込むと全回復した状態から始まります）。<br>
         <b>編集や編成を変えるたびに自動保存されます。</b>
         ただし<b>自動保存は1枠を上書きし続けるので、戻る場所にはなりません。</b>
         壊して試す前は、下の<b>スロット</b>へ退避してください。</div>
@@ -8364,8 +8838,9 @@ document.addEventListener('keydown',e=>{ if(e.key!=='Escape')return;
 function traitChips(u){
   return traitSlots(u).filter(x=>x.id&&x.id!=='none').map(x=>{
     const t=TRAITS[x.id];
-    const c=['tchip',x.src==='eq'?'eq':'',x.live?'':'dup'].filter(Boolean).join(' ');
-    return `<span class="${c}" data-tip="《${t.name}》${x.src==='eq'?'[防具由来] ':''}${
+    const c=['tchip',x.src==='eq'?'eq':x.src==='cls'?'cls':'',x.live?'':'dup'].filter(Boolean).join(' ');
+    const from=x.src==='eq'?'[防具由来] ':x.src==='cls'?`[${u.clsName}の職業特性] `:'';
+    return `<span class="${c}" data-tip="《${t.name}》${from}${
       x.live?'':'【重複のため無効】'}${t.desc}">${t.name}</span>`;
   }).join('')||'<span class="tchip off">個性なし</span>';
 }
@@ -9693,7 +10168,7 @@ function mSnapshot(){
   return {rstate:RSTATE,time,turnNo,dmg:{...DMG},seed:battleSeed,started:battleStarted,
     logs:logs.slice(-200),
     units:U.map(u=>({cls:u.clsId,name:u.name,name0:u.name0,slot:u.slot,
-      maxHp:u.maxHp,maxMp:u.maxMp,hp:u.hp,mp:u.mp,evade:u.evade||0,alive:u.alive,
+      maxHp:u.maxHp,maxMp:u.maxMp,hp:u.hp,mp:u.mp,evade:u.evade||0,barrier:u.barrier||0,alive:u.alive,
       gunshiMp:u.gunshiMp||0,carried:!!u.carried,   // 波をまたぐ控え（軍資・療養）
       ct:u.ct,guard:!!u.guard,lastAct:(typeof u.lastAct==='string'?u.lastAct:null),
       buffs:(u.buffs||[]).map(b=>({...b})),ail:{...u.ail},cnt:{...u.cnt},fired:{...u.fired}}))};
@@ -9709,7 +10184,7 @@ function mApply(rec){
     u.name=o.name; u.name0=o.name0; u.slot=o.slot;
     u.maxHp=o.maxHp; u.maxMp=o.maxMp; u.hp=o.hp; u.mp=o.mp;
     u.gunshiMp=o.gunshiMp||0; u.carried=!!o.carried;   // 復帰後の波で+12%が二重に乗らないように
-    u.evade=o.evade; u.alive=o.alive; u.ct=o.ct; u.guard=o.guard; u.lastAct=o.lastAct;
+    u.evade=o.evade; u.barrier=o.barrier||0; u.alive=o.alive; u.ct=o.ct; u.guard=o.guard; u.lastAct=o.lastAct;
     u.buffs=o.buffs; u.ail=o.ail; u.cnt=o.cnt; u.fired=o.fired;
   });
 }
