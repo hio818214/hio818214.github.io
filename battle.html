@@ -145,13 +145,25 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
 .tchip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
 /* 職業特性。3枠とも装備とも別物だと一目で分かるよう、金寄りの色にしてある */
 .tchip.cls{background:#3a3117;border-color:#8a7434;color:#e7d194}
-/* 自動配置の確認に出す一覧。枠・名前・職業だけ（個性まで出すと携帯で読めない） */
-.aflist{margin-top:8px;border:1px solid var(--line2);border-radius:3px;overflow:hidden}
-.afrow{display:flex;align-items:center;gap:8px;padding:4px 8px;border-top:1px solid var(--line2)}
-.afrow:first-child{border-top:none}
-.afrow .afs{flex:0 0 2.6em;font-size:11px;opacity:.7}
-.afrow b{flex:1 1 auto;overflow-wrap:anywhere}
-.afrow i{flex:0 0 auto;font-style:normal;font-size:11px;opacity:.75}
+/* ★ 自動配置の確認は、編成画面と同じ盤で見せる ★
+   以前は縦のリストでしたが、**前後どこに誰が入るかは並びで見るもの**なので、
+   編成画面の .pboard をそのまま小さくして使います（覚え直すことが無い）。
+   出すのは枠・名前・職業だけ。個性やスキルまで出すと携帯で読めません。
+     .plan … これから入る人（金枠）
+     .keep … すでに居る人（触らないので薄く）
+   窓の中なので、盤そのものも一回り小さくしてあります。 */
+.pboard.mini{margin-top:8px}
+/* ★ 字の大きさには一切触らない ★
+   一度ここで大きくしたら、**編成画面と別物に見える**という当たり前の結果になりました。
+   確認の窓は編成画面の写しなので、寸法はすべて .pboard / .pcell のまま。
+   携帯で小さくて読めないなら、直すのは両方に効く元の指定のほう（→ body.mobile）。
+   ここに書いてよいのは「押せない」「これから入る／すでに居る」の区別だけです。 */
+.pboard.mini .pcell{cursor:default}
+.pboard.mini .pcell:hover{border-color:var(--line)}
+.pboard.mini .tchip,.pboard.mini .schip{cursor:default}
+.pboard.mini .pcell.plan{border-color:var(--gold);background:#332c1a}
+.pboard.mini .pcell.plan b{color:var(--gold)}
+.pboard.mini .pcell.keep{opacity:.45}
 .schip.eq{background:#1e3328;border-color:#3f7a58;color:#96d8b0}
 /* 重複して無効になった枠。消さずに「引きが無駄になった」ことを見せる */
 .tchip.dup,.schip.dup{opacity:.35;border-style:dashed;text-decoration:line-through}
@@ -417,8 +429,16 @@ body.mobile .aunit .gchips{flex-basis:100%}
    [前][後] の札は闘技場（.apos）と同じものを使い回している。 */
 .phead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
 .prow{display:flex;align-items:baseline;gap:6px;margin-top:2px}
-.pmem{flex:1 1 auto;min-width:0}
-.pmem i{font-style:normal;color:var(--muted);font-size:10.5px;margin-left:3px}
+.pmem{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;gap:3px 5px}
+/* ★ 1人ぶんを枠で囲う ★
+   以前は「レイ 剣士・ミア 魔導士」と中黒でつないでいたのですが、
+   **「レイ 剣士」なのか「剣士・ミア」なのか区切りが読めない**という問題がありました。
+   区切り記号を変えても、名前と職業の間より人と人の間のほうが弱く見える限り同じです。
+   人ごとに薄い枠を与えて、**間隔ではなく囲みで切る**形にしてあります。 */
+.pman{display:inline-flex;align-items:baseline;gap:4px;
+  border:1px solid var(--line2);border-radius:2px;padding:1px 6px;background:var(--panel2)}
+.pman i{font-style:normal;color:var(--muted);font-size:10px}
+.pman .ghurt{margin-left:1px}
 .gname:hover{color:var(--gold);border-bottom-color:var(--gold)}
 .ghero{font-style:normal;background:var(--gold);color:#1a1526;font-size:8.5px;
   border-radius:2px;padding:0 3px;margin-left:4px;vertical-align:middle}
@@ -582,6 +602,17 @@ body.mobile .mask.dlg{padding:16px;align-items:center}
 .rsub em{font-style:normal;color:#96d8b0}
 .rbd{color:var(--muted);opacity:.85}
 .rbtn{display:flex;gap:3px;flex:0 0 auto;align-items:center}
+/* ★ 右の列を細いまま右に置いておく行（.nar）★
+   中身が縦に伸びる行（部隊の顔ぶれ2段、依頼の説明3段）に付けます。
+   ボタンが横に2つ並ぶと右が広く取られ、残りが狭くなって**中身が折り返して行が太る**。
+   ・ボタンは縦に積んで、右端をボタン1つぶんの幅に抑える
+   ・幅は px で止める。% にすると狭い画面で潰れて文字が縦積みになる
+   ⚠️ 狭い画面では body.mobile が効いて .rrow が折り返し、
+      右の列が**1行まるごと**占めます（ボタンが画面幅いっぱいに伸びる）。
+      下の body.mobile 側で .tight と一緒に止めてあります。 */
+.rrow.nar .rbtn{flex-direction:column;align-items:stretch;gap:4px;max-width:132px}
+.rrow.nar .rbtn button{width:100%;white-space:nowrap}
+.rrow.nar .rwhy{max-width:132px;text-align:right}
 /* 押せない理由。ボタンの代わりに同じ場所へ置くので、ボタンと同じ高さに座らせる。
    読ませたい文字なので、装飾は薄くしても字は本文と同じ 11px を保つ。 */
 .rwhy{font-size:11px;color:#8d85a0;line-height:1.5;text-align:right;
@@ -749,7 +780,10 @@ body.mobile .nums{font-size:8px}
 body.mobile .states{min-height:12px;gap:1px}
 body.mobile .st{font-size:9px;padding:0 3px}
 /* 携帯でも個性は読めないと意味がない。横4体並びでも 9.5px は確保する。 */
-body.mobile .tchip{font-size:9.5px;padding:0 4px}
+/* 9.5px は携帯で読めませんでした。個性とスキルは名前そのものが情報なので、
+   ここを削ると画面が詰まっても中身が分からなくなります。編成画面・確認の窓・
+   仲間の一覧、チップを出すところ全部に同時に効きます。 */
+body.mobile .tchip,body.mobile .schip{font-size:11px;padding:1px 5px}
 body.mobile .sprow,body.mobile .eqrow{display:none}   /* スキルと装備は編集画面で見る */
 body.mobile .empty{min-height:52px;font-size:18px;letter-spacing:0}
 body.mobile .order{padding:5px 8px;gap:4px}
@@ -791,7 +825,7 @@ body.mobile .rrow{flex-wrap:wrap}
    そのわりに読みやすくはならない（ボタン2つ・数字2行しか無い）。
    落とさずに横へ置いたまま、その列の中だけで折り返させる。
    .rmain は min-width:0 なので、狭くなれば名前側が先に縮む。 */
-body.mobile .rrow.tight{flex-wrap:nowrap}
+body.mobile .rrow.tight,body.mobile .rrow.nar{flex-wrap:nowrap}
 /* ★ width:100% を外すのが本体 ★
    下の `body.mobile .rbtn{width:100%}` が、折り返した右の列に1行まるごと使わせていた。
    ここでは幅を**画面の20%まで**に抑える。ボタン2つと数字2行しか無いので、それで足りる。
@@ -799,6 +833,11 @@ body.mobile .rrow.tight{flex-wrap:nowrap}
 body.mobile .rrow.tight .rbtn{width:auto;flex:0 1 auto;flex-wrap:wrap;justify-content:flex-end;
   max-width:20%;overflow-wrap:anywhere}
 body.mobile .rrow.tight .rwhy{max-width:100%}
+/* .nar は縦積みのまま。% ではなく px で止める（20% だと「結果を予想する」が潰れる） */
+/* ⚠️ 部隊一覧は .tight と .nar を両方持ちます。上の .tight の行が
+      flex-wrap:wrap を置くので、ここで必ず戻すこと（縦積みが崩れます）。 */
+body.mobile .rrow.nar .rbtn{width:auto;flex:0 0 auto;max-width:118px;flex-wrap:nowrap}
+body.mobile .rrow.nar .rbtn button{padding:6px 4px;font-size:10px}
 body.mobile .rrow.tight .zcnt{flex:0 0 auto}
 body.mobile .rbtn{width:100%;justify-content:flex-end}
 body.mobile .rbtn button{min-height:36px;padding:6px 10px}
@@ -1965,12 +2004,19 @@ const SPELLS=[
  {id:'cure',   name:'ヨドーヤ',    kind:'magic',type:'cure',  scope:'one', mp:12,
   desc:'味方単体の状態異常をすべて解除する。'},
  /* 魔薬の魔法版。**誰でも引ける汎用**にしてある。
-    自分に撃っても得をしないので、汎用でも壊れない ——
-    魔導士(MP78)の20%は15.6で、ダホヤキ1発(16)とほぼ同じ。
-    つまり「1ターン充電して1発撃つ」は「そのまま1発撃つ」と同じ。
-    尽きた後だけ意味が出る。 */
- {id:'manacharge',name:['マナーヤ','マナーヤ・改'],kind:'magic',type:'mp',scope:'one',mp:0, flat:[0.20,0.25],
-  desc:'味方単体のMPを、その人の最大MPの${flat}ぶん回復する。消費MPは無い。'},
+    ★ 受け手の最大MPではなく、撃ち手の魔力を見る（9/26）★
+    「相手の器の割合だけ回復する」は魔法の挙動として不自然でした。
+    魔法なのだから、**撃つ人の腕前で量が決まる**のが筋。薬師の魔薬は
+    薬（flat）なので受け手の割合のまま、という対比にもなります。
+    量は 魔力×20%＋10。＋10があるのは、魔力の低い前衛が持っても
+    「気休めにもならない」を避けるため（剣士の魔力28なら15.6）。
+
+    自分に撃っても得をしないのは変わりません —— 魔導士(魔力92)なら28、
+    ダホヤキ1発が16なので「1ターン充電＋1発」は2ターンで1.75発ぶん。
+    そのまま2発撃つほうが多い。**尽きた仲間に配って初めて得になる**。 */
+ {id:'manacharge',name:['マナーヤ','マナーヤ・改'],kind:'magic',type:'mp',scope:'one',mp:0,
+  power:[0.20,0.25],mpAdd:[10,14],
+  desc:'味方単体のMPを、撃ち手の魔力×${power}＋${mpAdd} ぶん回復する。消費MPは無い。'},
  {id:'rally',  name:'ワマシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'atk',value:0.35, turns:3,
   desc:'味方単体の攻撃${value}（${turns}ターン）。魔力には乗らない。'},
  {id:'mrally', name:'ママシ',      kind:'magic',type:'buff',  scope:'one', mp:7,  stat:'mat',value:0.35, turns:3,
@@ -2029,9 +2075,15 @@ const SPELLS=[
   desc:'味方単体に「攻撃を1回だけ回避する」状態を付与する。マンドラゴラ専用。'},
 
  /* ---------- 特技（攻撃依存・命中判定あり） ---------- */
+ /* ★ 「全力」なので回数が撃てない ★
+    以前は MP10・威力1.5 で、隼斬（MP10・0.8×2＝1.6）と**消費も期待威力もほぼ同じ**。
+    どちらを選んでも同じ技でした。MP20 に上げ、効率はそのまま（0.16/MP）に据える。
+    ⚠️ 剣士のMPは32なので、**1戦で1回しか撃てません**。
+       威力を上げても総ダメージは変わらない（威力に完全比例するため）ので、
+       これは強化ではなく**性格づけ**です。1発の重さが要る場面で選ぶ技にする。 */
  {id:'zenryoku',name:['全力斬','全力斬・改','剛全力斬'],
-  kind:'art',type:'atk',scope:'one',mp:10,power:[1.5,1.8,2.2],needs:'剣所持',
-  desc:'対象へ攻撃×${power}の一撃。'},
+  kind:'art',type:'atk',scope:'one',mp:20,power:[3.2,3.8,4.6],needs:'剣所持',
+  desc:'対象へ攻撃×${power}の一撃。消費が重く、何度も撃てない。'},
  {id:'samidare',name:['五月雨斬','五月雨斬・改'],kind:'art',type:'atk',scope:'one',mp:16,power:[0.55,0.55],hits:[4,6],randomTarget:true,needs:'剣所持',
   desc:'${hits}回攻撃。毎回ランダムに対象を選び直す。集団戦向けで、単体には火力が散る。'},
  /* ★ 必中撃に needs を置かない ★
@@ -2324,7 +2376,7 @@ const spNum=(k,v)=>{
 /* ★ レベルで段が変わるキー ★
    ここに無いキーは配列でもそのまま渡す（stat / needs を壊さないため）。 */
 const SP_LEVELED=new Set(['name','power','hits','multi','mp','value','turns',
-  'chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','mpDrain',
+  'chance','ailChance','flat','ratio','selfRatio','lifesteal','recoil','mpDrain','mpAdd',
   'hpCost','ailBonus']);
 /* 段が足りなければ末尾で止める。短く書いたキーは伸びないだけで壊れない。 */
 const atLv=(v,lv)=>Array.isArray(v)?v[Math.min(Math.max(1,lv)-1,v.length-1)]:v;
@@ -4061,7 +4113,10 @@ function castSpell(a,sp,target,o={}){
        撃つ代わりに充電しても得はしない（尽きた後の保険であって、増幅装置ではない）。 */
     const tg=refl(sp.scope==='all'?aliveOf(a.side):[(target&&target.alive)?target:a]);
     tg.forEach(t=>{ if(!t.alive)return;
-      const v=E.flat?Math.round(t.maxMp*E.flat*mult):Math.round(stat(a,'mat')*E.power*mult);
+      /* flat … 薬。受け手の最大MPの割合（撃ち手を見ない）
+         それ以外 … 魔法。撃ち手の魔力×威力 ＋ 下駄（mpAdd） */
+      const v=E.flat?Math.round(t.maxMp*E.flat*mult)
+                    :Math.round((stat(a,'mat')*E.power+(E.mpAdd||0))*mult);
       const before=t.mp; gainMp(t,v);
       const got=t.mp-before;
       addLog(got>0?`${a.name} が ${t.name} の MPを ${got} 回復`
@@ -4376,8 +4431,17 @@ function statSubj(sp,own){
   if(f)    return own?'allyF':'foeF';
   return null;                             // 速さなど。呼び側の既定に任せる
 }
+/* ★ その人にとっての「主武器」か ★
+   攻撃依存の技は攻撃が、魔法は魔力が、その人の高いほうなら主武器。
+   弓兵（攻撃72・魔力30）にとって連射は主武器、ホヤキはおまけ。
+   魔導士（魔力88・攻撃34）にとってはその逆。
+   判らない時（u が無い呼び出し）は、今までどおり「魔法＝主武器」に倒す。 */
+function mainArm(u,sp){
+  const b=u&&u.base; if(!b) return !isArt(sp);
+  return isArt(sp) ? b.atk>=b.mat : b.mat>=b.atk;
+}
 /* スキル1つに対する既定の行。装備でスキルが増えた時もここを使い回す。 */
-function rowForSpell(sp,act){
+function rowForSpell(sp,act,u){
   if(!sp)return null;
   switch(sp.type){
     case 'heal':   return {subj:'ally',cond:'hp_le50',cnt:sp.scope==='all'?2:1,act};
@@ -4386,16 +4450,18 @@ function rowForSpell(sp,act){
     /* 全体の治療は「2人以上が掛かっている時」。1人のために全体を撃つと、
        MP26（単体の2.6倍）を1人分に使うことになる。全体回復（heal/all）と同じ考え方。 */
     case 'cure':   return {subj:'ally',cond:'has_ail',cnt:sp.scope==='all'?2:1,act};
-    /* ★ 単体の攻撃 ★ 魔法と特技で分けます。
-       「敵のHPが半分以下」は**MPを温存してとどめに使う**ための条件で、
-       全力斬（攻撃78の剣士）のような特技には妥当です。
+    /* ★ 単体の攻撃 ★ **主武器なら常時、おまけならとどめに**。
+       「敵のHPが半分以下」は MPを温存してとどめに使うための条件です。
 
-       ですが**攻撃魔法に付けると致命的**でした。魔導士の通常攻撃は34しかなく、
-       魔力88のダホヤキを全快の敵に撃たないまま殴り続けます。
-       実測：ダホヤキだけ持たせた魔導士6人＝勝率2.4%・MPを93%残したまま。
-       魔法は「撃つために持っている」ので常時にします。 */
+       ここを以前は「特技か魔法か」で分けていました（魔法＝常時）。
+       魔導士がダホヤキを全快の敵に撃たない問題は直りましたが、
+       今度は**弓兵がホヤキを1つ拾っただけで、MPが尽きるまでホヤキを撃ち続け、
+       敵が半分になる頃には弓の特技が撃てない**という逆の事故が起きました。
+
+       分ける基準は技の種類ではなく、**その人にとって主武器かどうか**（→ mainArm）。
+       これなら魔導士の魔法も弓兵の弓技も常時になり、互いのおまけはとどめに回ります。 */
     case 'atk':    return sp.scope==='all'?{subj:'foe',cond:'always',cnt:3,act}
-                   :{subj:'foe',cond:isArt(sp)?'hp_le50':'always',cnt:1,act};
+                   :{subj:'foe',cond:mainArm(u,sp)?'always':'hp_le50',cnt:1,act};
     case 'ail':    return {subj:'foe', cond:'no_ail', cnt:1,act};
     case 'evade':  return {subj:'self',cond:'hp_le75',cnt:1,act};
     // 強化は「上げた数字を実際に使う列」へ。決められないものは今までどおり自分へ
@@ -4430,7 +4496,7 @@ function fixAutoRows(u){
     if(i<0)return;
     const act='sp'+i;
     if(u.gambits.some(x=>x.act===act))return;
-    const r=rowForSpell(SP[sps[i]],act); if(!r)return;
+    const r=rowForSpell(SP[sps[i]],act,u); if(!r)return;
     if(head){ u.gambits.unshift(r); }            // 治療は先頭。後ろだと攻撃行に先を越される
     else{
       // MP回復は回復行の直後へ。末尾だと攻撃の行に先を越されて出番が来ない
@@ -4446,32 +4512,38 @@ function fixAutoRows(u){
 function defaultGambits(u){
   const g=[];
   const sps=allSpells(u);      // 本人3枠＋武器1枠。重複で無効な枠は 'none' で返る
-  const slot=(t,sc)=>{ const i=sps.findIndex(id=>id!=='none'&&SP[id].type===t&&(!sc||SP[id].scope===sc));
-    return i<0?null:'sp'+i; };
-  /* ★ 単体攻撃だけは「持っている分すべて」拾う ★
-     slot() は findIndex なので**最初の1つしか行になりません**。
-     毒闘士（毒牙・苛み・血刃）や弓兵（連射・止めの矢・足留めの矢・毒矢）のように
-     単体攻撃を3つ4つ持つ職が出てきたので、ここだけ全部並べます。 */
+  /* ★ 同じ種類を2つ持っていたら、両方に行を作る ★
+     以前は findIndex で**最初の1枠しか行になりませんでした**。
+     ワマシとカガマシを両方覚えた魔導士は、どちらか片方が一度も撃たれない。
+     同じことが 弱体2つ・全体攻撃2つ・治療2つ… すべてで起きていたので、
+     引き方そのものを「該当する枠を全部返す」に変えてあります。
+
+     条件（no_buff / no_deb など）はスキルごとに判定するので、
+     行が増えても上の行が下の行を塞ぐことはありません。
+     並びは本人の枠順のまま＝プレイヤーが見た並びと一致します。 */
   const slotsAll=(t,sc)=>sps.map((id,i)=>({id,i}))
-    .filter(x=>x.id!=='none'&&SP[x.id].type===t&&(!sc||SP[x.id].scope===sc))
+    /* SP[x.id] を必ず確かめる。枠には 'none' 以外にも、引退したスキルや
+       古い保存に残った知らないIDが入り得ます（ここで落ちると画面が真っ白になる）。 */
+    .filter(x=>x.id!=='none'&&SP[x.id]&&SP[x.id].type===t&&(!sc||SP[x.id].scope===sc))
     .map(x=>'sp'+x.i);
-  const add=act=>{ if(!act)return; const r=rowForSpell(SP[sps[+act[2]]],act); if(r)g.push(r); };
+  const add=act=>{ if(!act)return; const r=rowForSpell(SP[sps[+act[2]]],act,u); if(r)g.push(r); };
+  const addAll=(t,sc)=>slotsAll(t,sc).forEach(add);
   /* ★ 治療は全体と単体を別の行にする ★
      以前は slot('cure') と範囲を指定せずに引いていたので、**先に見つかった枠1つ**しか行にならなかった。
      薬師が万能薬（単体）と みんなに万能薬（全体）を両方覚えると、
      枠の並び順しだいで全体の方が一度も撃たれない。
      全体を上に置く。条件が「2人以上」なので、1人だけなら素通りして下の単体へ落ちる。 */
-  add(slot('heal','all')); add(slot('heal','one'));
-  add(slot('cure','all')); add(slot('cure','one'));
+  addAll('heal','all'); addAll('heal','one');
+  addAll('cure','all'); addAll('cure','one');
   /* ★ MP回復（魔薬・マナーヤ）★
      ここを呼んでいなかったので、**生まれつき持っている人には行が作られず**、
      オートで一度も撃たれなかった（あとから覚えた場合だけ applySkillGain が足していた）。
      条件は mp_low（25%以下）なので、満タン相手に撃ち続けることはない。
      どちらも消費MPが0なので、順番を上に置いても攻め手を削らない。 */
-  add(slot('mp'));
+  addAll('mp');
   g.push(...traitGambits(u));      // 個性が要求する行動を、スキルより先に置く
-  add(slot('atk','all')); add(slot('ail')); add(slot('evade'));
-  add(slot('buff')); add(slot('debuff'));
+  addAll('atk','all'); addAll('ail'); addAll('evade');
+  addAll('buff'); addAll('debuff');
   /* ★ 単体攻撃の並べ方 ★ 狭い条件から順に置き、受け皿はいちばん下。
      ① ailBonus（苛み）… 状態異常の敵がいればそちらへ
      ② ail（毒牙・毒矢）… まだ掛かっていない敵へ。撒く技なので温存しない
@@ -4486,8 +4558,19 @@ function defaultGambits(u){
     const plain=x=>x.sp.ailBonus==null&&!x.sp.ail;
     one.filter(x=>x.sp.ailBonus!=null).forEach(x=>g.push({subj:'foe',cond:'has_ail',cnt:1,act:x.act}));
     one.filter(x=>x.sp.ail).forEach(x=>g.push({subj:'foe',cond:'no_ail',cnt:1,act:x.act}));
-    one.filter(x=>plain(x)&&x.sp.exec).forEach(x=>{const r=rowForSpell(x.sp,x.act); if(r)g.push(r);});
-    one.filter(x=>plain(x)&&!x.sp.exec).forEach(x=>{const r=rowForSpell(x.sp,x.act); if(r)g.push(r);});
+    /* ★ 同じ条件の行は、強い順に並べる ★
+       全力斬（1.5×1）と隼斬（0.8×2＝1.6）は条件がまったく同じなので、
+       **枠の並び順しだいでどちらか一方が一度も撃たれません**。
+       期待威力（威力×回数）の大きい方を上に置いて、引いた順に左右されないようにする。
+       MPが足りなければ canUse で不成立になり、そのまま下の弱い方へ落ちます。 */
+    const pw=sp=>(atLv(sp.power,1)||0)*(atLv(sp.hits,1)||1);
+    /* ★ 主武器を先、おまけを後 ★
+       威力だけで並べると、剣士の並びが 全力斬(3.2) → ホヤキ → 隼斬(1.6) になり、
+       **おまけのホヤキが主武器の隼斬より上**に座ってしまう。
+       「常時撃つもの」を全部上に集めてから、その中で強い順にする。 */
+    const strong=(a,b)=>(mainArm(u,b.sp)?1:0)-(mainArm(u,a.sp)?1:0)||pw(b.sp)-pw(a.sp);
+    one.filter(x=>plain(x)&&x.sp.exec).sort(strong).forEach(x=>{const r=rowForSpell(x.sp,x.act,u); if(r)g.push(r);});
+    one.filter(x=>plain(x)&&!x.sp.exec).sort(strong).forEach(x=>{const r=rowForSpell(x.sp,x.act,u); if(r)g.push(r);});
     one.filter(x=>x.sp.ailBonus!=null).forEach(x=>g.push({subj:'foe',cond:'always',cnt:1,act:x.act}));
   }
   g.push(...classGambits(u));      // 前衛職の締めくくり（→ FRONT_CLASSES）
@@ -4505,7 +4588,7 @@ function resyncGambits(u,before){
   if(before.spell!==now.spell){
     u.gambits=u.gambits.filter(g=>g.act!=='sp3');          // 前の付与スキルの行を外す
     if(now.spell!=='none'){
-      const sp=SP[now.spell], r=rowForSpell(sp,'sp3');
+      const sp=SP[now.spell], r=rowForSpell(sp,'sp3',u);
       if(r){ if(sp.type==='heal'||sp.type==='cure') u.gambits.unshift(r); else u.gambits.push(r); }
     }
   }
@@ -4679,6 +4762,7 @@ function upcoming(n=10){
     const step=10000/m.spd;
     out.push(m.u);
     const nino=hasT(m.u,'nino'), tom=hasT(m.u,'tomaranu');
+    // ※ ここは予告なので決着判定はしない。盤面が動けば次の描画で消える。
     if((nino||tom)&&out.length<n) out.push(m.u);
     m.ct+=nino?step*2:step;      // 二の太刀は休みが付くぶん、次の出番が1回ぶん遠い
   }
@@ -4815,7 +4899,7 @@ async function loop(){
     render(); netSync(false); await sleep(340);
 
     // 《二の太刀》— もう一度だけ行動し、そのあと自分に休みが付く
-    if(u.alive&&hasT(u,'nino')&&!u.cnt.ninoUsed){
+    if(u.alive&&bothSidesAlive()&&hasT(u,'nino')&&!u.cnt.ninoUsed){
       u.cnt.ninoUsed=1;
       proc(u,'nino','続けてもう一度動く');
       /* 2回目は控えない。控えは「手番の頭＋その手番の最初の行動」で組んであるので、
@@ -4833,7 +4917,7 @@ async function loop(){
     }
 
     /* 《止まらぬ剣》（剣士の職業特性）— 手番のたびに2回行動。休みは付かない。 */
-    if(u.alive&&hasT(u,'tomaranu')){
+    if(u.alive&&bothSidesAlive()&&hasT(u,'tomaranu')){
       proc(u,'tomaranu','剣を止めずにもう一度動く');
       MNINO=true;                       // 《二の太刀》と同じ理由で、この行動は控えない
       const act3=await chooseAction(u);
@@ -4876,6 +4960,12 @@ function endTurn(u,info){
   tickBuffs(u);
   u.ct=time+10000/stat(u,'spd');
 }
+/* ★ まだ戦いが続いているか ★
+   endCheck() はログを出して battleResult を決めてしまうので、
+   「追加行動を出してよいか」だけを知りたい場所ではこちらを使う。
+   これが無いと、1回目の行動で敵を全滅させた剣士が**誰もいない盤面へ2回目を振る**。
+   ハマりはしない（防御で手番を終えれば決着する）が、手番が1つ余計に見える。 */
+const bothSidesAlive=()=>aliveOf('ally').length>0&&aliveOf('foe').length>0;
 function endCheck(){
   const a=aliveOf('ally').length, f=aliveOf('foe').length;
   if(a===0||f===0){
@@ -5812,13 +5902,13 @@ function simOneBattle(limit,keepAllies){
     if(skip!=='sleep') emit('turnStart',{unit:u});
     if(skip||!u.alive){ endTurn(u,{attacked:false,silent:skip==='sleep'}); continue; }
     let attacked=resolveAction(u,aiAction(u));
-    if(u.alive&&hasT(u,'nino')&&!u.cnt.ninoUsed){          // 二の太刀
+    if(u.alive&&bothSidesAlive()&&hasT(u,'nino')&&!u.cnt.ninoUsed){   // 二の太刀
       u.cnt.ninoUsed=1;
       proc(u,'nino','続けてもう一度動く');
       attacked=resolveAction(u,aiAction(u))||attacked;
       if(u.alive) addAil(u,'rest',null,u);
     }
-    if(u.alive&&hasT(u,'tomaranu')){                         // 止まらぬ剣
+    if(u.alive&&bothSidesAlive()&&hasT(u,'tomaranu')){       // 止まらぬ剣
       proc(u,'tomaranu','剣を止めずにもう一度動く');
       attacked=resolveAction(u,aiAction(u))||attacked;
     }
@@ -8659,7 +8749,7 @@ function applySkillGain(rep,list){
          回復と状態回復は先頭へ（後ろだと攻撃行に先を越される）。 */
       const act='sp'+g.slot;
       if(!u.gambits.some(x=>x.act===act)){
-        const sp=SP[g.id], r=rowForSpell(sp,act);
+        const sp=SP[g.id], r=rowForSpell(sp,act,u);
         if(r){ if(sp.type==='heal'||sp.type==='cure') u.gambits.unshift(r); else u.gambits.push(r); }
       }
       rep.skill=(rep.skill||[]).concat(`${u.name} は ${spName(SP[g.id],u)} をひらめいた！`);
@@ -9011,16 +9101,20 @@ function dlgOpen(html,wire){
 }
 function dlgClose(){ const h=$('#dlgHost'); if(h) h.innerHTML=''; DLG=null; }
 /* はい／やめる。戻り値は Promise<boolean>。 */
+/* opt.top … はい／やめる を本文の**上**に置く。
+   中身が縦に長くなり得る窓（自動配置の盤など）で、
+   携帯だと下までスクロールしないと決められなくなるため。 */
 function gConfirm(msg,opt={}){
   return new Promise(res=>{
     const done=v=>{ dlgClose(); res(v); };
-    const ok=dlgOpen(
-      `<header><h3>${gEsc(opt.title||'確認')}</h3></header>
-       <div class="mbody"><div class="dlgmsg">${msg}</div>
-         <div class="cmds">
+    const cmds=`<div class="cmds">
            <button class="btn${opt.danger?' danger':' big'}" id="dlgOk">${gEsc(opt.ok||'はい')}</button>
            <button class="btn" id="dlgNo">${gEsc(opt.no||'やめる')}</button>
-         </div></div>`,
+         </div>`;
+    const ok=dlgOpen(
+      `<header><h3>${gEsc(opt.title||'確認')}</h3></header>
+       <div class="mbody">${opt.top?cmds:''}<div class="dlgmsg">${msg}</div>
+         ${opt.top?'':cmds}</div>`,
       host=>{
         DLG=()=>done(false);
         $('#dlgOk').onclick=()=>done(true);
@@ -9399,18 +9493,24 @@ async function dissolveParty(p){
   saveGuild(); renderGuild();
 }
 
+/* ★ 部隊の顔ぶれを [前][後] の2行で書き出す ★
+   部隊一覧・依頼の送り出し・闘技場の出場、どこでも同じ形で出したいので共通化。
+   以前は3か所がばらばらで、依頼の画面だけ名前の羅列、闘技場は「前レイ」と
+   名前に食い込む書き方でした。どの列の誰が何の職か、が並びで分かる形に揃えます。
+   空でも札は出します（行数を揃えて、視線の位置を動かさないため）。 */
+const partyRow=(list,label,front)=>`<span class="prow">
+  <span class="apos${front?' f':''}">${label}</span>
+  <span class="rsub pmem">${list.map(u=>
+    `<span class="pman"><span class="gname" data-tip="${unitTip(u)}">${gEsc(u.name)}</span>`
+    +`<i>${gEsc(u.clsName)}</i>`
+    +(showHurt(u)?'<em class="ghurt">負傷</em>':'')+'</span>').join('')
+    ||'<span class="rnone">—</span>'}</span></span>`;
+const partyRows=men=>partyRow(men.filter(isFront),'前',true)
+                    +partyRow(men.filter(u=>!isFront(u)),'後',false);
+
 /* --- 部隊 --- */
 function gParty(){
   const b=$('#gbody');
-  /* 前衛・後衛を1行ずつ。★ 闘技場の [前][後] の札と同じ見た目にしてある ★
-     どちらの列に誰がいるかが、部隊名と状態より先に目に入る形。
-     空でも札は出す（行数を揃えて、視線の位置を動かさないため）。 */
-  const pRow=(list,label,front)=>`<span class="prow">
-    <span class="apos${front?' f':''}">${label}</span>
-    <span class="rsub pmem">${list.map(u=>
-      `<span class="gname" data-tip="${unitTip(u)}">${gEsc(u.name)}</span><i>${gEsc(u.clsName)}</i>`
-      +(showHurt(u)?'<em class="ghurt">負傷</em>':'')).join('・')
-      ||'<span class="rnone">—</span>'}</span></span>`;
   const row=p=>{
     const men=partyUnits(p);
     // 成否はここに出さない。報告を聞くまで分からないようにする。
@@ -9419,13 +9519,11 @@ function gParty(){
       :p.questId?`受注中：${gEsc(questOf(p.questId).name)}　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :'<span class="rnone">待機中</span>';
     const skip=(p.questId||p.arena)?skipCost(p.returnAt-now()):0;
-    return `<div class="rrow tight" data-p="${p.pid}">
-      <span class="rpos">${men.length}人</span>
+    return `<div class="rrow tight nar" data-p="${p.pid}">
       <span class="rmain">
-        <span class="phead"><b>${gEsc(p.name)}</b>
+        <span class="phead"><b>${gEsc(p.name)}</b><i>${men.length}人</i>
           <span class="rsub" data-st="${p.pid}" data-stw="quest">${st}</span></span>
-        ${pRow(men.filter(isFront),'前',true)}
-        ${pRow(men.filter(u=>!isFront(u)),'後',false)}</span>
+        ${partyRows(men)}</span>
       <span class="rbtn">
         ${p.report?`<button data-a="rep">${repLabel(p.report)}</button>`:''}
         ${(p.questId||p.arena)?btnOr(G.gems>=skip,
@@ -9737,15 +9835,20 @@ function gPartyEdit(p){
       <div class="prow"><span class="prl">後列</span>
         <div class="pcells back">${[3,4,5,6].map(cell).join('')}</div></div>
     </div>
+    ${/* ★ ボタンは盤のすぐ下 ★
+         控えの一覧は長いので、下に置くと**スクロールしないとたどり着けない**。
+         「空きに控えを入れる」は盤の空きを見て押すものなので、盤の近くが正しい。
+         並びは 部隊一覧へ → 空きに控えを入れる。右側＝親指が届く位置に、
+         この画面で何度も押すほうを置いています。 */''}
+    <div class="cmds">
+      <button class="btn" id="pBack">部隊一覧へ</button>
+      ${slots.some(x=>x==null)
+        ?'<button class="btn" id="pAuto">空きに控えを入れる</button>':''}
+    </div>
     <div class="sechead">控え・他の部隊　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
     ${fbar}
     <div class="rlist">${pool.map(line).join('')
-      ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'ほかに仲間がいません。'}</div>`}</div>
-    <div class="cmds">
-      ${slots.some(x=>x==null)
-        ?'<button class="btn" id="pAuto">空きに控えを入れる</button>':''}
-      <button class="btn" id="pBack">部隊一覧へ</button>
-    </div>`;
+      ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'ほかに仲間がいません。'}</div>`}</div>`;
   const redraw=()=>{ saveGuild(); gPartyEdit(p); };
   // 枠の × で控えへ戻す。枠のタップ（選択）より先に止める。
   b.querySelectorAll('[data-out]').forEach(el=>onTap(el,ev=>{
@@ -9800,15 +9903,35 @@ function gPartyEdit(p){
         +'<b>療養中の仲間</b>と<b>他の部隊の仲間</b>は入りません。',{title:'空きに控えを入れる'});
       return;
     }
-    const free=partySlots(p).filter(x=>x==null).length;
-    const rows=plan.map(x=>`<div class="afrow"><span class="afs">${
-      x.slot<3?'前':'後'}${x.slot+1}</span><b>${gEsc(x.u.name)}</b><i>${gEsc(x.u.clsName)}</i></div>`).join('');
+    const now2=partySlots(p);
+    const free=now2.filter(x=>x==null).length;
+    /* 盤ぜんぶを描く。入る人（plan）・すでに居る人（keep）・埋まらない空き、の3態。 */
+    const byslot={}; plan.forEach(x=>byslot[x.slot]=x.u);
+    /* 中身は編成画面の枠と同じ並び（名前／職業／個性／スキル）。
+       ⚠️ チップの data-tip は窓の中では効きません（吹き出しは盤の上に出る作り）。
+          読める字で出ていれば足りるので、そのまま置いています。 */
+    const mbody=u=>`<b>${gEsc(u.name)}</b>
+      <span class="gchips grow-cls"><i>${gEsc(u.clsName)}</i>${eqChips(u)}</span>
+      <span class="gchips">${traitChips(u)}</span>
+      <span class="gchips">${spellChips(u)}</span>`;
+    const mcell=i=>{
+      const nu=byslot[i];
+      if(nu) return `<div class="pcell plan">${mbody(nu)}</div>`;
+      const gid=now2[i], u=gid!=null?G.roster.find(x=>x.gid===gid):null;
+      if(u) return `<div class="pcell keep">${mbody(u)}</div>`;
+      return `<div class="pcell empty"><span>${i<3?'前':'後'}${i+1}</span></div>`;
+    };
+    const board=`<div class="pboard mini">
+      <div class="prow"><span class="prl">前列</span>
+        <div class="pcells front">${[0,1,2].map(mcell).join('')}</div></div>
+      <div class="prow"><span class="prl">後列</span>
+        <div class="pcells back">${[3,4,5,6].map(mcell).join('')}</div></div></div>`;
     const ok=await gConfirm(
       (plan.length<free
         ? `空き <b>${free}枠</b> のうち <b>${plan.length}枠</b> を埋めます。`
         : `空いている <b>${free}枠</b> を埋めます。`)
-      +'<div class="aflist">'+rows+'</div>',
-      {title:'この配置にしますか？',ok:'この配置にする'});
+      +board,
+      {title:'この配置にしますか？',ok:'この配置にする',top:true});
     if(!ok)return;
     /* ★ 窓を開けている間に状況が変わっていないか見直す ★
        いまは GSUB で裏の描き直しを止めているが、それに頼らない形にしておく。 */
@@ -9916,7 +10039,7 @@ function gQuest(){
               :'<span class="rnone">未受注</span>';
     const el=eligible(q), k=QKIND[q.kind]||QKIND.std;
     const ft=cleared(q)?'':firstText(q);
-    return `<div class="rrow" data-o="${o.oid}">
+    return `<div class="rrow nar" data-o="${o.oid}">
       <span class="rpos">${fmtDur(q.sec)}</span>
       <span class="rmain"><b>${gEsc(q.name)}${
         q.tier?`<i class="gtag tr">難度${q.tier}</i>`:''}<i class="gtag ${k.c}">${k.n}</i>${
@@ -10168,10 +10291,9 @@ function gDispatch(o,free){
     <div class="sechead">送り出す部隊</div>
     <div class="rlist">${free.map(p=>{
       const men=partyUnits(p);
-      return `<div class="rrow" data-p="${p.pid}">
-        <span class="rpos">${men.length}人</span>
-        <span class="rmain"><b>${gEsc(p.name)}</b><br>
-          <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${gEsc(u.name)}</span>`).join('・')}</span>
+      return `<div class="rrow nar" data-p="${p.pid}">
+        <span class="rmain"><b>${gEsc(p.name)}</b><i>${men.length}人</i>
+          ${partyRows(men)}
           ${(!q.custom&&partyCountTrait(men,'tame'))?`<span class="rsub gtame">
             《テイム》あり — <b>人間の加入抽選は起きません</b>。かわりに戦った魔物が仲間になることがあります</span>`:''}
           <span class="gomen"></span></span>
@@ -12014,11 +12136,9 @@ function gArena(){
           `呼び戻すには宝石${skipCost(p.returnAt-now())}（いま ${G.gems}）`)}</span></div>`).join(''):''}
     <div class="sechead">送り出す部隊</div>
     ${idle.length?idle.map(p=>{ const men=partyUnits(p);
-      return `<div class="rrow" data-p="${p.pid}">
-        <span class="rpos">${men.length}人</span>
-        <span class="rmain"><b>${gEsc(p.name)}</b><br>
-          <span class="rsub">${men.map(u=>`<span class="gname" data-tip="${unitTip(u)}">${
-            u.slot<3?'前':'後'}${gEsc(u.name)}</span>`).join('・')}</span></span>
+      return `<div class="rrow nar" data-p="${p.pid}">
+        <span class="rmain"><b>${gEsc(p.name)}</b><i>${men.length}人</i>
+          ${partyRows(men)}</span>
         <span class="rbtn">${btnOr(!men.some(injured),
           '<button data-a="go">出場する</button>','療養中の仲間がいます')}</span></div>`;}).join('')
       : '<div class="tdesc">待機中の部隊がありません。</div>'}`;
