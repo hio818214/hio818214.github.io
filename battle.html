@@ -260,6 +260,8 @@ body.guildmode .gwrap{display:flex;flex-direction:column;gap:14px;
 .gtag{font-style:normal;font-size:9.5px;border-radius:2px;padding:1px 5px;margin-left:6px;
   vertical-align:middle;font-weight:700;letter-spacing:.02em}
 .gtag.tr{background:#2c2740;color:var(--muted)}
+/* 最少人数の記録。達成の札とは別の色にして、数字が2つ並んでも読み違えないようにする */
+.gtag.k-rec{background:#1b2740;border:1px solid #35507a;color:#9dc2ea}
 .k-story{background:#2c2740;color:var(--muted)}
 .k-short{background:#1f3a44;color:#7fc7dd}
 .k-std{background:#26313f;color:#9fb6cf}
@@ -613,6 +615,13 @@ body.mobile .mask.dlg{padding:16px;align-items:center}
 .rrow.nar .rbtn{flex-direction:column;align-items:stretch;gap:4px;max-width:132px}
 .rrow.nar .rbtn button{width:100%;white-space:nowrap}
 .rrow.nar .rwhy{max-width:132px;text-align:right}
+/* ★ 部隊の行だけ2行2列 ★
+   [依頼へ][編成] / [闘技場][解散]。縦1列だと4つで背が高くなり、
+   顔ぶれ2行ぶんの高さを超えて行が伸びてしまう。 */
+.rrow .rbtn.g2{display:grid;grid-template-columns:1fr 1fr;gap:4px;max-width:176px}
+.rrow .rbtn.g2 button{width:100%;white-space:nowrap}
+body.mobile .rrow.nar .rbtn.g2{max-width:150px}
+body.mobile .rrow.nar .rbtn.g2 button{padding:6px 2px;font-size:10px}
 /* 押せない理由。ボタンの代わりに同じ場所へ置くので、ボタンと同じ高さに座らせる。
    読ませたい文字なので、装飾は薄くしても字は本文と同じ 11px を保つ。 */
 .rwhy{font-size:11px;color:#8d85a0;line-height:1.5;text-align:right;
@@ -7217,6 +7226,21 @@ const GEM_CAP=9999;
 const KANJI_NUM=['一','二','三','四','五','六','七','八','九','十',
                  '十一','十二','十三','十四','十五','十六','十七','十八','十九','二十'];
 let GVIEW='party', GMSG='';
+/* ★ 部隊一覧から「この部隊で」行き先を選んだ時の pid ★
+   依頼・闘技場の画面を**その部隊だけ**に絞ります。
+   メニューを押した時と一覧へ戻った時に必ず解除します（居残ると次に開いた時に絞られたまま）。 */
+let GONLY=null;
+const onlyParty=()=>GONLY==null?null:(G.parties.find(p=>String(p.pid)===String(GONLY))||null);
+/* 絞り込み中の見出し。押すと解除して全部隊に戻る。 */
+function onlyBanner(){
+  const p=onlyParty(); if(!p)return '';
+  return `<div class="gidle"><b>${gEsc(p.name)}</b> の行き先を選んでいます。
+    <button class="btn sm" id="onlyOff">ほかの部隊も出す</button></div>`;
+}
+function onlyBind(){
+  const b=$('#onlyOff');
+  if(b) b.onclick=()=>{ GONLY=null; renderGuild(); };
+}
 
 /* =========================================================
    ギルドのランクと拡張
@@ -8608,6 +8632,14 @@ function runQuest(p,offer){
   const waves=questWaves(q);
   if(!waves.length||!men.length) return {ok:!!men.length,rounds:[],dead:[]};
   const sU=U,sB=BENCH,sSIM=SIM,sPOS=SIMPOS,sCur=current;
+  /* ★ 表示名を必ず戻す ★
+     《転生》は戦闘中だけ `name` を「真◯◯」に書き換えます（`name0` が本当の名前）。
+     ここは**ギルドの仲間そのもの**を盤に載せているので、戻さないと
+     **寺院や部隊一覧に「真レイ」が残り続けます**（実際に残りました）。
+     ⚠️ `resetUnit` では戻せません。この後 `u.alive` を見て倒れた人を数えるので、
+        生き返らせてしまいます。名前だけを戻すこと。
+     ※ 隊列（`u.slot`）は `partyUnits` が毎回 `p.slots` から入れ直すので、ここでは触りません。 */
+  const names=men.map(u=>[u,u.name0||u.name]);
   const rounds=[]; let ok=true;
   try{
     SIM=true;
@@ -8624,7 +8656,8 @@ function runQuest(p,offer){
         down:men.filter(x=>!x.alive).map(x=>x.gid)});
       if(r.result!=='ally'){ ok=false; break; }
     }
-  } finally { U=sU; BENCH=sB; SIM=sSIM; SIMPOS=sPOS; current=sCur; }
+  } finally { U=sU; BENCH=sB; SIM=sSIM; SIMPOS=sPOS; current=sCur;
+              names.forEach(([u,n])=>{ u.name=n; }); }
   return {ok,rounds,dead:men.filter(u=>!u.alive).map(u=>u.gid)};
 }
 /* 成功率の試算。自動集計と同じことを、部隊と依頼に対してやるだけ。
@@ -8810,6 +8843,32 @@ const TAME_CAP=0.80;      // 何人乗せても確定にはしない
    依頼はクリアしても掲示に残り続けるので、確定加入（指揮官など）を
    毎回配ると無限に湧いてしまう。確定枠は q.first に置いて初回だけ払う。
    繰り返しで出るのは確率枠（memberChance / equipChance）だけ。 */
+/* =========================================================
+   ★ 最少人数の記録（9/27）★
+
+   依頼ごとに「何人で通したか」の最少を `G.best[qid]` に覚えます。
+   **1人減らして更新するたび宝石1個。**7人が起点なので、
+   初めて4人で通したらいきなり3個（7→4）出ます。
+
+   ★ なぜ人数なのか ★
+   82件ある依頼が「時給と所要時間の違う同じ蛇口」になっていて、
+   一度通した依頼に戻る理由がありませんでした。人数の記録があれば、
+   装備が揃い・スキルが育ち・職業特性が乗るたびに**昔の依頼が新しく見えます**。
+   ★ そして**ギルドがどれだけ強くなったかを測る物差し**が、これまで1つも無かった。
+
+   ★ なぜ報酬が宝石なのか ★
+   GOLDだと「効率のいい依頼を7人で回す」に永久に勝てません（人数を減らしても
+   時給は変わらないので）。挑戦に失敗すると**依頼の所要時間を丸ごと失う**ので、
+   コストは既に時間で払われている。宝石は1個＝1時間なので、時間で返すのが対称です。
+
+   ⚠️ **対象外**
+     ・自作依頼 … 好きな敵を好きなだけ並べられるので記録が取り放題になる
+     ・`partySize` 指定の依頼（三人シリーズ）… 人数が固定なので梯子にならない
+   ⚠️ **人数は封筒を作る時点で確定させます**（`pending.size`）。
+      報告を聞くまでに部隊を組み替えられるため。
+   ========================================================= */
+const recordable=q=>!!q&&!q.custom&&!q.partySize;
+const bestOf=q=>(G&&G.best&&G.best[q.id])||PSLOTS;   // 記録が無ければ満員（7人）から
 function rollPending(q,ok,men,met){
   const pending={gold:0,member:null,item:false,injuries:[],first:false,
     firstMember:null,firstItem:false,tamed:null};
@@ -8842,6 +8901,7 @@ function rollPending(q,ok,men,met){
     if(f.item) pending.firstItem=(f.item===true?1:(+f.item||0));   // 個数も書ける
   }
   pending.skill=rollSkillGain(q,men);
+  pending.size=(men||[]).length;      // 記録用。あとで部隊を組み替えられても動かない
   return pending;
 }
 
@@ -9078,6 +9138,16 @@ function claimReport(rep){
      （同じ掲示のままだと、繰り返すたびに一字一句同じ戦闘になる）。 */
   if(q&&rep.ok){
     G.done[q.id]=(G.done[q.id]||0)+1;
+    /* ★ 最少人数の更新 ★ 減らしたぶんだけ宝石。 */
+    if(recordable(q)&&pen.size>0){
+      const was=bestOf(q);
+      if(pen.size<was){
+        const gems=was-pen.size;
+        G.best=G.best||{}; G.best[q.id]=pen.size;
+        G.gems+=gems;
+        rep.record={from:was,to:pen.size,gems};
+      }
+    }
     G.offers=q.once ? (G.offers||[]).filter(o=>o.qid!==q.id)     // 一度きりの依頼は消える
                     : (G.offers||[]).map(o=>o.qid===q.id?makeOffer(q.id):o);
     /* ★ ランクはここで上がる ★
@@ -9106,7 +9176,7 @@ function guildData(){
         newOnly:!!GQF.newOnly,keyOnly:!!GQF.keyOnly},
     custom:customList().map(q=>({id:q.id,name:q.name,sec:q.sec,waves:q.waves.map(w=>w.slice())})),
     cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,cid:G.cid||'',
-    done:G.done,parties:G.parties,stockAt:G.stockAt,offers:G.offers,seen:G.seen||{},
+    done:G.done,best:G.best||{},parties:G.parties,stockAt:G.stockAt,offers:G.offers,seen:G.seen||{},
     mult:G.mult||{},shopDay:G.shopDay||'',shopLog:G.shopLog||{},
     /* 預けた先を覚えておく。**コードそのもの**なので、
        これが入った保存を他人に渡すと、その人も上書きできる。 */
@@ -9187,6 +9257,11 @@ function applyGuild(d){
      custom:[],cidc:d.cidc||0,rankSeen:d.rankSeen,
      gidc:d.gidc||0,oidc:d.oidc||0,
      name:d.name||'かけだし団',hero:d.hero||'レイ',done:d.done||{},
+     /* 最少人数の記録。保存は手で触れるので、知らない依頼と範囲外の数は捨てる。 */
+     best:(()=>{ const o={};
+       Object.keys(d.best||{}).forEach(id=>{ const q=questOf(id); if(!q||!recordable(q))return;
+         const n=+d.best[id]|0; if(n>=1&&n<=PSLOTS) o[id]=n; });
+       return o; })(),
      mult:d.mult||{},shopDay:d.shopDay||'',shopLog:d.shopLog||{},
      stockAt:d.stockAt||0,offers:d.offers||[],seen:seenLoad(d.seen),
      saveCode:codeNorm(d.saveCode),saveAt:d.saveAt||'',
@@ -9218,6 +9293,11 @@ function applyGuild(d){
   (d.roster||[]).forEach(o=>{ const u=buildUnit(o);
     u.gid=o.gid||(++G.gidc); u.healAt=o.healAt||0; u.hero=!!o.hero; u.side='ally';
     u.spLv=o.spLv||{};   // スキルidごとのレベル。古い保存には無いので空で始める
+    /* ★ 戦闘中の表示名が焼き付いた保存を直す ★
+       runQuest が名前を戻していなかったので、《転生》した仲間が
+       「真レイ」のまま寺院や部隊一覧に残っていました（9/27 修正）。
+       `name0` が本当の名前なので、食い違っていたら戻します。 */
+    if(u.name0&&u.name!==u.name0) u.name=u.name0;
     fixAutoRows(u);      // 全体治療・MP回復の行が抜けている保存を繕う
     G.gidc=Math.max(G.gidc,u.gid); G.roster.push(u); });
   // 実在しない gid と、二重所属を掃除する（過去の保存に混ざっている可能性がある）
@@ -9233,7 +9313,7 @@ function applyGuild(d){
 function newGuild(name,hero,clsId){
   G={gold:0,gems:10,ext:{parties:0,roster:0,inv:0,custom:0},custom:[],cidc:0,rankSeen:0,
      tut:{step:0},rev:0,
-     gidc:0,oidc:0,name:name,hero:hero,done:{},mult:{},shopDay:'',shopLog:{},stockAt:0,offers:[],seen:{},
+     gidc:0,oidc:0,name:name,hero:hero,done:{},best:{},mult:{},shopDay:'',shopLog:{},stockAt:0,offers:[],seen:{},
      saveCode:'',saveAt:'',
      roster:[],parties:[],stock:[]};
   INV=[]; iidc=0;
@@ -9442,6 +9522,7 @@ function gBadgeSync(){
 function renderGuild(){
   const host=$('#gwrap'); if(!host)return;
   GSUB=false;            // 一覧に戻ってきた
+  if(GVIEW==='party') GONLY=null;      // 部隊一覧へ戻ったら絞り込みは解除
   if(!G){ renderGuildStart(); return; }
   const item=(k,t,s,n)=>`<button data-g="${k}"${GVIEW===k?' class="on"':''}>
     <b>${t}${n?` <i class="gbadge">${n}</i>`:''}</b><span>${s}</span></button>`;
@@ -9508,7 +9589,7 @@ function renderGuild(){
     /* 闘技場の結果を見たあとメニューで移った場合、ARENA が残って
        次の部隊の「報告を聞く」が無反応になる。済んだものはここで捨てる。 */
     if(ARENA&&ARENA.got) arenaClear();
-    GVIEW=b.dataset.g; GMSG=''; renderGuild(); });
+    GVIEW=b.dataset.g; GMSG=''; GONLY=null; renderGuild(); });
   /* 検証用。待ち時間も戦闘もなしで、入手だけを起こす。 */
   const dbg=(id,fn)=>{ const el=$(id); if(el) el.onclick=()=>{ fn(); saveGuild(); renderGuild(); }; };
   const dbgJoin=rare=>{
@@ -9618,6 +9699,8 @@ function startGuildTick(){
     if(maybeRestock()&&GVIEW==='shop'&&!guildBusy()){ renderGuild(); return; }
     tickLabels();
     syncRecallButtons();   // 凍らせている間に帰ってきた部隊のボタンだけ直す
+    syncReportAgain();     // 報告画面で待っていると、治療して再送 → ふつうの再送 に変わる
+    syncTempleButtons();   // 寺院の値段は残り時間で下がる。貼り付いた金額を出さない
   },1000);
 }
 /* 時短。残り時間を消して即座に終わらせる。 */
@@ -9724,13 +9807,20 @@ function gParty(){
         <span class="phead"><b>${gEsc(p.name)}</b><i>${men.length}人</i>
           <span class="rsub" data-st="${p.pid}" data-stw="quest">${st}</span></span>
         ${partyRows(men)}</span>
-      <span class="rbtn">
+      <span class="rbtn${(partyBusy(p)||p.report)?'':' g2'}">
         ${p.report?`<button data-a="rep">${repLabel(p.report)}</button>`:''}
         ${(p.questId||p.arena)?btnOr(G.gems>=skip,
           `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skip}</button>`,
           `呼び戻すには宝石${skip}（いま ${G.gems}）`):''}
+        ${/* ★ ここから「誰を、どこへ」を選べる ★
+             元は 依頼 → 部隊 の一方向だけでした。部隊を見ながら行き先を決めたい
+             場面のほうが多いので、逆向きの導線を足しています（→ GONLY）。
+             ⚠️ 空の部隊は出せないので、依頼へ・闘技場は出しません。 */''}
         ${(partyBusy(p)||p.report)?''
-          :'<button data-a="edit">編成</button><button data-a="del">解散</button>'}
+          :`${men.length?'<button data-a="quest">依頼へ</button>':''}
+            <button data-a="edit">編成</button>
+            ${(men.length&&arenaOpen())?'<button data-a="arena">闘技場</button>':''}
+            <button data-a="del">解散</button>`}
       </span></div>`;
   };
   /* ★ 名簿はここにも出す ★
@@ -9778,6 +9868,10 @@ function gParty(){
         if(a==='rep'){ gReport(p); return; }
         if(a==='skip'){ useSkip('quest',p); return; }
         if(a==='del'){ dissolveParty(p); return; }
+        /* この部隊を連れて行き先の画面へ。GONLY を立てると、
+           その画面は**この部隊だけ**を送り出し先の候補にします。 */
+        if(a==='quest'){ GONLY=p.pid; GVIEW='quest'; GMSG=''; renderGuild(); return; }
+        if(a==='arena'){ GONLY=p.pid; GVIEW='arena'; GMSG=''; renderGuild(); return; }
         GPICK=null; gPartyEdit(p);
       };
     });
@@ -10204,8 +10298,10 @@ function gUnit(u,p){
 /* --- 依頼 --- */
 function gQuest(){
   const b=$('#gbody');
+  const only=onlyParty();
   const free=G.parties.filter(p=>!partyBusy(p)&&!p.report&&partyUnits(p).length
-    &&partyUnits(p).every(u=>!injured(u)));
+    &&partyUnits(p).every(u=>!injured(u)))
+    .filter(p=>!only||p===only);        // 部隊一覧から来た時はその部隊だけ
   /* ★ 出せない理由を1行で言う ★
      free は「待機中・空でない・全員健康」で絞り込んだ結果なので、
      0件になる原因が4つある。どれで落ちたかを上から順に見て、その言葉を返す。
@@ -10216,6 +10312,7 @@ function gQuest(){
     if(!staffed.length)              return '仲間を置いた部隊がありません';
     const idle=staffed.filter(p=>!partyBusy(p)&&!p.report);
     if(!idle.length)                 return '待機中の部隊がありません';
+    if(only&&!free.length)           return `${gEsc(only.name)} は出せません（療養中の仲間がいます）`;
     if(!free.length)                 return '療養中の仲間がいる部隊しかありません';
     return questCondText(q)?`${questCondText(q)}の部隊がいません`:'条件に合う部隊がありません';
   };
@@ -10243,11 +10340,16 @@ function gQuest(){
       <span class="rpos">${fmtDur(q.sec)}</span>
       <span class="rmain"><b>${gEsc(q.name)}${
         q.tier?`<i class="gtag tr">難度${q.tier}</i>`:''}<i class="gtag ${k.c}">${k.n}</i>${
-        cleared(q)?`<i class="gtag k-done">達成 ${clearCount(q)}</i>`:'<i class="gtag k-new">未クリア</i>'}${
         q.key?'<i class="gtag k-key">キー</i>':''}${
         questCondText(q)?`<i class="gmust">${questCondText(q)}</i>`:''}${
         q.manual?'<i class="gman">手動戦闘</i>':''}</b>
-        <i>報酬 ${q.gold.toLocaleString()}G</i><br>
+        ${/* ★ 並びは 報酬 → 達成回数 → 最少人数 ★
+             報酬がいちばん先に要る数字で、あとの2つは「この依頼との付き合い方」。
+             未クリアなら回数も記録も無いので、札を1枚だけ出します。 */''}
+        <i>報酬 ${q.gold.toLocaleString()}G</i>${
+        cleared(q)?`<i class="gtag k-done">達成 ${clearCount(q)}回</i>${
+          recordable(q)&&G.best&&G.best[q.id]?`<i class="gtag k-rec">最少 ${G.best[q.id]}人</i>`:''}`
+          :'<i class="gtag k-new">未クリア</i>'}<br>
         <span class="rsub">${q.desc.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
         <span class="rsub">${questFoeText(q)}　／　${foeSummary(q)}　／　<span data-st="${stId}" data-stw="party">${st}</span></span></span>
       <span class="rbtn">
@@ -10311,6 +10413,7 @@ function gQuest(){
   const stBtn=(k,label)=>`<button data-s="${k}"${GQF.st===k?' class="on"':''}>${label}${
     k==='all'?'':`<i>${stCount[k]}</i>`}</button>`;
   b.innerHTML=`<h2>依頼</h2>
+    ${onlyBanner()}
     <div class="fbar">
       <div class="esteps" id="qStat">
         ${stBtn('all','すべて')}${stBtn('free','未受注')}${stBtn('busy','受注中')}${stBtn('rep','報告待ち')}
@@ -10364,6 +10467,7 @@ function gQuest(){
       <b>指揮官はどの依頼でも加入しません。</b>《共有》を必ず持つ特別な職なので、
       対人戦の報酬など別の導線に取ってあります。</div>`:''}`;
   // 絞り込みは保存する。リロードしても同じ見え方で戻ってくる。
+  onlyBind();
   const refilter=()=>{ saveGuild(); gQuest(); };
   const qs=$('#qStat');
   if(qs) qs.onclick=e=>{ const btn=e.target.closest('button'); if(!btn)return;
@@ -10671,6 +10775,44 @@ async function playRound(){
   }
 }
 
+/* ★ 「もう一度送り出せるか」を毎秒引き直せる形にしてある ★
+   療養は時間で明けるので、報告画面を開いたまま待っていると
+   **治療して再送 → ふつうの再送** に変わります（→ syncReportAgain）。 */
+let RREP=null;
+function reGoState(p,r){
+  const q=questOf(r.questId);
+  if(!q) return {ok:false,why:''};
+  if(q.once) return {ok:false,why:''};
+  const off=(G.offers||[]).find(o=>o.qid===q.id);
+  if(!off) return {ok:false,why:'この依頼はもう掲示されていません。'};
+  if(G.parties.some(x=>x.offerId===off.oid)) return {ok:false,why:'この依頼は別の部隊が受注中です。'};
+  const men=partyUnits(p);
+  if(!men.length) return {ok:false,why:'この部隊には誰もいません。'};
+  const hurt=men.filter(injured);
+  if(hurt.length) return {ok:false,hurt,q,off,
+    why:`${hurt.map(u=>gEsc(u.name)).join('・')} が療養中のため、この部隊はまだ出せません。`};
+  if(q.hero&&!men.some(u=>u.hero)) return {ok:false,why:'この依頼は主人公の出撃が条件です。'};
+  return {ok:true,why:'<b>敵は前回と同じ相手とはかぎりません</b>。',q,off};
+}
+/* 報告画面の「再送」まわりだけを組む。画面ごと描き直さないのは、
+   読んでいる途中でスクロール位置が飛ぶのを避けるため。 */
+function reGoBlock(a){
+  if(a.ok) return `<div class="seghint">${a.why}</div>
+    <div class="cmds"><button class="btn big" id="rReGo">同じ依頼へもう一度送り出す</button></div>`;
+  if(!a.hurt) return a.why?`<div class="seghint">${a.why}</div>`:'';
+  const g=a.hurt.reduce((v,u)=>v+healCost(u),0);
+  const m=a.hurt.reduce((v,u)=>v+skipCost(u.healAt-now()),0);
+  const who=a.hurt.length>1?`${a.hurt.length}人`:gEsc(a.hurt[0].name);
+  return `<div class="seghint">${a.why}<br>
+    <b>寺院で${who}を治療して、そのまま送り出せます。</b>
+    放っておいても時間で明けます（安くなっていきます）。</div>
+    <div class="cmds">
+      ${btnOr(G.gold>=g,`<button class="btn big" id="rHealGo">${g.toLocaleString()}Gで治療して送り出す</button>`,
+        `金が ${(g-G.gold).toLocaleString()}G 足りません`)}
+      ${btnOr(G.gems>=m,`<button class="btn" id="rGemGo">宝石${m}で治療して送り出す</button>`,
+        `宝石${m}（いま ${G.gems}）`)}
+    </div>`;
+}
 function gReportResult(){
   const S=REPLAY; const r=S.rep, p=S.p;
   const b=$('#gbody');
@@ -10684,21 +10826,8 @@ function gReportResult(){
   /* ★ そのまま出し直せるように ★
      同じ依頼を続けて回すのが一番多い動線なのに、いちいち依頼一覧へ戻るのは遠い。
      掲示は達成時に引き直しているので、**敵の個性は変わる**。落ちることもある。 */
-  const again=(()=>{
-    const q=questOf(r.questId);
-    if(!q) return {ok:false,why:''};
-    if(q.once) return {ok:false,why:''};
-    const off=(G.offers||[]).find(o=>o.qid===q.id);
-    if(!off) return {ok:false,why:'この依頼はもう掲示されていません。'};
-    if(G.parties.some(x=>x.offerId===off.oid)) return {ok:false,why:'この依頼は別の部隊が受注中です。'};
-    const men=partyUnits(p);
-    if(!men.length) return {ok:false,why:'この部隊には誰もいません。'};
-    const hurt=men.filter(injured);
-    if(hurt.length) return {ok:false,
-      why:`${hurt.map(u=>gEsc(u.name)).join('・')} が療養中のため、この部隊はまだ出せません。`};
-    if(q.hero&&!men.some(u=>u.hero)) return {ok:false,why:'この依頼は主人公の出撃が条件です。'};
-    return {ok:true,why:'<b>敵は前回と同じ相手とはかぎりません</b>。',q,off};
-  })();
+  RREP={p,r};                       // 毎秒の引き直し用（→ syncReportAgain）
+  const again=reGoState(p,r);
   const won=(r.rounds||[]).filter(x=>x.ok).length, all=(r.rounds||[]).length;
   b.innerHTML=`<h2>${gEsc(r.quest)} の報告</h2>
     <div class="gresult ${r.ok?'ok':'ng'}">${r.ok?'達成':'失敗'}</div>
@@ -10716,6 +10845,8 @@ function gReportResult(){
     </div>
     ${r.gained.length?`<div class="gtodo">${r.gained.map(gEsc).join('<br>')}</div>`:''}
     ${r.items.length?`<div class="gtodo">${r.items.map(gEsc).join('<br>')}</div>`:''}
+    ${r.record?`<div class="qfirst big"><b>最少人数を更新</b>　
+      ${r.record.from}人 → <b>${r.record.to}人</b> で達成。宝石 <b>${r.record.gems}</b> を得た。</div>`:''}
     ${r.injured.length?`<div class="warn">${r.injured.map(gEsc).join('・')} が負傷した。寺院で治療できる。</div>`:''}
     ${(r.skill||[]).length?`<div class="gskill">${r.skill.map(gEsc).join('<br>')}</div>`:''}
     ${(r.hurtJoin||[]).length?`<div class="grescue">
@@ -10723,22 +10854,55 @@ function gReportResult(){
       ギルドへ運び込んだが、傷が癒えるまでは依頼に出せない。
       <b>寺院</b>で金を払えばすぐに治せる。放っておいても時間で明ける。</div>`:''}
     <div class="seghint">${DEBUG?`<br>各戦闘の種：${(r.rounds||[]).map(x=>x.seed).join(' / ')||'—'}`:''}</div>
-    ${again.why?`<div class="seghint">${again.why}</div>`:''}
+    <div id="rAgain">${reGoBlock(again)}</div>
     <div class="cmds">
-      ${again.ok?'<button class="btn big" id="rReGo">同じ依頼へもう一度送り出す</button>':''}
       ${r.manual?'':'<button class="btn" id="rvAgain">もう一度見る</button>'}
       <button class="btn" id="rOk">閉じる</button></div>`;
   // 手動依頼は自分の操作が経過を決めているので、種だけでは同じ戦闘にならない。再生は出さない。
   const ag=$('#rvAgain'); if(ag) ag.onclick=()=>{ S.idx=0; gReportStep(); };
-  const rg=$('#rReGo');
-  if(rg&&again.ok) rg.onclick=()=>{
-    const {q,off}=again;
-    p.questId=q.id; p.offerId=off.oid; p.report=null; p.returnAt=now()+q.sec*1000;
-    GMSG=`${gEsc(p.name)} を「${gEsc(q.name)}」へもう一度送り出した。`;
-    if(!q.sec) resolveInstant(p,q,off);
-    REPLAY=null; saveGuild(); renderGuild();
+  bindReGo(p,r);
+  $('#rOk').onclick=()=>{ REPLAY=null; RREP=null; renderGuild(); };   // 終了はもう済んでいる
+}
+/* 送り出す本体。治療してから送る場合も、ここを1つだけ通します。 */
+function sendAgain(p,a){
+  const {q,off}=a;
+  p.questId=q.id; p.offerId=off.oid; p.report=null; p.returnAt=now()+q.sec*1000;
+  GMSG=`${gEsc(p.name)} を「${gEsc(q.name)}」へもう一度送り出した。`;
+  if(!q.sec) resolveInstant(p,q,off);
+  REPLAY=null; RREP=null; saveGuild(); renderGuild();
+}
+function bindReGo(p,r){
+  const a=reGoState(p,r);
+  const rg=$('#rReGo');   if(rg&&a.ok) rg.onclick=()=>sendAgain(p,a);
+  const hg=$('#rHealGo'); if(hg&&a.hurt) hg.onclick=()=>{
+    /* ★ 押した瞬間に値段を取り直す ★ 表示してから押すまでに時間が経つと安くなっている。
+       高いままの金額を取ってしまわないよう、ここで数え直します。 */
+    const now2=reGoState(p,r); if(now2.ok){ sendAgain(p,now2); return; }
+    if(!now2.hurt)return;
+    const g=now2.hurt.reduce((v,u)=>v+healCost(u),0);
+    if(G.gold<g){ GMSG='金が足りません。'; renderGuild(); return; }
+    G.gold-=g; now2.hurt.forEach(u=>{ u.healAt=0; resetUnit(u); });
+    tutDone('temple');
+    sendAgain(p,now2);
   };
-  $('#rOk').onclick=()=>{ REPLAY=null; renderGuild(); };   // 終了はもう済んでいる
+  const mg=$('#rGemGo'); if(mg&&a.hurt) mg.onclick=()=>{
+    const now2=reGoState(p,r); if(now2.ok){ sendAgain(p,now2); return; }
+    if(!now2.hurt)return;
+    const m=now2.hurt.reduce((v,u)=>v+skipCost(u.healAt-now()),0);
+    if(G.gems<m){ GMSG='宝石が足りません。'; renderGuild(); return; }
+    G.gems-=m; now2.hurt.forEach(u=>{ u.healAt=0; resetUnit(u); });
+    tutDone('temple');
+    sendAgain(p,now2);
+  };
+}
+/* 報告画面を開いたまま療養が明けるのを待てるように、毎秒ここだけ引き直す。
+   ★ 画面ごと描き直さない ★ 読んでいる途中でスクロール位置が飛ぶため。 */
+function syncReportAgain(){
+  const host=$('#rAgain'); if(!host||!RREP||!G)return;
+  const a=reGoState(RREP.p,RREP.r), h=reGoBlock(a);
+  if(host.innerHTML===h)return;
+  host.innerHTML=h;
+  bindReGo(RREP.p,RREP.r);
 }
 
 /* =========================================================
@@ -11364,6 +11528,10 @@ function gMakeEdit(){
   };
 }
 
+/* ★ 治療費 ★ 残り1分ごとに150G、下限100G。
+   寺院と、報告画面の「治療して再送」の**両方がここを使います**。
+   片方だけ直すと値段が食い違うので、必ずこの1か所で。 */
+const healCost=u=>Math.max(100,Math.ceil(((u.healAt||0)-now())/60000)*150);
 /* --- 寺院 --- */
 /* --- 魔物図鑑 ---
    ★ 会ったものだけを載せる ★ 名前の伏せ字は置かない。
@@ -11444,26 +11612,21 @@ function gZukan(){
     gZukan(); });
 }
 
-function gTemple(){
-  const b=$('#gbody');
-  const hurt=G.roster.filter(showHurt);   // 報告を聞く前の負傷はここにも出さない
-  const cost=u=>Math.max(100,Math.ceil((u.healAt-now())/60000)*150);
-  b.innerHTML=`<h2>寺院</h2>
-    <div class="seghint">療養は<b>放っておけば時間で明けます</b>。急ぐなら金か宝石を払ってください。</div>
-    <div class="rlist">${hurt.map(u=>`<div class="rrow" data-u="${u.gid}">
-      <span class="rpos">療養</span>
-      <span class="rmain"><b>${gEsc(u.name)}</b><i>${u.clsName}</i><br>
-        <span class="rsub">あと <b class="gleft" data-until="${u.healAt}">—</b> で自然に明ける</span></span>
-      <span class="rbtn">
-        ${btnOr(G.gold>=cost(u),`<button data-a="heal">${cost(u).toLocaleString()}Gで治療</button>`,
-          `金が ${(cost(u)-G.gold).toLocaleString()}G 足りません`)}
-        ${btnOr(G.gems>=skipCost(u.healAt-now()),
-          `<button data-a="gem">宝石${skipCost(u.healAt-now())}で治療</button>`,
-          `宝石${skipCost(u.healAt-now())}（いま ${G.gems}）`)}</span>
-      </div>`).join('')||'<div class="tdesc">療養中の仲間はいません。</div>'}</div>`;
-  b.querySelectorAll('.rrow').forEach(r=>{
-    const u=G.roster.find(x=>x.gid==r.dataset.u); if(!u)return;
-    r.querySelectorAll('button').forEach(btn=>{ if(btn.disabled)return;
+/* ★ 治療のボタンは毎秒作り直す ★
+   値段は残り時間で下がっていくのに、開いた時の値段が貼り付いたままでした。
+   ・高いままの金額が出る（請求は healCost を引き直すので**安いほうで正しい**が、表示が嘘）
+   ・開いた時に払えなかった人が、待って払えるようになっても押せないまま
+   組み立てをここへ出して、描画と毎秒の引き直しで**同じ関数**を使います。 */
+function templeBtns(u){
+  const g=healCost(u), m=skipCost(u.healAt-now());
+  return btnOr(G.gold>=g,`<button data-a="heal">${g.toLocaleString()}Gで治療</button>`,
+      `金が ${(g-G.gold).toLocaleString()}G 足りません`)
+    +btnOr(G.gems>=m,`<button data-a="gem">宝石${m}で治療</button>`,
+      `宝石${m}（いま ${G.gems}）`);
+}
+function bindTempleRow(r){
+  const u=G.roster.find(x=>x.gid==r.dataset.u); if(!u)return;
+  r.querySelectorAll('button').forEach(btn=>{ if(btn.disabled)return;
       btn.onclick=()=>{
         /* 宝石の方は useSkip が足りない時に何もせず戻るので、
            先に tutDone すると「治していないのに達成」になる。治った後で見る。 */
@@ -11473,15 +11636,44 @@ function gTemple(){
           if(!u.healAt&&t&&t.id==='temple'){ tutDone('temple'); renderGuild(); }
           return;
         }
-        const c=cost(u); if(G.gold<c)return;
+        const c=healCost(u); if(G.gold<c)return;
         G.gold-=c; u.healAt=0; resetUnit(u);
         GMSG=`${gEsc(u.name)} の傷が癒えた。`;
         tutDone('temple');     // 金でも宝石でも「治療した」で達成
         saveGuild(); renderGuild();
       };
-    });
   });
+}
+function gTemple(){
+  const b=$('#gbody');
+  const hurt=G.roster.filter(showHurt);   // 報告を聞く前の負傷はここにも出さない
+  b.innerHTML=`<h2>寺院</h2>
+    <div class="seghint">療養は<b>放っておけば時間で明けます</b>。急ぐなら金か宝石を払ってください。
+      <b>値段は残り時間で下がります。</b></div>
+    <div class="rlist">${hurt.map(u=>`<div class="rrow" data-u="${u.gid}">
+      <span class="rpos">療養</span>
+      <span class="rmain"><b>${gEsc(u.name)}</b><i>${u.clsName}</i><br>
+        <span class="rsub">あと <b class="gleft" data-until="${u.healAt}">—</b> で自然に明ける</span></span>
+      <span class="rbtn">${templeBtns(u)}</span>
+      </div>`).join('')||'<div class="tdesc">療養中の仲間はいません。</div>'}</div>`;
+  b.querySelectorAll('.rrow').forEach(bindTempleRow);
   tickLabels();
+}
+/* 毎秒、寺院のボタンだけを引き直す（→ startGuildTick）。
+   ★ 画面ごと描き直さない ★ 一覧のスクロール位置が飛ぶため。
+   ⚠️ 療養が明けた人は**行ごと消えます**。押そうとしていたボタンが消えますが、
+      どのみち押せない（useSkip も healCost も残り0では何もしない）ので、
+      押せるのに何も起きないボタンを残すより良い、と判断しています。 */
+function syncTempleButtons(){
+  if(!G||GVIEW!=='temple')return;
+  document.querySelectorAll('#gbody .rrow[data-u]').forEach(r=>{
+    const u=G.roster.find(x=>x.gid==r.dataset.u);
+    if(!u||!showHurt(u)){ r.remove(); return; }
+    const host=r.querySelector('.rbtn'); if(!host)return;
+    const h=templeBtns(u);
+    if(host.innerHTML===h)return;
+    host.innerHTML=h; bindTempleRow(r);
+  });
 }
 
 /* =========================================================
@@ -12319,9 +12511,12 @@ function gArena(){
     b.innerHTML=`<h2>闘技場</h2><div class="gtodo">中堅ギルドになると開きます。</div>`;
     return;
   }
-  const idle=G.parties.filter(p=>!partyBusy(p)&&!p.report&&partyUnits(p).length);
+  const only=onlyParty();
+  const idle=G.parties.filter(p=>!partyBusy(p)&&!p.report&&partyUnits(p).length)
+    .filter(p=>!only||p===only);        // 部隊一覧から来た時はその部隊だけ
   const out =G.parties.filter(arenaBusy);
   b.innerHTML=`<h2>闘技場</h2>
+    ${onlyBanner()}
     <div class="gtodo">他のギルドの部隊とすれ違いで戦います。
       <b>${Math.round(ARENA_SEC/3600)}時間</b>で帰還し、<b>報告を聞く</b>と相手が決まります。<br>
       報酬は<b>勝敗に関わらず 仲間1人・付与付きの装備1つ・宝石1個</b>。<b>勝てば宝石がさらに2個。</b></div>
@@ -12352,6 +12547,7 @@ function gArena(){
       if(a==='rep')  el.onclick=()=>gArenaStart(p);
     });
   });
+  onlyBind();
 }
 
 /* --- 起動 ---
