@@ -1076,9 +1076,13 @@ function procPop(u,name){
    **刺さる依頼を選べる**ことが報酬で、倍率はその上乗せではない。 */
 const TAG_KILL_MUL=1.40;
 const clsTagsOf=u=>{ const c=CLS[u.clsId]; return (c&&c.tags)||[]; };
+/* 個性そのものに立てた旗（noCrit / noDebuff）を持っているか。
+   1つずつ hasT を書くより、個性側に書いた旗を読むほうが増やしやすい。 */
+const hasFlag=(u,k)=>!!u&&allTraits(u).some(id=>TRAITS[id]&&TRAITS[id][k]);
 const hasTag=(u,t)=>clsTagsOf(u).includes(t);
 function killer(id,name,tag,mul=TAG_KILL_MUL){
-  return {name,cat:'特効',
+  /* tag を持たせておくと、タグ側から「この特効を受ける」を逆引きできる（→ tagTip）。 */
+  return {name,cat:'特効',tag,
     desc:`「${tag}」タグを持つ相手への与ダメージ+${Math.round((mul-1)*100)}%。物理でも魔法でも乗る。`,
     outgoing(s,c){ if(c.attacker!==s||!c.target||!hasTag(c.target,tag))return;
       c.dmg*=mul; c.tags.push(name); fire(s,id); }};
@@ -1257,8 +1261,9 @@ chouhatsu:{name:'挑発',cat:'対敵',desc:'敵から3倍狙われやすくな�
   aggro(){return 3;}, mod(s,k){ return (k==='def'||k==='mdf')?1.25:1;}},
 tsuitou:{name:'追討',cat:'対敵',desc:'HPが30%以下の相手への与ダメージ+55%。',
   outgoing(s,c){ if(c.attacker!==s||hpR(c.target)>0.3)return; c.dmg*=1.55; c.tags.push('追討'); fire(s,'tsuitou');}},
-shokei:{name:'処刑',cat:'対敵',desc:'HPが20%以下の相手に命中した時、35%で即死させる。',
+shokei:{name:'処刑',cat:'対敵',desc:'HPが20%以下の相手に命中した時、35%で即死させる。「不死」には効かない。',
   outgoing(s,c){ if(c.attacker!==s||hpR(c.target)>0.2||R(1)>0.35)return;
+    if(noExec(c.target)){ addLog(`${c.target.name} は もう一度は死なない`,'l-sys'); return; }
     c.execute=true; c.dmg=c.target.hp; c.tags.push('処刑'); proc(s,'shokei',`${c.target.name}を処刑`);}},
 iatsu:{name:'威圧',cat:'対敵',desc:'自分を攻撃した相手の威力を-15%（2ターン）に落とし、そのダメージも15%減らす。',
   incoming(s,c){ if(c.target!==s||!c.attacker)return; c.dmg*=0.85; c.iatsu=true; s.fired.iatsu=6;},
@@ -1525,7 +1530,11 @@ yokai:{name:'溶解',cat:'専用',needs:'slime',
             proc(s,'yokai',`${t.name}の防御 ${Math.round(ex.value*100)}%`); }
     else{ addBuff(t,{label:'溶解',stat:'def',value:-0.10,turns:3,kind:'debuff'},s);
           proc(s,'yokai',`${t.name}の防御を溶かし始めた`); }}},
-futeikei:{name:'不定形',cat:'専用',needs:'slime',
+/* ★ 「粘体」タグへ昇格したので引退（9/27）★
+   スライムは個性3枠のうち1枠を、**そのスライムなら当然そうであること**に使っていました。
+   体つきから来る性質はタグの仕事なので移し、空いた枠を抽選に返しています。
+   持っている個体はそのまま働きますが、タグと**二重に掛かる**ので注意（30%×20%）。 */
+futeikei:{name:'不定形',cat:'専用',needs:'slime',retired:true,
   desc:'物理ダメージを30%軽減する代わりに、魔法ダメージを20%多く受ける。スライム専用。',
   incoming(s,c){ if(c.target!==s)return;
     if(c.kind==='phys'){ c.dmg*=0.70; c.tags.push('不定形'); }
@@ -1619,8 +1628,13 @@ fukitobasu:{name:'吹き飛ばす',cat:'専用',needs:'harpy',
     if(forceMove(c.target)) proc(s,'fukitobasu',`${c.target.name}を吹き飛ばした`);}},
 
 /* 判定は addAil の ailImmuneBy にある（《無心》と共通）。ここは表示用の枠だけ。 */
-kubinashi:{name:'首無し',cat:'専用',needs:'dullahan',
-  desc:'毒・眠り・休み・宣告・封魔、すべての状態異常を受け付けない。デュラハン専用。'},
+/* ★ 首無し＝体の急所が無い ★
+   状態異常に加えて**会心そのものが起きなくなります**（倍率が乗らないのではなく、
+   会心が発生しない）。《会心》を引き金にする個性も動きません。
+   ⚠️ 乱数は引いたうえで捨てています。抽選の回数を変えると、
+      同じ種から回した時の戦闘経過が丸ごとずれるため（→ 再生・検証）。 */
+kubinashi:{name:'首無し',cat:'専用',needs:'dullahan',noCrit:true,
+  desc:'すべての状態異常を受け付けず、会心も起きない（急所が無い）。デュラハン専用。'},
 senkoku:{name:'死の宣告',cat:'専用',needs:'dullahan',
   desc:'通常攻撃が命中した時、10%で相手に「宣告」を付ける。3手番後に倒れる。デュラハン専用。',
   dealt(s,c){ if(c.attacker!==s||!c.normal||!c.target||!c.target.alive)return;
@@ -1675,8 +1689,10 @@ nerai:{name:'狙い撃ち',cat:'専用',needs:'centaur',
     c.dmg*=1.25; c.tags.push('狙い撃ち'); fire(s,'nerai');}},
 
 /* ゴーレム。判定は addAil の ailImmuneBy にある。ここは表示用の枠だけ。 */
-mushin:{name:'無心',cat:'専用',needs:'golem',
-  desc:'毒・眠り・休み・宣告・封魔、すべての状態異常を受け付けない。ゴーレム専用。'},
+/* ★ 無心＝心に効くものが届かない ★
+   状態異常に加えて**弱体（デバフ）も乗りません**。強化は今までどおり受けられます。 */
+mushin:{name:'無心',cat:'専用',needs:'golem',noDebuff:true,
+  desc:'すべての状態異常を受け付けず、弱体も乗らない。強化は受けられる。ゴーレム専用。'},
 
 /* トレント。**死亡後カテゴリで唯一の回復。**
    遺志（バフ）・呪詛（デバフ）・執念（攻撃）・転生（復活）に並ぶ5つ目の型。 */
@@ -1916,6 +1932,51 @@ let NIJUU_POWER=1.0;
    ミナホヤキ(MP24)は満額だと 24×2=48 で **1戦1.2回しか撃てず +0.8pt**。
    ホヤキ(MP8)なら4.5回撃てて +6.0pt。**魔導士の主力がいちばん恩恵を受けない**形でした。 */
 let NIJUU_MP=0.5;
+/* =========================================================
+   ★ 職業特性を設計する時の原則（backlog C-7 から移設・9/27）★
+   11職ぶん作って、測って、いくつも没にした末に残った決まりごとです。
+   新しい職を足す時・既存の特性をいじる時は、必ずここを先に読むこと。
+
+   1. **選択肢を増やすもので、奪うものではない。**
+      魔導士《余波》（単体魔法が必ず隣にも及ぶ）は、鏡持ちがいる時に
+      「単体を選ぶ」ができなくなるので没。呪術師《波及》も同じ理由で持続+5へ。
+
+   2. **手動戦闘で働くかを必ず確認する。**
+      テイマー《標的》（味方の魔物が狙いを合わせる）は手動では何もしない。
+      斥候《撤収》（HP25%以下で自動で後列へ下がる）は逆に**操作を奪う**。どちらも没。
+
+   3. **オートの行動選択で数字を釣り合わせない。**
+      重騎士に「ぼうぎょで防壁+N」を入れた時、既定ガンビットの**位置ひとつで
+      ぼうぎょ率が 3% ↔ 78% に動きました**。+1 でも +2 でもほぼ同じで、
+      問題は枚数ではなく「防壁が戻るならこの職は殴るよりぼうぎょが常に得」という構造。
+      既定行を隠すのは「自分で行を組んだ人だけ壊れる」だけなので、**数字の側を0に**。
+
+   4. **行動の種類を引き金にすると、ガンビットで性能が変わる。**
+      テイマー《狩り立て》は最初「通常攻撃が当たった時」でしたが、
+      テイマーが通常攻撃を選ぶのは手番の34〜38%だけで、**組み方次第で効き目が2〜3倍**。
+      特技と魔法にも広げて、行動の中身に寄らないようにしています。
+
+   5. **「倒れた時」を引き金にするなら、倒れて得をしていないか必ず測る。**
+      効果の対象が「生きている味方」なら早死にが得、「倒れている味方」なら長生きが得。
+      僧侶《殉教》は 回復だけだと前列+9.8pt 対 後列+3.5pt、
+      蘇生だけだと後列+8.5pt 対 前列+4.0pt。**両方入れて +1.2pt でほぼ中立**に。
+      ⚠️ 1戦1回の錠も必須（無いと僧侶2人で永久機関。実測 10.3% → 91.8%）。
+
+   6. **数値の上乗せはしない。**基礎値と bias が既にやっているので。
+
+   7. **釣り合いを触る前に「そもそも使われているか」を見る。**
+      ★ この作品でいちばん繰り返した失敗です。「効かない」と見えたものは、
+        たいてい**発動していない**。効果量を疑う前に発動回数を数えること。
+        実例：単体攻撃魔法（既定行の条件で撃たれず 2.4%→50.8%）／
+              呪術師のデバフ（毒の行に取られて 0.0→+4.7pt）／
+              二重詠唱（MPが足りず +0.8→+4.0pt）／毒牙・カガマシ（既定行が無かった）。
+
+   ★ 測り方の注意 ★
+   基準は **7人（前3・後4）vs 魔物7体**。固定の混成6人＋対象の職1人。
+   ⚠️ 職業特性どうしが混ざるので、**1つ動かすと全部の数字が動きます**
+      （《かく乱》を20%→70%にしたら、他の職の「なし」側まで軒並み上がった）。
+   ⚠️ 各300戦で**±5ptほどの誤差**。小さい差は読まないこと。
+   ========================================================= */
 const CLS_TRAIT={sw:'tomaranu',kn:'bouheki',rg:'kakuran',ar:'seiatsu',
   dk:'utsushimi',tm:'karitate',pr:'junkyou',ap:'joubi',hx:'jubaku',cm:'saihai',mg:'nijuu'};
 const clsTraitOf=u=>(u&&CLS_TRAIT[u.clsId])||null;
@@ -2405,7 +2466,16 @@ function spEff(sp,u){
   if(sp.frontHalf) e.frontPower=(e.power||0)*0.5;
   /* ★ 上乗せは「攻撃×N」に直してから見せる ★
      説明の中で「攻撃×1.3」と「威力+80%」が混ざると、2つの物差しを並べることになる。
-     首刈り（execPower）・不意打ち（frontPower）と同じく、**掛けた後の値**を出す。 */
+     首刈り（execPower）・不意打ち（frontPower）と同じく、**掛けた後の値**を出す。
+
+     ★ 表記の規則（backlog C-9 から移設・9/27）★
+       ・**スキルの威力は「攻撃×N」**（34件）
+       ・**個性の上乗せは「威力+N%」**（4件）
+       この2つは意味が違います。前者は攻撃力に掛ける倍率、後者はその上への上乗せ。
+       同じ % にすると区別が消えるので、**揃えてはいけません**。
+       ⚠️ そして**1つの説明文の中で両方を使わないこと**。
+       ⚠️ スキル説明で % を使ってよいのは**威力以外**の時だけ
+          （素早さ-35%・反動10%・吸収50%・防御-25%など7件。こちらは正しい混在）。 */
   if(sp.ailBonus!=null) e.ailPower=Math.round((e.power||0)*(1+e.ailBonus)*100)/100;
   if(sp.debuffOn){ e.debuffValue=sp.debuffOn.value; e.debuffTurns=sp.debuffOn.turns; }
   return e;
@@ -2562,7 +2632,19 @@ function invDelete(iid){
   return true;
 }
 
-const canEquip=u=>u.clsKind==='human';
+/* ★ 装備できるのは「人型」だけ ★
+   人間職はもちろん、**「人型」タグを持つ魔物**も装備できます（9/27）。
+   手足があって道具を扱える体つきなら、剣も鎧も扱えるはず、という線引き。
+   対象の魔物：ヴァンパイア・スケルトン・ゴブリン・リッチ・ワーウルフ・
+               ハーピィ・デュラハン・泥人形
+
+   ⚠️ 敵として出てくる個体には装備が乗りません。
+      装備を入れているのは guildUnit（ギルドの仲間）と newUnit（検証盤）だけで、
+      依頼の敵を作る経路は u.equip を触らないため、eqOn が null を返します。
+      **意図してそうしている**ので、敵側にも装備を持たせたくなったらここを読むこと。
+
+   判定はこの1か所に集まっています（rollEquip / eqOn / 仲間の詳細画面）。 */
+const canEquip=u=>u.clsKind==='human'||hasTag(u,'人型');
 const emptyEquip=()=>({w:null,a:null});
 /* 生成直後のユニットには、所持品から空いているものを当てる。
    在庫が無ければ新しく作る（初期化時はここで在庫が育つ）。 */
@@ -2839,7 +2921,7 @@ const CLASSES=[
  {id:'slime',n:'スライム',      c:'SL',kind:'monster',lv:1,hp:620,mp:52,atk:52,def:60,mat:58,mdf:44,spd:30,
   tags:['粘体'],
   desc:'鈍いが硬く、毒を撒く。ドヨドと毒血を持ちやすい。',
-  bias:{dokuchi:24,futeikei:20,yokai:18,mitigate:12,shouki:10,fukutsu:8,thorns:6},
+  bias:{dokuchi:24,yokai:20,mitigate:14,shouki:12,fukutsu:10,thorns:8,nebari:6},
   spN:2, spBias:{venom:26,nomikomu:18,numeri:14,taiatari:8}},
  {id:'skeleton',n:'スケルトン', c:'SK',kind:'monster',lv:2,hp:430,mp:26,atk:66,def:52,mat:24,mdf:30,spd:56,
   tags:['人型','不死','剣所持'],
@@ -2873,7 +2955,7 @@ const CLASSES=[
     これまで獣はケルベロス(lv3)とケンタウロス(lv4)しかおらず、
     低い難度で「獣」のタグ抽選ができなかった（→ タグ依頼の注記）。
     速くて紙、というゴブリンとは別方向の弱さを持たせてある。 */
- {id:'wolf',n:'ウルフ',         c:'WF',kind:'monster',lv:1,hp:340,mp:16,atk:58,def:34,mat:16,mdf:24,spd:78,
+ {id:'wolf',n:'ウルフ',         c:'WF',kind:'monster',lv:1,hp:340,mp:16,atk:58,def:34,mat:16,mdf:24,spd:71,
   tags:['獣','四足'],
   desc:'群れで走る。速いが打たれ弱い。身のこなしが軽く、隣接と追撃を持ちやすい。',
   /* ★ 当てさせない方向に寄せてある ★
@@ -2892,7 +2974,7 @@ const CLASSES=[
   desc:'人の形をした獣。追い詰めると獣に戻り、手が付けられなくなる。',
   bias:{jinrou:24,haisui:16,tsuigeki:14,kajiba:12,hitokiri:10,fukutsu:8,shissou:8,kemonogari:6},
   spN:2, spBias:{kamitsuki:20,tsumesaki:16,hayabusa:10,taiatari:6}},
- {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',lv:3,hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:70,
+ {id:'cerberus',n:'ケルベロス', c:'CB',kind:'monster',lv:3,hp:540,mp:28,atk:84,def:50,mat:26,mdf:34,spd:64,
   tags:['獣','四足','多頭'],
   desc:'追い詰めるほど強くなる猟犬。追撃と処刑を持ちやすい。',
   bias:{mikubi:22,tsuigeki:20,tsuisou:16,kajiba:14,shokei:12,hitokiri:10,sakigake:8,haisui:8},
@@ -2915,7 +2997,7 @@ const CLASSES=[
      攻撃を上げるのは植物として違和感があるので、抽選の側を上書きする。 */
   spN:3, spMag:0.55,
   spBias:{sakebu:16,houshi:14,nemuribana:12,otakebi:10,leafdance:10,venom:10}},
- {id:'dullahan',n:'デュラハン', c:'DH',kind:'monster',lv:5,hp:600,mp:40,atk:80,def:66,mat:34,mdf:48,spd:54,
+ {id:'dullahan',n:'デュラハン', c:'DH',kind:'monster',lv:5,hp:600,mp:40,atk:80,def:66,mat:34,mdf:48,spd:49,
   tags:['人型','不死','四足','剣所持'],
   desc:'首無しの騎士。威圧と処刑で確実に落としにくる。',
   bias:{kubinashi:22,iatsu:20,senkoku:16,shokei:14,hitokiri:12,mustHit:10,nirami:9,cover:8,shuunen:8},
@@ -2949,7 +3031,7 @@ const CLASSES=[
   spN:2, spBias:{kamitsuki:20,obigeki:14,breath:12,venom:10,tsumesaki:8}},
  /* 獅子と山羊と蛇。**獣でありながら魔力も高い**唯一の四足で、
     物理で固めた編成が「殴り合いなら勝てる」と踏むと裏切られる。 */
- {id:'chimera',n:'キメラ',      c:'CH',kind:'monster',lv:4,hp:560,mp:52,atk:74,def:48,mat:64,mdf:50,spd:62,
+ {id:'chimera',n:'キメラ',      c:'CH',kind:'monster',lv:4,hp:560,mp:52,atk:74,def:48,mat:64,mdf:50,spd:56,
   tags:['獣','四足','多頭'],
   desc:'三つの頭がそれぞれ別のことをする。爪で裂き、毒を吐き、魔法を撃つ。',
   bias:{mikubi:24,tsuigeki:14,kemonogari:6,dokugeki:14,juso:12,kouun:10,tekiou:8,shissou:8},
@@ -2996,7 +3078,7 @@ const CLASSES=[
   bias:{juso:16,mitigate:14,iatsu:12,nirami:12,makekkai:10,shuunen:8,chitai:6},
   spN:2, spBias:{fire:16,blast:12,mweaken:10,sleep:10,breach:8}},
 
- {id:'centaur',n:'ケンタウロス', c:'CT',kind:'monster',lv:4,hp:520,mp:30,atk:76,def:48,mat:28,mdf:36,spd:74,
+ {id:'centaur',n:'ケンタウロス', c:'CT',kind:'monster',lv:4,hp:520,mp:30,atk:76,def:48,mat:28,mdf:36,spd:67,
   tags:['獣','四足','射手'],
   desc:'後列を直接射抜いてくる。速く、狙いが正確で、前に出て守る意味を薄れさせる。',
   bias:{nerai:24,shissou:16,iotoshi:14,mekiki:12,sakigake:10,tsuitou:8,kemonogari:6},
@@ -3042,7 +3124,7 @@ const CLASSES=[
  /* 竜の入り口。**まだ飛べない**ので、飛行タグを持たない唯一の竜。
     低難度に竜を置くための駒なので、目立った仕掛けは持たせていない。
     《竜鱗》は**渡さない**。HP520に12%上限＝1発62では、難度2〜3では抜けなくなる。 */
- {id:'drake',n:'幼竜',      c:'DK',kind:'monster',lv:2,hp:520,mp:24,atk:64,def:62,mat:26,mdf:38,spd:44,
+ {id:'drake',n:'幼竜',      c:'DK',kind:'monster',lv:2,hp:520,mp:24,atk:64,def:62,mat:26,mdf:38,spd:40,
   tags:['竜','四足'],
   desc:'まだ飛べない幼い竜。硬くて粘るが、それだけ。竜の中では唯一、空を飛ばない。',
   bias:{mitigate:18,fukutsu:16,kanjuku:12,recoil:12,chouhatsu:10,thorns:8,shissou:6},
@@ -3577,6 +3659,7 @@ function stat(u,k){
   let m=1; for(const f of traitFns(u,'mod')) m*=(f(u,k)||1);
   m*=eqMult(u,k);                               // 装備の補正
   m*=auraMult(u,k);                             // 味方から掛かるオーラ（夜天）
+  m*=tagStatMul(u,k);                           // 体つきによる常時補正（→ TAG_STAT）
   if(k==='atk'&&isFront(u)) m*=FRONT_ATK;       // 前列の見返り
   if(u.guard&&(k==='def'||k==='mdf')) m*=1.8;
   return Math.max(1,base*(1+pct)*m);
@@ -3607,6 +3690,9 @@ function sumHook(u,ev,arg){ let v=0; for(const f of traitFns(u,ev)) v+=f(u,arg)|
 let buffDepth=0;                       // 共有↔共鳴↔奪取の連鎖暴走を止める安全弁
 function addBuff(u,b,src){
   if(!u.alive)return; b={gen:0,...b};
+  /* 弱体を受け付けない体（無心）。強化と素質はそのまま通す。 */
+  if(b.kind==='debuff'&&hasFlag(u,'noDebuff')){
+    addLog(`${u.name} には ${b.label} が届かなかった`,'l-sys'); return; }
   /* 《共有》《共鳴》《厄返し》《奪取》は {...c.buff} でバフを写すので、
      配列の stat をそのまま渡すと複数ユニットが同じ配列を共有してしまう。ここで切る。 */
   if(Array.isArray(b.stat)) b.stat=b.stat.slice();
@@ -3650,6 +3736,8 @@ function addBuff(u,b,src){
               ・眠っている間は個性が働かない（死亡関連だけは働く）
    rest   … 次の手番を 1 回失うだけ。ほかに不利は無い                        */
 const AIL_LABEL={poison:'毒',sleep:'眠',rest:'休',doom:'宣告',seal:'封魔'};
+/* 札は1文字で足りるが、文章に混ぜる時は読める形にする。 */
+const AIL_WORD={poison:'毒',sleep:'眠り',rest:'休み',doom:'死の宣告',seal:'封魔'};
 const AIL_TIMED={poison:true,doom:true,seal:true};   // 時間で減るもの
 const asleep=u=>!!u.ail.sleep;
 /* ★ 封魔 ★ 魔法だけが撃てなくなる。物理攻撃はそのまま。
@@ -3722,10 +3810,107 @@ function traitTags(t){
 const traitCat=t=>traitTags(t)[0];
 
 const AIL_IMMUNE=['kubinashi','mushin'];
-/* 状態異常を弾くもの。**生まれつき**（首無し・無心）と、
-   **掛けてもらった状態**（予防薬）の2系統がある。
-   前者は個性なので proc で発動回数を数え、後者はバフなのでログだけ出す。 */
-function ailImmuneBy(u,src){
+/* ★ 種族そのものが受け付けない状態異常 ★
+   個性でも装備でもなく、**そういう体だから**効かないもの。
+   骨と鉄に毒が回る道理がないので、不死と無機には毒が入りません。
+   眠りも同じで、**寝ない体**（骨・鉄）は寝ません。
+   ここに書けば図鑑・説明文・《腐食》の判定まで一度に揃います。
+     ⚠️ 個性（首無し・無心）や予防薬と違い、**自分で自分に掛けた時も弾きます**。
+        体質なので、掛け手が誰かは関係ありません。
+     ⚠️ 休み（rest）は残してあります。体勢を崩されることと、眠ることは別なので。
+        宣告（doom）も残してあります——不死に死の宣告が効くかは未決（→ backlog）。 */
+const AIL_TAG_IMMUNE={poison:['不死','無機'],sleep:['不死','無機'],doom:['不死']};
+/* ★ 即死（《処刑》）が効かないタグ ★
+   死の宣告と同じ理屈で、**もう一度死ぬということが無い**体。
+   ⚠️ 「とどめ」系の威力上昇（止めの矢・首刈りの exec）は別物なので通ります。
+      あれは即死ではなく、弱った相手によく効くというだけの倍率です。 */
+const TAG_NO_EXEC=['不死'];
+const noExec=u=>TAG_NO_EXEC.some(t=>hasTag(u,t));
+/* ★ 種族ごとの状態異常の効きにくさ（1.0＝ふつう）★
+   竜の鱗と巨躯には毒が回りにくい、という程度のもの。無効ではありません。 */
+const AIL_TAG_MULT={poison:[['竜',0.5]]};
+const ailTagMult=(u,name)=>(AIL_TAG_MULT[name]||[])
+  .reduce((m,[t,v])=>hasTag(u,t)?m*v:m,1);
+
+/* ★ タグそのものが持つ効果 ★
+   個性の枠を1つ使わずに、**体つきから当然そうなること**を表す場所。
+   ここに足した効果は tagTip が自動で説明に載せます。
+
+   TAG_DMG   … 受けるダメージの倍率。phys／mag 別。
+   TAG_REGEN … 手番の終わりに回復する量（最大HP比）。 */
+const TAG_DMG={'粘体':{phys:0.80,mag:1.20}};
+const TAG_REGEN={'植物':0.03};
+/* TAG_STAT … 常時のステータス補正。素の値そのものを書き換えるのではなく
+   ここに置くのは、**図鑑の基準値と、実際に動く値を分けない**ため。
+   ⚠️ 足した時は、対象の魔物の素の値を同じぶん下げること。
+      でないと種族がまるごと強くなります（四足は素早さを10%下げてあります）。 */
+const TAG_STAT={'四足':{spd:1.10}};
+const tagStatMul=(u,k)=>clsTagsOf(u)
+  .reduce((m,t)=>m*(((TAG_STAT[t]||{})[k])||1),1);
+const tagDmgMul=(u,kind)=>clsTagsOf(u)
+  .reduce((m,t)=>m*(((TAG_DMG[t]||{})[kind])||1),1);
+const tagRegen=u=>clsTagsOf(u).reduce((v,t)=>v+(TAG_REGEN[t]||0),0);
+
+/* ★ タグの説明 ★
+   ここに書くのは**言葉での意味づけ**だけ。効果は下の tagTip が
+   AIL_TAG_IMMUNE / AIL_TAG_MULT / killer / スキルの needs から**その場で拾います**。
+   数字や対象を増やしても説明文を直さなくてよい、という作りです。 */
+const TAG_NOTE={
+  '人型':'手足を持ち、道具を扱う体つき。',
+  '剣所持':'剣を帯びている。',
+  '射手':'弓を扱う。**列を無視して後列を狙える**。',
+  '毒':'体そのものが毒を帯びている。',
+  '擬態':'何にでも化ける。**あらゆる制限を無視**して個性もスキルも引ける。',
+  '不死':'一度死んだ体。',
+  '無機':'骨も肉も持たない、作られた体。',
+  '竜':'竜の血と鱗を持つ。',
+  '飛行':'空を飛ぶ。',
+  '獣':'獣。','四足':'四本の足で立つ。','多頭':'頭が複数ある。',
+  '植物':'根を張る体。','粘体':'決まった形を持たない体。',
+};
+/* タグ1つぶんの説明文を組み立てる。吹き出し（data-tip）にそのまま入れる。 */
+function tagTip(t){
+  const L=[];
+  if(TAG_NOTE[t]) L.push(TAG_NOTE[t]);
+  /* 受け付けないものは1文にまとめる。状態異常も即死も、受け手から見れば同じ「効かない」。 */
+  const im=Object.keys(AIL_TAG_IMMUNE).filter(k=>AIL_TAG_IMMUNE[k].includes(t))
+    .map(k=>AIL_WORD[k]||AIL_LABEL[k]||k);
+  if(TAG_NO_EXEC.includes(t)) im.push('即死');
+  if(im.length) L.push(im.join('・')+'を受け付けない。');
+  Object.keys(AIL_TAG_MULT).forEach(k=>{
+    const e=(AIL_TAG_MULT[k]||[]).find(x=>x[0]===t);
+    if(e) L.push(`${AIL_WORD[k]||AIL_LABEL[k]||k}のダメージが${Math.round(e[1]*100)}%になる。`);
+  });
+  const dm=TAG_DMG[t];
+  if(dm) L.push(['phys','mag'].filter(k=>dm[k]&&dm[k]!==1).map(k=>
+    `${k==='phys'?'物理':'魔法'}で受けるダメージが${Math.round(dm[k]*100)}%`).join('、')+'になる。');
+  if(TAG_REGEN[t]) L.push(`手番の終わりに最大HPの${Math.round(TAG_REGEN[t]*100)}%を回復する。`);
+  const st=TAG_STAT[t];
+  /* SN は欄の見出し用に切り詰めてあるので（素早）、文章に混ぜる時だけ言い換える。 */
+  const SN_WORD={spd:'素早さ',atk:'攻撃',def:'防御',mat:'魔力',mdf:'魔防',eva:'回避'};
+  if(st) L.push(Object.keys(st).map(k=>
+    `${SN_WORD[k]||SN[k]}が${Math.round(st[k]*100)}%になる`).join('、')+'。');
+  const ks=Object.keys(TRAITS).filter(id=>TRAITS[id].tag===t).map(id=>'《'+TRAITS[id].name+'》');
+  if(ks.length) L.push(ks.join('・')+'の特効を受ける。');
+  const sp=SPELL_IDS.filter(id=>SP[id]&&SP[id].needs
+    &&[].concat(SP[id].needs).includes(t)).map(id=>spBase(SP[id]));
+  if(sp.length) L.push('専用スキル：'+sp.join('・')+'。');
+  const tr=Object.keys(TRAITS).filter(id=>TRAITS[id].needs
+    &&[].concat(TRAITS[id].needs).includes(t)).map(id=>TRAITS[id].name);
+  if(tr.length) L.push('専用の個性：'+tr.map(x=>'《'+x+'》').join('・')+'。');
+  /* 効果が1つも拾えず、意味づけの文にも太字（＝そこに効果が書いてある）が無い時だけ。 */
+  if(L.length<2&&!/\*\*/.test(TAG_NOTE[t]||''))
+    L.push('いまのところ、戦い方そのものへの影響はありません。');
+  return `【${t}】`+L.join(' ');
+}
+const tagChip=t=>`<i class="gtag tr" data-tip="${gAttr(tagTip(t))}">${gEsc(t)}</i>`;
+
+/* 状態異常を弾くもの。**種族**（不死・無機）、**生まれつきの個性**（首無し・無心）、
+   **掛けてもらった状態**（予防薬）の3系統がある。
+   個性は proc で発動回数を数え、あとの2つはバフ／体質なのでログだけ出す。 */
+function ailImmuneBy(u,src,name){
+  const tg=(AIL_TAG_IMMUNE[name]||[]).find(t=>hasTag(u,t));
+  if(tg)return {tag:tg};
   if(src===u)return null;
   const t=AIL_IMMUNE.find(id=>hasT(u,id));
   if(t)return {trait:t};
@@ -3740,10 +3925,11 @@ function wasteAil(src,u,name){
 }
 function addAil(u,name,turns,src){
   if(!u.alive)return;
-  const im=ailImmuneBy(u,src);
+  const im=ailImmuneBy(u,src,name);
   if(im){
     const w=AIL_LABEL[name]||name;
-    if(im.trait) proc(u,im.trait,`${w}を受け付けなかった`);
+    if(im.trait)     proc(u,im.trait,`${w}を受け付けなかった`);
+    else if(im.tag)  addLog(`${u.name} は ${w} を受け付けなかった（${im.tag}）`,'l-sys');
     else addLog(`${u.name} は ${w} を受け付けなかった（${im.label}）`,'l-sys');
     /* ★ 弾かれたことを、掛けた側に知らせる ★
        《腐食》のように「効かなかった時に代わりの何かをする」個性のため。
@@ -3879,10 +4065,14 @@ function calcDamage(a,t,opt){
   let dmg=(A*(opt.power||1))*(120/(120+D*0.9))*(0.92+R(0.16));
   const ctx={attacker:a,target:t,dmg,kind,tags:[],crit:false,redirected:null};
   const cr=0.05+sumHook(a,'crit')+stat(a,'spd')/2400;
-  if(R(1)<cr){ ctx.crit=true; ctx.dmg*=1.65; ctx.tags.push('会心'); }
+  const rolled=R(1)<cr;          // 引いてから捨てる（→ 首無し）
+  if(rolled&&!hasFlag(t,'noCrit')){ ctx.crit=true; ctx.dmg*=1.65; ctx.tags.push('会心'); }
   runOn(a,'outgoing',ctx);
   // 対象の軽減系＋第三者の肩代わり。眠っている個体はどちらも働かない。
   for(const u of U){ if(u.alive&&!asleep(u)) runOn(u,'incoming',ctx); }
+  /* 体つきによる増減（→ TAG_DMG）。個性の軽減と同じ場所で掛ける。 */
+  { const m=tagDmgMul(t,kind);
+    if(m!==1){ ctx.dmg*=m; ctx.tags.push(clsTagsOf(t).find(x=>TAG_DMG[x])+(m<1?'':'×')); } }
   if(t.guard&&!ctx.execute){ ctx.dmg*=0.45; ctx.tags.push('防御'); }
   if(asleep(t)&&!ctx.execute){ ctx.dmg*=2; ctx.tags.push('睡眠中'); }
   ctx.dmg=Math.max(1,Math.round(ctx.dmg));
@@ -4947,9 +5137,15 @@ async function loop(){
 function endTurn(u,info){
   if(!info.silent) emit('actionEnd',{actor:u});
   if(u.ail.poison&&u.alive){
-    let d=Math.round(u.maxHp*POISON_PCT); if(u.traits.includes('dokuchi')) d=Math.round(d*0.5);
-    rawDamage(u,d,'毒');
+    let d=u.maxHp*POISON_PCT*ailTagMult(u,'poison');   // 竜は半減（→ AIL_TAG_MULT）
+    if(u.traits.includes('dokuchi')) d*=0.5;           // 《毒血》はさらに半分
+    rawDamage(u,Math.max(1,Math.round(d)),'毒');
   }
+  /* 体つきによる自然回復（→ TAG_REGEN）。毒の後に置く＝毒のほうが強い時は減り続ける。 */
+  if(u.alive){ const r=tagRegen(u);
+    if(r){ const h=Math.max(1,Math.round(u.maxHp*r));
+      const before=u.hp; healRaw(u,h);
+      if(u.hp>before) addLog(`${u.name} は ${u.hp-before} 回復した`,'l-heal'); } }
   if(!info.silent) emit('turnEnd',{unit:u,attacked:info.attacked});
   // 《死の宣告》— 残り1でこの手番を終えたら倒れる。tickBuffs より前に見る。
   if(u.ail.doom&&u.alive&&u.ail.doom<=1){
@@ -5045,7 +5241,9 @@ function addLog(t,cls){
 const TIP=document.createElement('div'); TIP.className='tip'; TIP.hidden=true; document.body.appendChild(TIP);
 function showTip(el){
   const raw=el.dataset.tip; if(!raw)return;
-  TIP.innerHTML=raw.replace(/^([《【].+?[》】])/,'<b>$1</b>');
+  /* 先頭の《名前》【タグ】を太字に。本文の **…** も太字に（依頼の説明と同じ書き方）。 */
+  TIP.innerHTML=raw.replace(/^([《【].+?[》】])/,'<b>$1</b>')
+                   .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
   TIP.hidden=false;
   const r=el.getBoundingClientRect(), t=TIP.getBoundingClientRect();
   let x=r.left+r.width/2-t.width/2, y=r.top-t.height-8;
@@ -5438,10 +5636,13 @@ const biasNames=(cls,n=3)=>Object.entries(cls.bias||{}).sort((a,b)=>b[1]-a[1])
   .slice(0,n).map(([id])=>TRAITS[id]?TRAITS[id].name:id).join('・');
 const spBiasNames=(cls,n=2)=>Object.entries(cls.spBias||{}).sort((a,b)=>b[1]-a[1])
   .slice(0,n).map(([id])=>SP[id]?spBase(SP[id]):id).join('・');
-function clsSummary(cls){
+/* html:true … タグを吹き出し付きのチップで出す。
+   ⚠️ ピッカーの desc は**属性に入る素のテキスト**なので、そちらでは使えません（→ 2681行）。 */
+function clsSummary(cls,opt){
   const s=[`HP${cls.hp} MP${cls.mp}`,
     ['atk','def','mat','mdf','spd'].map(k=>`${SN[k]}${cls[k]}`).join(' ')];
-  if(cls.tags&&cls.tags.length) s.push(`タグ: ${cls.tags.join('・')}`);
+  if(cls.tags&&cls.tags.length) s.push('タグ: '+(opt&&opt.html
+    ? cls.tags.map(tagChip).join('') : cls.tags.join('・')));
   const t=biasNames(cls); if(t) s.push(`個性: ${t} が出やすい`);
   const p=spBiasNames(cls); if(p) s.push(`スキル: ${p} を覚えやすい`);
   else if(!cls.spN) s.push('スキル: 使わない');
@@ -5513,11 +5714,11 @@ function openEditor(u){
       ${LOCK?`<div class="seghint"><b>職業・個性・スキルは加入した時点で決まっています。</b>
           変えられるのは<b>装備</b>と<b>オート行動</b>だけです。</div>
         <div class="sechead">${u.clsName}</div>
-        <div class="tdesc">${clsOf(u)?clsOf(u).desc+'<br>'+clsSummary(clsOf(u)):'—'}</div>`
+        <div class="tdesc">${clsOf(u)?clsOf(u).desc+'<br>'+clsSummary(clsOf(u),{html:true}):'—'}</div>`
       :`<div class="sechead">職業</div>
         <div class="slot"><label>職業</label>
           <button class="pk" data-cls="1" data-pkid="cls">${u.clsName}</button></div>
-        <div class="tdesc" data-cd="1">${clsOf(u)?clsOf(u).desc+'<br>'+clsSummary(clsOf(u)):'—'}</div>
+        <div class="tdesc" data-cd="1">${clsOf(u)?clsOf(u).desc+'<br>'+clsSummary(clsOf(u),{html:true}):'—'}</div>
         <div class="cmds">
           <button class="btn" id="rollC">この職業らしく個性・魔法を引き直す</button>
         </div>`}
@@ -5555,7 +5756,7 @@ function openEditor(u){
         <button class="btn" id="clrS">スキル3枠をなしに</button>
       </div>`}
 
-      <div class="sechead">装備${canEquip(u)?'':'（人間職のみ・この職業は装備できません）'}</div>
+      <div class="sechead">装備${canEquip(u)?'':''}</div>
       ${canEquip(u)?`
         ${[['w','武器'],['a','防具']].map(([s,lb])=>{ const it=eqItem(u,s);
           /* ★ 取り消し線は付与にだけ ★ 装備そのものの数値は生きている。
@@ -7484,8 +7685,7 @@ const QUESTS=[
 
  {id:'k3u',name:'墓地の夜',tier:3,kind:'horde',sec:1500,gph:45000,
   waves:[tagWave(5,'不死',{max:3})],
-  desc:'**5体すべてが「不死」。**倒しても起き上がるものが混じる。'
-      +'《不死狩り》がそのまま答えになる。',
+  desc:'**5体すべてが「不死」。**倒しても起き上がるものが混じる。',
   first:{gold:82000,item:true},
   reward:{equipChance:0.55,memberChance:0.3,memberBias:{dk:10,sw:5,pr:16,ap:12}}},
  {id:'k6u',name:'不滅の軍勢',tier:6,kind:'horde',sec:21600,gph:155000,
@@ -9458,7 +9658,7 @@ function renderGuildStart(){
       </div>
       <div class="sechead">あなたの職業</div>
       <div class="fchips" id="gnCls">${list}</div>
-      <div class="tdesc">${gEsc(cur.desc)}<br>${clsSummary(cur)}</div>
+      <div class="tdesc">${gEsc(cur.desc)}<br>${clsSummary(cur,{html:true})}</div>
       <div class="cmds"><button class="btn big" id="gnGo">はじめる</button></div>
       <div class="seghint">主人公は<b>《主人公補正》《先導》《転生》</b>を必ず持ちます（全ステータス+15%／致死を1度だけ耐える）（次の味方が少し早く動く）（一度だけ別形態で復活する）。
         スキルは職業の傾向で引きます。<br>
@@ -11217,7 +11417,7 @@ function gZukan(){
     return `<div class="rrow tight" data-z="${gAttr(c.id)}">
       <span class="rpos">Lv${c.lv||1}</span>
       <span class="rmain"><b>${gEsc(c.n)}</b>${
-        (c.tags||[]).map(t=>`<i class="gtag tr">${gEsc(t)}</i>`).join('')}<br>
+        (c.tags||[]).map(tagChip).join('')}<br>
         <span class="rsub">${gEsc(c.desc||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</span><br>
         <span class="rsub zstat">${stat(c)}</span>
         <span class="gchips">${chips}</span></span>
