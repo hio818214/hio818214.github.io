@@ -1395,7 +1395,7 @@ chitai:{name:'遅滞',cat:'対敵',desc:'被弾した時、攻撃者の行動順
     s.cnt.chitaiTurn=turnNo;
     c.attacker.ct+=(10000/stat(c.attacker,'spd'))*0.15;
     proc(s,'chitai',`${c.attacker.name}の行動を遅らせた`);}},
-nino:{name:'二の太刀',cat:'習熟',desc:'行動の直後にもう一度行動できる。ただし再行動のあと自分に休みが付くので、手数は増えない。'},
+nino:{name:'二の太刀',cat:'習熟',desc:'行動の直後にもう一度行動できる。ただし再行動のあと自分に休みが付くので、手数は増えない。構えていれば、休みの間も構えは解けない。'},
 
 /* ---------- タグ特効 ---------- */
 hitokiri: killer('hitokiri','人斬り','人型'),
@@ -3974,6 +3974,14 @@ function ailImmuneBy(u,src,name){
   return b?{label:b.label}:null;
 }
 
+/* ★ 手番の頭で構えを解く ★ 構えは「次の自分の手番まで」。
+   ただし**自分で付けた休み（二の太刀）の手番**は、構えたまま休むので解かず、
+   その次の手番の頭で解きます（休みの手番がまるごと守られる）。
+   印（selfRest）はここで1度だけ使って消すので、2手番より長くは続きません。 */
+function stanceAtTurnHead(u){
+  if(u.stance&&u.stance.selfRest&&u.ail.rest){ u.stance.selfRest=false; return; }
+  u.stance=null;
+}
 /* ★ 通らなかった状態異常を、掛けた側に知らせる ★
    emit（全員）ではなく runOn（掛けた本人だけ）。他人の不発で動いては困る。 */
 function wasteAil(src,u,name){
@@ -4010,8 +4018,19 @@ function addAil(u,name,turns,src){
      「体勢を崩す」と「構え」は言葉のうえで正面から反対です。起き上がっても構え直しが要る。
      ⚠️ 眠りとは効き方が違います。眠りは**働かない**だけ（起こされれば戻る／→ stanceDodge）、
         休みは**壊れる**。休みは1手番を失うだけの弱い状態だったので、ここに役割を作ります。 */
-  if(name==='rest'&&u.stance){ u.stance=null;
-    addLog(`${u.name} は体勢を崩し、構えが解けた`,'l-sys'); }
+  /* ★ ただし自分で付けた休み（二の太刀）は「構えたまま休む」（10/2）★
+     二の太刀は2回目の直後に自分へ休みを付けるので、構えを張っても**その場で自分で壊していた**
+     （重騎士・二の太刀＋反撃の構え：構え2.0回がすべて壊れて反撃0回、−3.4pt）。
+     崩されたのではなく自分で息を整えているので、構えは解けず、**休んでいる手番の間も続きます**
+     （→ stanceAtTurnHead）。二の太刀のデメリット（手番を1つ失う）はそのまま残り、
+     休んでいる間を構えが守るぶんだけ噛み合います。
+     実測（重騎士・各300戦）：二の太刀のみ 57.7% ／ 二の太刀＋反撃の構え 52.0% → 59.3%（反撃 0 → 5.3回）
+     ⚠️ 他人に付けられた休み（崩し・石化）は今までどおり構えを壊します。 */
+  if(name==='rest'&&u.stance){
+    if(src===u){ u.stance.selfRest=true;
+      addLog(`${u.name} は構えたまま息を整える`,'l-sys'); }
+    else { u.stance=null;
+      addLog(`${u.name} は体勢を崩し、構えが解けた`,'l-sys'); } }
   addLog(`${u.name} は ${AIL_LABEL[name]||name} 状態になった`,'l-debuff');
   emit('ailApplied',{unit:u,ail:name,source:src});
 }
@@ -4213,7 +4232,7 @@ function stanceCounter(t,a){
   if(!t.alive||!t.stance||!t.stance.counter)return;
   if(!a||!a.alive||a.side===t.side||asleep(t))return;
   addLog(`${t.name} の反撃`,'l-sys');
-  doAttack(t,a,{isExtra:true});
+  doAttack(t,a,{isExtra:true,counter:true});   // counter … 列の制限を越えて撃ってきた相手へ
 }
 /* ハガクレの「攻撃1回回避」。物理でも魔法でも1回ぶん受け流す。 */
 function dodged(a,t){
@@ -4240,7 +4259,12 @@ function karitateFire(a,pick){
 function doAttack(a,t,opt={}){
   if((!a.alive&&!opt.fromDead)||!t||!t.alive)return;
   // 通常攻撃は列の制限を受ける。届かない相手を指定されたら届く相手へ振り替える。
-  if(!canReach(a,t)){ const alt=pickTarget(a,true); if(!alt)return; t=alt; }
+  /* ★ ただし反撃（opt.counter）は**撃ってきた相手に返す**（10/2）★
+     以前は反撃も振り替えを受けていて、後列の弓兵に撃たれると前列の別の敵を殴っていた。
+     「撃たれたから返す」のに相手が変わるのは分かりにくいので、反撃だけ列の制限を越える。
+     ⚠️ 後列で構えている人も、後列の敵に殴り返せる（射手タグと同じ種類の例外）。
+     勝率は誤差の範囲で変わらない（斥候・後の先 81.0 → 79.0%／重騎士・反撃の構え 79.3 → 79.8%）。 */
+  if(!opt.counter&&!canReach(a,t)){ const alt=pickTarget(a,true); if(!alt)return; t=alt; }
   if(dodged(a,t))return;
   if(stanceDodge(a,t,'phys',!!(opt.noCounter||opt.isExtra)))return;
   if(!hitCheck(a,t)){ pop(t,'MISS','miss'); addLog(`${a.name} の攻撃は外れた`,'l-sys');
@@ -5241,13 +5265,13 @@ async function loop(){
     // ★ 手動依頼のリロード対策 ★
     // 手番の頭の状態を控えておく。書き出すのは「行動を決めた時」（send）。
     // ここを起点にすると、復帰後も turnStart の抽選まで同じ種から回るので経過が一致する。
-    if(MBATTLE) MSNAP=mSnapshot();
+    if(MBATTLE){ MSNAP=mSnapshot(); mBattleSave(null); }   // 手番が進むたびに控える（→ mBattleSave）
     const u=nextActor(); if(!u)break;
     time=u.ct; turnNo++;
     U.forEach(x=>{ for(const k in x.fired) if(--x.fired[k]<=0) delete x.fired[k]; });
     u.cnt.tsuigekiUsed=0; u.cnt.tsuishouUsed=0; u.cnt.ninoUsed=0; u.cnt.tomUsed=0;
     addLog(`— ターン${turnNo} : ${u.name}（${partyName(u.side)}） —`,'l-turn');
-    current=u; u.guard=false; u.stance=null; render();
+    current=u; u.guard=false; stanceAtTurnHead(u); render();
     if(!u.alive){ endTurn(u,{attacked:false}); netSync(false); continue; }
     // 眠り／休みの消化。眠っていた手番は個性を一切動かさない。
     const skip=consumeRest(u);
@@ -5890,7 +5914,7 @@ function openEditor(u){
   const keepTop=(prevBox&&MEDIT===u.id)?prevBox.scrollTop:0;
   MEDIT=u.id;
   $('#modalHost').innerHTML=`<div class="mask"><div class="modal">
-    <header><h3>${u.name}</h3><span class="hint">${u.clsName} / ${u.side==='ally'?'味方':'敵'} / ${isFront(u)?'前列':'後列'} slot${u.slot}</span>
+    <header><h3>${u.name}</h3><span class="hint">${unitWhere(u)}</span>
       <button class="btn x" id="closeM">閉じる</button></header>
     <div class="mbody">
       ${FROZEN?`<div class="warn"><b>${gEsc(own.name)} は出払っています。</b>
@@ -6209,6 +6233,33 @@ function closeEditor(){
   if(GEDIT_RETURN){ const f=GEDIT_RETURN; GEDIT_RETURN=null; f(); }
 }
 
+/* ★ 仲間詳細の見出し（9/28）★
+   ギルドと検証盤で必要な情報が違うので分けます。
+
+   検証盤 … 盤面そのものを組んでいるので、陣営と枠の番号が要る
+   ギルド … 全員が味方なので「味方」は情報にならず、枠の番号も内部の値。
+            知りたいのは**どの部隊のどこにいるか**と**出せる状態か**。
+
+   ⚠️ `u.slot` は部隊から外しても前の値が残ります。
+      未所属の仲間に「前列」と出ていたのはこれが原因なので、
+      **所属を確かめてから**列を出すこと。 */
+function unitWhere(u){
+  const a=[u.clsName];
+  if(!GUILD||!G){
+    a.push(u.side==='ally'?'味方':'敵', `${isFront(u)?'前列':'後列'} slot${u.slot}`);
+    return a.join(' / ');
+  }
+  const p=partyOf(u);
+  if(p){
+    const i=partySlots(p).indexOf(u.gid);
+    a.push(`${gEsc(p.name)}　${i<3?'前列':'後列'}${i+1}`);
+    if(partyBusy(p)) a.push('出払い中');
+    else if(p.report) a.push('帰還・報告待ち');
+  }else a.push('未所属');
+  if(showHurt(u)) a.push('療養中');
+  return a.join(' / ');
+}
+
 /* 相手ユニットの閲覧専用ビュー（対戦中） */
 function openViewer(u){
   const st=['atk','def','mat','mdf','spd'].map(k=>`<div class="sc"><u>${SN[k]}</u><b>${Math.round(stat(u,k))}</b></div>`).join('');
@@ -6329,7 +6380,7 @@ function simOneBattle(limit,keepAllies){
     time=u.ct; turnNo++;
     U.forEach(x=>{ for(const k in x.fired) if(--x.fired[k]<=0) delete x.fired[k]; });
     u.cnt.tsuigekiUsed=0; u.cnt.tsuishouUsed=0; u.cnt.ninoUsed=0; u.cnt.tomUsed=0;
-    current=u; u.guard=false; u.stance=null;
+    current=u; u.guard=false; stanceAtTurnHead(u);
     if(!u.alive){ endTurn(u,{attacked:false}); continue; }
     const skip=consumeRest(u);
     if(skip!=='sleep') emit('turnStart',{unit:u});
@@ -9407,7 +9458,7 @@ function guildData(){
   const ser=it=>({iid:it.iid,id:it.id,slot:it.slot,spell:it.spell,trait:it.trait});
   return {v:5,gold:G.gold,gems:G.gems,ext:{...G.ext},gidc:G.gidc,oidc:G.oidc,name:G.name,hero:G.hero,
     // 絞り込みも持ち越す
-    qf:{st:GQF.st,tier:GQF.tier,kind:GQF.kind.slice(),
+    qf:{st:GQF.st.slice(),tier:GQF.tier,kind:GQF.kind.slice(),
         newOnly:!!GQF.newOnly,keyOnly:!!GQF.keyOnly},
     custom:customList().map(q=>({id:q.id,name:q.name,sec:q.sec,waves:q.waves.map(w=>w.slice())})),
     cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,cid:G.cid||'',
@@ -9504,7 +9555,7 @@ function applyGuild(d){
   INV=[]; iidc=0;
   // 依頼の絞り込みを戻す。開いていない難度を指していたら「すべて」へ落とす。
   const qf=d.qf||{};
-  GQF={st:['all','free','busy','rep'].includes(qf.st)?qf.st:'all',
+  GQF={st:qstNorm(qf.st),
        tier:(qf.tier==='all'||(+qf.tier>=1&&+qf.tier<=QMAX_TIER)) ? (qf.tier||'all') : 'all',
        kind:Array.isArray(qf.kind)?qf.kind.filter(k=>QKIND[k]):[],
        newOnly:!!qf.newOnly,keyOnly:!!qf.keyOnly};
@@ -10139,7 +10190,16 @@ function gParty(){
 
    出ない理由は4系統（ランク不足／一度きり達成済み／編成条件／絞り込み）あって
    画面からは区別できないので、?debug の「掲示の診断」が全依頼の状態を F12 へ書き出す。 */
-let GQF={st:'all',tier:'all',kind:[],newOnly:false,keyOnly:false};
+/* st … 状態の絞り込み。**複数選べる**（10/2）。空の配列＝すべて。
+   以前は1つしか選べず「受注中と報告待ちを両方見る」ができなかった。 */
+const QST_KEYS=['free','busy','rep'];
+const qstNorm=v=>{
+  // 古い保存は 'all' / 'free' などの文字列。配列へ直す
+  const a=Array.isArray(v)?v:(typeof v==='string'&&v!=='all'?[v]:[]);
+  const b=QST_KEYS.filter(k=>a.includes(k));
+  return b.length===QST_KEYS.length?[]:b;   // 全部選んだら「すべて」と同じ扱いにする
+};
+let GQF={st:[],tier:'all',kind:[],newOnly:false,keyOnly:false};
 let GPICK=null;            // 「選んでから置く」の選択中の gid
 /* 控えの絞り込み。人数が増えると一覧が長くなるので、所属と職業で絞れるようにする。
    画面を出入りしても保つ（毎回やり直すほうが煩わしい）。 */
@@ -10641,12 +10701,14 @@ function gQuest(){
   const ORD={rep:0,busy:1,free:2};
   const shown=all.filter(x=>{
     const s=statOf(x);
-    if(GQF.st!=='all') return s===GQF.st&&passTK(x);
+    if(GQF.st.length) return GQF.st.includes(s)&&passTK(x);
     // 状態を指定していない時だけ、受注中と報告待ちは難度・種別を無視して必ず出す
     if(s!=='free') return true;
     return passTK(x);
   }).sort((a,b)=>(ORD[statOf(a)]-ORD[statOf(b)])||(a.q.tier-b.q.tier)||(a.q.sec-b.q.sec));
-  const stBtn=(k,label)=>`<button data-s="${k}"${GQF.st===k?' class="on"':''}>${label}${
+  /* ★ 状態は複数選べる ★ 「すべて」は選択を外すボタン（空＝すべて）。 */
+  const stOn=k=>k==='all'?!GQF.st.length:GQF.st.includes(k);
+  const stBtn=(k,label)=>`<button data-s="${k}"${stOn(k)?' class="on"':''}>${label}${
     k==='all'?'':`<i>${stCount[k]}</i>`}</button>`;
   b.innerHTML=`<h2>依頼</h2>
     ${onlyBanner()}
@@ -10707,7 +10769,10 @@ function gQuest(){
   const refilter=()=>{ saveGuild(); gQuest(); };
   const qs=$('#qStat');
   if(qs) qs.onclick=e=>{ const btn=e.target.closest('button'); if(!btn)return;
-    GQF.st=btn.dataset.s; refilter(); };
+    const k=btn.dataset.s;
+    GQF.st = k==='all' ? []
+           : qstNorm(GQF.st.includes(k)?GQF.st.filter(x=>x!==k):GQF.st.concat(k));
+    refilter(); };
   const qt=$('#qTier');
   if(qt) qt.onclick=e=>{ const btn=e.target.closest('button'); if(!btn)return;
     GQF.tier=btn.dataset.t; refilter(); };
@@ -11191,6 +11256,9 @@ function mSnapshot(){
       maxHp:u.maxHp,maxMp:u.maxMp,hp:u.hp,mp:u.mp,evade:u.evade||0,barrier:u.barrier||0,alive:u.alive,
       gunshiMp:u.gunshiMp||0,carried:!!u.carried,   // 波をまたぐ控え（軍資・療養）
       ct:u.ct,guard:!!u.guard,lastAct:(typeof u.lastAct==='string'?u.lastAct:null),
+      /* ★ 構え（10/2）★ 防御と同じく「次の自分の手番まで」続く状態なので控える。
+         入れていなかった時は、戦闘途中で再読み込みすると**張ってある構えが全部消えていました**。 */
+      stance:u.stance?{...u.stance}:null,
       buffs:(u.buffs||[]).map(b=>({...b})),ail:{...u.ail},cnt:{...u.cnt},fired:{...u.fired}}))};
 }
 function mApply(rec){
@@ -11205,14 +11273,24 @@ function mApply(rec){
     u.maxHp=o.maxHp; u.maxMp=o.maxMp; u.hp=o.hp; u.mp=o.mp;
     u.gunshiMp=o.gunshiMp||0; u.carried=!!o.carried;   // 復帰後の波で+12%が二重に乗らないように
     u.evade=o.evade; u.barrier=o.barrier||0; u.alive=o.alive; u.ct=o.ct; u.guard=o.guard; u.lastAct=o.lastAct;
+    u.stance=o.stance||null;     // 古い控えには無いので null（構えていない）
     u.buffs=o.buffs; u.ail=o.ail; u.cnt=o.cnt; u.fired=o.fired;
   });
 }
+/* act … プレイヤーが決めた行動。**null なら手番の頭の控えだけ**を書き出す（10/2）。
+   ★ 手番が進むたびにも書く理由 ★
+   以前は「行動を決めた瞬間」にしか書いていなかったので、再読み込みすると
+   **最後に決めた行動からやり直し、次の自分の手番までの敵の動きをもう一度見る**ことになり、
+   保存されていないように見えました。手番の頭ごとに上書きすれば、閉じた所から続きます。
+   ★ 巻き戻しの抜け道は開きません ★
+   書く順番は「手番の頭（null）→ 行動を決める（cmd）→ 実行 → 次の手番の頭（null）」。
+   決めた行動は実行より前に確定しているので、結果を見てから閉じても同じ行動がやり直されます。
+   手番の頭は乱数の状態ごと控えているので、どこから再開しても経過は変わりません。 */
 function mBattleSave(act){
   const S=MANUAL; if(!S||!MSNAP||GSTALE)return;
   try{
     localStorage.setItem(BATTLE_KEY,JSON.stringify(
-      {v:1,pid:S.p.pid,idx:S.idx,cmd:mSerCmd(act),...MSNAP}));
+      {v:1,pid:S.p.pid,idx:S.idx,cmd:act?mSerCmd(act):null,...MSNAP}));
   }catch(e){ console.warn('戦闘の中断保存に失敗',e); }
 }
 function mBattleClear(){ try{ localStorage.removeItem(BATTLE_KEY); }catch(e){} }
@@ -11236,7 +11314,8 @@ function resumeManualBattle(){
   }).filter(Boolean);
   if(!men.length){ mBattleClear(); return false; }
   MANUAL={p,rep,q,offer:offerOf(rep.offerId)||null,men,idx:rec.idx,playing:false};
-  GMSG='中断した戦闘を再開します。決めてあった行動から続きます。';
+  GMSG=rec.cmd?'中断した戦闘を再開します。決めてあった行動から続きます。'
+              :'中断した戦闘を再開します。閉じた所から続きます。';
   playManual(rec);
   return true;
 }
@@ -11300,7 +11379,11 @@ async function playManual(resume){
       if(S.idx>0&&u.side==='ally') carryOver(u); else resetUnit(u); });
     /* 中断から戻ってきた時は、手番の頭の状態を書き戻して
        控えてあった行動をそのまま実行する。乱数も戻すので結果は変わらない。 */
-    if(resume){ mApply(resume); MRESUME=mDeCmd(resume.cmd||{cmd:'guard'}); }
+    /* cmd が無い控え＝手番の頭で止まっていた。行動は決めていないので、
+       そのまま再開すればその手番の主（味方なら入力待ち、敵ならオート）から続きます。
+       ⚠️ 以前は cmd が無いと**ぼうぎょ**を補っていました。手番の頭でも書くようにしたので、
+          補うと「閉じたら勝手にぼうぎょした」になります。 */
+    if(resume){ mApply(resume); MRESUME=resume.cmd?mDeCmd(resume.cmd):null; }
     /* ★ 隊列の基準は「出撃時の編成」★
        連戦の2戦目や中断復帰では盤面の現在位置から始まるので、
        そのまま控えると**押し出された位置が基準になってしまう。**
