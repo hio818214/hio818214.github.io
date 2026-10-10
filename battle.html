@@ -178,6 +178,7 @@ h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28
   border-radius:0;padding:7px 2px;font-size:12.5px;color:var(--text)}
 .fixv.pk-none{color:var(--muted);font-style:italic}
 .fixv.dup{opacity:.5;text-decoration:line-through}
+.fixv.clsv{color:#e7d194}
 .rnone{opacity:.5}
 /* --- ギルドモード（?guild=1） --------------------------------
    検証盤とは同じデータ・同じエンジンを共有するが、画面は完全に入れ替える。 */
@@ -5917,6 +5918,9 @@ function clsSummary(cls,opt){
     ['atk','def','mat','mdf','spd'].map(k=>`${SN[k]}${cls[k]}`).join(' ')];
   if(cls.tags&&cls.tags.length) s.push('タグ: '+(opt&&opt.html
     ? cls.tags.map(tagChip).join('') : cls.tags.join('・')));
+  /* 出やすい個性・覚えやすいスキルの名前は、ゲームを知らない人には読めない（ボマシ…）ので、
+     主人公選びと仲間の詳細では出さない（noBias・10/10）。検証盤の職業ピッカーには残す。 */
+  if(opt&&opt.noBias) return s.join('　/　');
   const t=biasNames(cls); if(t) s.push(`個性: ${t} が出やすい`);
   const p=spBiasNames(cls); if(p) s.push(`スキル: ${p} を覚えやすい`);
   else if(!cls.spN) s.push('スキル: 使わない');
@@ -5992,11 +5996,10 @@ function openEditor(u){
     <div class="mbody">
       ${FROZEN?`<div class="warn"><b>${gEsc(own.name)} は出払っています。</b>
           装備もオート行動も、帰ってくるまで変えられません。</div>`:''}
-      ${LOCK?`<div class="seghint"><b>職業・個性・スキルは加入した時点で決まっています。</b>
-          変えられるのは<b>装備</b>と<b>オート行動</b>だけです。${
-          DEBUG?'<br><b class="gok">【検証】個性・スキルを1枠ずつ差し替えられます。</b>':''}</div>
+      ${/* 注釈は情報量を減らすため外した（10/10）。検証用の一文だけ残す */''}
+      ${LOCK?`${DEBUG?'<div class="seghint"><b class="gok">【検証】個性・スキルを1枠ずつ差し替えられます。</b></div>':''}
         <div class="sechead">${u.clsName}</div>
-        <div class="tdesc">${clsOf(u)?clsOf(u).desc+'<br>'+clsSummary(clsOf(u),{html:true}):'—'}</div>`
+        <div class="tdesc">${clsOf(u)?clsOf(u).desc+'<br>'+clsSummary(clsOf(u),{html:true,noBias:true}):'—'}</div>`
       :`<div class="sechead">職業</div>
         <div class="slot"><label>職業</label>
           <button class="pk" data-cls="1" data-pkid="cls">${u.clsName}</button></div>
@@ -6004,6 +6007,11 @@ function openEditor(u){
         <div class="cmds">
           <button class="btn" id="rollC">この職業らしく個性・魔法を引き直す</button>
         </div>`}
+      ${/* ★ 職業特性（10/10）★ 以前は盤や一覧のチップにカーソルを合わせた時しか読めなかった。
+           詳細こそじっくり読む場所なので、職業の説明の下に名前と説明を出す。魔物には無い。 */''}
+      ${clsTraitOf(u)&&TRAITS[clsTraitOf(u)]?`<div class="slot"><label>職業特性</label>
+          <span class="fixv clsv">${TRAITS[clsTraitOf(u)].name}</span></div>
+        <div class="tdesc">${TRAITS[clsTraitOf(u)].desc}</div>`:''}
 
       <div class="statgrid">
         <div class="sc"><u>HP</u><b>${Math.max(0,u.hp)}/${u.maxHp}</b></div>
@@ -6050,11 +6058,7 @@ function openEditor(u){
                     :`<button class="pk${it?'':' pk-none'}" data-eq="${s}" data-pkid="e${s}">${nm}</button>`}
             ${dup?'':''}</div>
           <div class="tdesc" data-ed="${s}">${invDescText(it,{dupBonus:dup})}</div>`;}).join('')}
-        ${FROZEN?'':`<div class="seghint"><b>候補に出るのは所持していて、誰も着けていないものだけ</b>です。
-          武器にはスキル、防具には個性が<b>生成時に確定で</b>付いていることがあり、どちらも本人の3枠とは<b>別枠</b>です
-          （最大で個性4・スキル4）。<br>
-          付与スキルの着脱に合わせて<b>オート行動も自動で増減</b>します。</div>
-        <div class="cmds"><button class="btn" id="rollEq">所持品から職に合うものを着ける</button>
+        ${FROZEN?'':`<div class="cmds"><button class="btn" id="rollEq">所持品から職に合うものを着ける</button>
           <button class="btn" id="clrEq">装備を外す</button>
           <button class="btn" id="toInv">装備の一覧へ</button></div>`}`
         :'<div class="tdesc">魔物は装備できません。</div>'}
@@ -10169,7 +10173,7 @@ function renderGuildStart(){
       </div>
       <div class="sechead">あなたの職業</div>
       <div class="fchips" id="gnCls">${list}</div>
-      <div class="tdesc">${gEsc(cur.desc)}<br>${clsSummary(cur,{html:true})}</div>
+      <div class="tdesc">${gEsc(cur.desc)}<br>${clsSummary(cur,{html:true,noBias:true})}</div>
       <div class="cmds"><button class="btn big" id="gnGo">はじめる</button></div>
       <div class="seghint">主人公は<b>《主人公補正》《先導》《転生》</b>を必ず持ちます（全ステータス+15%／致死を1度だけ耐える）（次の味方が少し早く動く）（一度だけ別形態で復活する）。
         スキルは職業の傾向で引きます。<br>
@@ -10261,7 +10265,8 @@ function gParty(){
   // こちらは読むだけ。配置は編成画面の仕事なので「詳細」しか置かない。
   const mline=u=>{
     const hurt=showHurt(u), other=partyOf(u), busy=!!(other&&partyBusy(other));
-    return `<div class="rrow" data-m="${u.gid}">
+    // tight … 携帯で「詳細」が下の行へ落ちて縦長になるのを防ぐ（10/10）
+    return `<div class="rrow tight" data-m="${u.gid}">
       <span class="rpos">${hurt?'負傷':other?'所属':'控'}</span>
       <span class="rmain"><b>${gEsc(u.name)}${u.hero?'<i class="ghero">主</i>':''}</b><i>${u.clsName}</i>
         ${hurt?`<em class="ghurt">療養 <span data-until="${u.healAt}">—</span></em>`:''}
@@ -10279,16 +10284,12 @@ function gParty(){
     ${G.parties.length>=maxParties()?''
       :`<div class="cmds"><button class="btn" id="pAdd">＋ 部隊を作る（${
          G.parties.length}/${maxParties()}）</button></div>`}
-    <div class="seghint"><b>出払っている部隊は編成できません。</b>装備も一緒に持ち出しているためです。
-      同時に複数の依頼を回すなら、その数だけ装備が要ります。<br>
-      作れる部隊の数は<b>ギルド管理で広げた枠</b>の分だけです（いまは ${maxParties()} 部隊まで。
-      広げられる回数は【${gEsc(rankNow().n)}】の認可で決まります）。</div>
+    ${/* 注釈は外した（10/10）。上限で「部隊を作る」が消えても理由は書かない —
+         枠の拡張はメニューの「ギルド管理（ランクと枠の拡張）」で伝わるので、ここでは過剰 */''}
     <div class="sechead">ギルドの仲間　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
     ${fbar}
     <div class="rlist">${pool.map(mline).join('')
-      ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'まだ仲間がいません。'}</div>`}</div>
-    <div class="seghint">ここは読むだけの一覧です。配置を変えるときは部隊の<b>編成</b>から。
-      絞り込みは編成画面と共通なので、そのまま持ち込めます。</div>`;
+      ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'まだ仲間がいません。'}</div>`}</div>`;
   b.querySelectorAll('.rrow[data-p]').forEach(r=>{
     const p=G.parties.find(x=>x.pid==r.dataset.p);
     r.querySelectorAll('button').forEach(btn=>{ if(btn.disabled)return;
@@ -10530,7 +10531,7 @@ function gPartyEdit(p){
   };
   const line=u=>{
     const hurt=injured(u), other=partyOf(u), busy=!!(other&&partyBusy(other));
-    return `<div class="rrow${GPICK===u.gid?' picked':''}" data-u="${u.gid}">
+    return `<div class="rrow tight${GPICK===u.gid?' picked':''}" data-u="${u.gid}">
       <span class="rpos">${hurt?'負傷':other?'所属':'控'}</span>
       <span class="rmain"><b>${gEsc(u.name)}${u.hero?'<i class="ghero">主</i>':''}</b><i>${u.clsName}</i>
         ${hurt?`<em class="ghurt">療養 <span data-until="${u.healAt}">—</span></em>`:''}
@@ -10547,15 +10548,13 @@ function gPartyEdit(p){
   b.innerHTML=`<h2>${gEsc(p.name)} の編成</h2>
     <div class="pname"><label>部隊名</label>
       <b class="pnval">${gEsc(p.name)}</b>
-      <button class="btn sm" id="pRoll">名前を引き直す</button>
-      <i>何度でも引き直せます。戦闘盤面の味方側にもこの名前が出ます</i></div>
+      <button class="btn sm" id="pRoll">名前を引き直す</button></div>
+    ${/* 注釈を減らした（10/10）。名前の説明・選択中のボタンの説明・位置が効く個性の説明は外した。
+         操作と前列のルールは、分かりにくければUI側（選択中の帯・枠の光らせ方・列見出しの説明）で直す */''}
     <div class="seghint"><b>仲間を選んでから枠をタップ</b>すると配置します。
-      埋まっている枠なら入れ替え、選択中の本人をもう一度押すと解除。枠の中の移動も同じ操作です。
-      <b>選択中は「詳細を開く」「控えへ戻す」</b>が出ます。枠の右上の × でも控えに戻せます。<br>
+      埋まっている枠なら入れ替え、選択中の本人をもう一度押すと解除。枠の中の移動も同じ操作です。<br>
       <b>前列（3枠）</b>は通常攻撃と単体特技の的になります。後列は魔法と範囲しか届きません
-      （例外は《挑発》と射手タグ）。<br>
-      <b>枠の位置そのものが効く個性があります。</b>《肩代わり》は同じ列で隣り合う味方しか守れず、
-      《隣接》は隣の人数を、《孤高》は隣が空いていることを見ます。</div>
+      （例外は《挑発》と射手タグ）。</div>
     ${picked?`<div class="gmsg">${gEsc(picked.name)} を選択中。置きたい枠をタップしてください。
       <button class="btn sm" id="pDetail">詳細を開く</button>
       ${partyHas(p,picked.gid)?'<button class="btn sm" id="pOutSel">控えへ戻す</button>':''}
@@ -10882,16 +10881,7 @@ function gQuest(){
           <span class="rsub"><b class="gwait">${gEsc(pp?pp.name:'')} ${
             repPending(r)?'が現地に到着 — 指揮待ち':'帰還済み — 報告待ち'}</b></span></span>
         <span class="rbtn"><button data-a="rep2">${repLabel(r)}</button></span></div>`;}).join('')}
-    <div class="seghint"><b>敵の個性は依頼が掲示された時点で決まっています。</b>
-      結果の予想は<b>実際に戦う相手</b>と何度も戦わせて出しています（変わるのは戦闘中のぶれだけ）。
-      とはいえ推定なので、良い見立てでも落とすことはあります。
-      <b>相手の内訳は出しません。</b>「何が出るか分かりきっている」と予想を読む意味が無くなるためです。<br>
-      <b>依頼は何度でも受けられます。</b>達成すると次に挑む時の相手が組み直されます。
-      <b class="gok">初回達成報酬</b>は1度きりで、未クリアの依頼にだけ表示されます。<br>
-      同じ依頼を2つの部隊で受けることはできません。並行して回すなら難易度の違う依頼を同時に抱えることになり、
-      <b>難しい依頼ほど時給が良い</b>ので、部隊を増やすほど上の階層へ手を出す必要が出ます。<br>
-      <b>編成の条件がある依頼は、条件を満たすまで掲示されません。</b>
-      見るのは<b>編成だけ</b>で、負傷や出払いでは消えません（消えると次の目標が見えなくなるため）。</div>
+    ${/* 一覧の下の長い注釈は外した（10/10）。目が滑るため。仕組みは遊べば分かる */''}
     ${DEBUG?`<div class="gdbg">
       <span>検証用</span>
       <button class="btn sm dbg" id="qReopen">クリア履歴を消す（${doneList.length}件・初回報酬をもう一度）</button>
