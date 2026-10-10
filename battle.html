@@ -587,6 +587,7 @@ body.mobile.guildmode .gmenu{grid-template-columns:1fr 1fr}
 .dlgbox{width:min(420px,100%);max-height:none}
 .dlgmsg{font-size:13px;line-height:1.85}
 .dlgmsg b{color:var(--gold)}
+.dlgmsg .dlgsub{color:var(--muted);font-size:12px}
 body.mobile .dlgbox{width:100%;height:auto;max-height:90vh;border-radius:4px}
 body.mobile .mask.dlg{padding:16px;align-items:center}
 .modal{background:var(--panel);border:1px solid var(--line2);border-radius:4px;width:min(660px,100%);max-height:88vh;overflow:auto}
@@ -1782,7 +1783,7 @@ seiatsu:{name:'制圧射撃',cat:'職業',cls:'ar',
     if(!row.length)return;
     proc(s,'seiatsu',`同じ列の${row.length}体を巻き込む`);
     row.forEach(x=>{ if(!x.alive)return;
-      const k=calcDamage(s,x,{power:0.25,kind:'phys'});
+      const k=calcDamage(s,x,{power:0.25,kind:'phys',aoe:true});
       k.splash=true; k.isExtra=true; k.noCounter=true; k.tags.push('制圧');
       applyDamage(k); });}},
 bouheki:{name:'防壁',cat:'職業',cls:'kn',
@@ -1879,6 +1880,22 @@ joubi:{name:'常備薬',cat:'職業',cls:'ap',
     t.forEach(x=>addBuff(x,{kind:'buff',label:'常備薬',flag:'kusuri',value:KUSURI_HEAL,
       stack:true,turns:999,perm:true,noSpread:true,src:'常備薬'},s));
     proc(s,'joubi',`味方${t.length}人に薬を配った`);}},
+/* ★ 《痛み分け》（守護士・10/10）★ 置く列で守る相手が変わる。
+   「前後でつながった味方」＝前の枠 i ↔ 後列の i・i+1（黒馬突と同じ対応。→ linkedVert）。
+   前列に置けば真後ろの後衛2人、後列に置けば真前の前衛1〜2人（端は1人、中ほどは2人）。
+   ・単体攻撃だけ（範囲・巻き込み・貫通の束は c.aoe で除く。分けると範囲を何重にも浴びるため）
+   ・自分のHP30%以上・眠っていない時（肩代わりと揃える）
+   ・分けるのはダメージだけ。毒や弱体などの追加効果は元の相手に掛かる
+   ・かばうのは1回まで。肩代わり（redirected）が効いた攻撃は分けない（→ applyDamage）
+   ・受け持った半分には反撃しない。自分の《軽減》などの被弾個性は、受け持った半分に効く
+   ★ 原則との照らし合わせ ★ 行動の種類に寄らず常に働く（3・4）／手動でも同じ（2）／
+     どちらの列に置いても毎戦だれかが単体攻撃を受ける（7）。 */
+itamiwake:{name:'痛み分け',cat:'職業',cls:'gd',
+  desc:'前後でつながった味方（前列なら真後ろ2枠、後列なら真前の1〜2枠）への単体攻撃のダメージを、'
+      +'半分自分が受け持つ（自分のHPが30%以上の時）。',
+  incoming(s,c){ if(c.target===s||c.target.side!==s.side||!s.alive||c.aoe||c.shared||c.shareBy)return;
+    if(!linkedVert(s,c.target)||hpR(s)<0.3)return;
+    c.shareBy=s; }},
 jubaku:{name:'呪縛',cat:'職業',cls:'hx',
   desc:'自分がかけた弱体と状態異常の持続が5ターン延びる。',
   /* 単体を範囲化する案は取り下げました（魔導士から「単体を選ぶ」選択肢を奪うため）。
@@ -1987,7 +2004,7 @@ let NIJUU_MP=0.5;
    ⚠️ 各300戦で**±5ptほどの誤差**。小さい差は読まないこと。
    ========================================================= */
 const CLS_TRAIT={sw:'tomaranu',kn:'bouheki',rg:'kakuran',ar:'seiatsu',
-  dk:'utsushimi',tm:'karitate',pr:'junkyou',ap:'joubi',hx:'jubaku',cm:'saihai',mg:'nijuu'};
+  dk:'utsushimi',tm:'karitate',pr:'junkyou',ap:'joubi',hx:'jubaku',cm:'saihai',mg:'nijuu',gd:'itamiwake'};
 const clsTraitOf=u=>(u&&CLS_TRAIT[u.clsId])||null;
 const TRAIT_IDS=Object.keys(TRAITS).filter(id=>id!=='none');
 const hasT=(u,id)=>clsTraitOf(u)===id||u.traits.includes(id)
@@ -2301,8 +2318,14 @@ const SPELLS=[
   desc:'敵単体を眠らせ、同時に毒状態にする。起こしても毒は残る。植物専用。'},
  {id:'kubikari',name:'首刈り',kind:'art',type:'atk',scope:'one',mp:12,power:1.4,exec:{hp:0.3,mul:2},needs:'dullahan',
   desc:'攻撃×${power}。相手のHPが${execHp}以下なら必中かつ攻撃×${execPower}。デュラハン専用。'},
- {id:'kokubatotsu',name:'黒馬突',kind:'art',type:'atk',scope:'one',mp:12,power:1.2,multi:2,needs:'dullahan',
-  desc:'攻撃×${power}で、届く範囲の敵${multi}体を同時に貫く。デュラハン専用。'},
+ /* ★ 黒馬突は「前の敵を突き抜けて、後ろへ届く」（10/10）★
+    以前は「届く範囲から2体」で、前列が立っている間は前列にしか当たらず、壁を越えなかった。
+    いまは単体の物理技として狙い（前列が立っていれば前列）、**狙った相手が前列なら、
+    その後ろの後列2枠**にいる敵にも同じ威力で当たる。前は3枠・後ろは4枠なので、
+    前の枠 i の後ろを後列の i・i+1 とする（前の中央の後ろは、後列の中ほど2人）。
+    後列を狙った時（前列が全滅している等）は後ろが無いので1体だけ。 */
+ {id:'kokubatotsu',name:'黒馬突',kind:'art',type:'atk',scope:'one',mp:12,power:1.2,pierce:true,needs:'dullahan',
+  desc:'攻撃×${power}。敵単体を突き、その後ろに敵がいればまとめて貫く。デュラハン専用。'},
 
  /* ---------- 薬師の薬（特技の回復） ----------
     ★ 撃ち手の魔力を見ない（flat）★
@@ -2421,7 +2444,7 @@ const isArt=sp=>sp&&sp.kind==='art';
 const skillKind=sp=>isArt(sp)?'特技':'魔法';
 const skillCat=sp=>isArt(sp)?'特技':TYPE_LABEL[sp.type];
 /* 射程の表記。範囲／2体／単体 を1か所で決める。 */
-const scopeLabel=sp=>!sp?'単体':(sp.scope==='all'?'範囲':(sp.multi?sp.multi+'体':'単体'));
+const scopeLabel=sp=>!sp?'単体':(sp.scope==='all'?'範囲':(sp.pierce?'貫通':(sp.multi?sp.multi+'体':'単体')));
 /* スキルの説明ツールチップ（カード・コマンド欄で共通） */
 /* ★ 魔防で弾かれる注記は1か所だけに書く ★
    該当するスキルは10個以上あるので、desc に1つずつ書くと必ずどれかが食い違う。
@@ -2918,6 +2941,16 @@ const CLASSES=[
   bias:{yakkou:24,seijou:14,regen:12,share:10,surplus:8,gunshi:6,ryouyou:6},
   /* 予防薬を引退させ、役目を万能薬へ畳んだぶん、空いた枠に強壮薬を入れた（9/25）。 */
   spN:2, spBias:{kizugusuri:22,mayaku:18,gedoku:16,bannou:14,kyousou:14,taiatari:5,hicchuu:4,kamae:2}},
+ /* ★ 守護士（10/10・12職目）★ 置く列で守る相手が変わる、配置の職。
+    職業特性《痛み分け》で、前後でつながった味方への単体攻撃を半分受け持つ。
+    重騎士（同じ列の左右を「全部」受け止める壁）とは、向き（縦）と量（半分）で分けてある。
+    半分を引き受けるのでHPは高め、単体魔法も受けるので防御より魔防を高く。攻撃は低め。
+    肩代わりは重騎士の色なので bias に載せない。FRONT_CLASSES に入れないので自動配置では後ろ。 */
+ {id:'gd',n:'守護士', c:'GD',kind:'human',hp:600,mp:36,atk:48,def:58,mat:36,mdf:64,spd:46,
+  tags:['人型'],
+  desc:'前後でつながった仲間と痛みを分け合う守り手。前に置けば後衛を、後ろに置けば前衛を守る。',
+  bias:{mitigate:14,regen:12,fukutsu:10,rinsetsu:10,thorns:8,revenge:8,mashield:6},
+  spN:2, spBias:{guardup:16,taiatari:8,kamae:8,heal:6,gonosen:5,hicchuu:5,cure:4}},
  /* ★ 戦闘の外で働く職 ★
     数値はどれも平凡で、7枠を1つ食うぶんは確実に弱くなる。**それがコスト。**
     見返りは戦闘ではなく「魔物が仲間になる」こと。
@@ -3672,6 +3705,11 @@ const aliveOf=s=>U.filter(x=>x.side===s&&x.alive);
 const hpR=u=>u.hp/u.maxHp;
 const isFront=u=>u.slot<3;
 const adjacent=(a,b)=>a.side===b.side&&isFront(a)===isFront(b)&&Math.abs(a.slot-b.slot)===1;
+/* 前後のつながり。前の枠 i（0〜2）の後ろは後列の枠 3+i・4+i（黒馬突・《痛み分け》）。 */
+const linkedVert=(a,b)=>{
+  if(!a||!b||a.side!==b.side||isFront(a)===isFront(b))return false;
+  const f=isFront(a)?a:b, k=isFront(a)?b:a;
+  return k.slot===3+f.slot||k.slot===4+f.slot; };
 const adjacentAllies=u=>allies(u).filter(x=>x!==u&&x.alive&&adjacent(u,x));
 const traitFns=(u,ev)=>allTraits(u).map(t=>TRAITS[t]&&TRAITS[t][ev]).filter(Boolean);
 
@@ -4144,7 +4182,7 @@ function calcDamage(a,t,opt){
   const kind=opt.kind||'phys';
   const A=stat(a,kind==='mag'?'mat':'atk'), D=stat(t,kind==='mag'?'mdf':'def');
   let dmg=(A*(opt.power||1))*(120/(120+D*0.9))*(0.92+R(0.16));
-  const ctx={attacker:a,target:t,dmg,kind,tags:[],crit:false,redirected:null};
+  const ctx={attacker:a,target:t,dmg,kind,tags:[],crit:false,redirected:null,aoe:!!opt.aoe};
   const cr=0.05+sumHook(a,'crit')+stat(a,'spd')/2400;
   const rolled=R(1)<cr;          // 引いてから捨てる（→ 首無し）
   if(rolled&&!hasFlag(t,'noCrit')){ ctx.crit=true; ctx.dmg*=1.65; ctx.tags.push('会心'); }
@@ -4162,6 +4200,32 @@ function calcDamage(a,t,opt){
 }
 function applyDamage(ctx){
   if(ctx.redirected&&ctx.redirected.alive&&ctx.redirected!==ctx.target) ctx.target=ctx.redirected;
+  /* ★ 《痛み分け》★ 振り替え（肩代わり）が効いていたら分けない＝かばうのは1回まで。
+     最終的なダメージを半分に割り、残りを守護士へ別の1発として当てる。 */
+  const g=ctx.shareBy;
+  if(g&&!ctx.shared&&!ctx.redirected&&g.alive&&g!==ctx.target&&ctx.dmg>=2){
+    const half=Math.floor(ctx.dmg/2);
+    ctx.dmg-=half; ctx.tags.push('痛み分け');
+    applyDamage1(ctx);
+    shareHit(ctx,g,half);
+    return;
+  }
+  applyDamage1(ctx);
+}
+/* 守護士が受け持つ半分。守護士自身の被弾個性（軽減など）・ぼうぎょ・構えの軽減は効く。
+   反撃はしない（noCounter）。追加効果（毒など）は元の相手の側だけで起きる。 */
+function shareHit(ctx,g,half){
+  if(!g.alive)return;
+  proc(g,'itamiwake',`${ctx.target.name}の被弾を半分受け持つ`);
+  const sc={attacker:ctx.attacker,target:g,dmg:half,kind:ctx.kind,tags:['痛み分け'],crit:false,
+            redirected:null,shared:true,noCounter:true,isExtra:true,aoe:true};
+  runOn(g,'incoming',sc);
+  if(g.stance&&g.stance.mit<1){ sc.dmg*=g.stance.mit; sc.tags.push('構え'); }
+  if(g.guard){ sc.dmg*=0.45; sc.tags.push('防御'); }
+  sc.dmg=Math.max(1,Math.round(sc.dmg));
+  applyDamage1(sc);
+}
+function applyDamage1(ctx){
   const t=ctx.target;
   /* ★ 防壁 ★ 大きさを問わず1発を丸ごと吸って1枚割れる。
      肩代わりの振り替えが済んだ**あと**に見るので、かばった側の防壁で受ける。
@@ -4335,7 +4399,16 @@ function castSpell(a,sp,target,o={}){
       if(sp.scope==='all') tg=foesOf();
       else if(E.multi) tg=reachOf().slice(0,E.multi);        // 黒馬突 … 届く範囲から2体
       else if(sp.randomTarget){ const c=reachOf(); if(!c.length)break; tg=[pick(c)]; }
-      else tg=oneTarget();
+      else{
+        tg=oneTarget();
+        // 黒馬突 … 狙った相手が前列なら、その後ろ（後列の枠 i・i+1）まで貫く
+        if(E.pierce&&tg.length&&isFront(tg[0])){
+          const s0=tg[0].slot;
+          [3+s0,4+s0].forEach(sl=>{
+            const b=U.find(x=>x.side===otherSide&&x.slot===sl&&x.alive);
+            if(b) tg.push(b); });
+        }
+      }
       tg=refl(tg);
       if(!tg.length)break;
       for(const t of tg){
@@ -4344,7 +4417,7 @@ function castSpell(a,sp,target,o={}){
            威力計算も軽減も会心も通さず、現在HPの割合をそのまま削る。 */
         if(E.ratio){
           const d=Math.max(1,Math.round(t.hp*E.ratio));
-          const rc={attacker:a,target:t,dmg:d,kind:dmgKind,tags:['割合'],crit:false,redirected:null};
+          const rc={attacker:a,target:t,dmg:d,kind:dmgKind,tags:['割合'],crit:false,redirected:null,aoe:sp.scope==='all'||tg.length>1};
           applyDamage(rc); dealt+=rc.dmg; firstHit=firstHit||rc.target; continue;
         }
         /* 自分の現在HPの割合を、そのまま相手へ渡す（ドラゴンブレス）。
@@ -4355,7 +4428,7 @@ function castSpell(a,sp,target,o={}){
            攻撃まわりの個性で伸びると、竜が殴り型と両取りになるため。 */
         if(E.selfRatio){
           const rc={attacker:a,target:t,dmg:Math.max(1,Math.round(a.hp*E.selfRatio)),
-                    kind:dmgKind,tags:['息'],crit:false,redirected:null};
+                    kind:dmgKind,tags:['息'],crit:false,redirected:null,aoe:sp.scope==='all'||tg.length>1};
           for(const u of U){ if(u.alive&&!asleep(u)) runOn(u,'incoming',rc); }
           rc.dmg=Math.max(1,Math.round(rc.dmg));
           applyDamage(rc); dealt+=rc.dmg; firstHit=firstHit||rc.target; continue;
@@ -4373,7 +4446,7 @@ function castSpell(a,sp,target,o={}){
         /* 弱った相手に食い込む技（苛み）。**状態異常なら**上乗せする。
            弱体（ワソギ等）は数に入れない。狙って作れてしまうと重すぎるため。 */
         if(sp.ailBonus&&Object.keys(t.ail||{}).length) pw*=1+E.ailBonus;
-        const ctx=calcDamage(a,t,{power:pw,kind:dmgKind});
+        const ctx=calcDamage(a,t,{power:pw,kind:dmgKind,aoe:sp.scope==='all'||tg.length>1});
         ctx.art=art;              // 特技かどうか。《かく乱》が「魔法以外」を見分けるのに使う
         ctx.noCounter=!!o.isExtra;
         applyDamage(ctx);
@@ -7719,10 +7792,15 @@ const QUESTS=[
     手続きは繰り返すものではないし、初期メンバーが無限に湧いても困る。 */
  {id:'q0',name:'ギルド登録の手続き',tier:1,kind:'story',sec:0,gph:0,enemies:[],once:true,
   desc:'書類を出して判を押してもらうだけ。戦闘は起きない。'
-      +'**登録が済むと、見習いの剣士が4人と、支度金代わりの装備が2つ渡される。**'
-      +'剣士たちは個性もスキルも持っていない。',
+      +'**登録が済むと、見習いの重騎士・剣士・僧侶・魔導士が1人ずつと、支度金代わりの装備が2つ渡される。**'
+      +'見習いたちは職業の基本だけを身につけている。',
   // 装備2つは「装備させよう！」を試せるようにするため。素だと倉庫が空のまま進む
-  first:{gold:500,member:'sw',blank:true,count:4,item:2},
+  /* ★ 見習いは4職1人ずつ（10/10）★ 前列・後列の役割を最初から体験できるように。
+     最初から多くを見せると混乱するので、渡すのは「その職が動くのに要る1つ」だけ。
+     重騎士《肩代わり》（並べ方の意味を覚える）・剣士なし（《止まらぬ剣》で足りる）・
+     僧侶キーヤ（無いと回復できない）・魔導士ホヤキ（無いと《二重詠唱》も働かない）。
+     member に配列を置くと、1人ずつ職業と中身を指定できる。 */
+  first:{gold:500,member:[{cls:'kn',traits:['cover']},{cls:'sw'},{cls:'pr',spells:['heal']},{cls:'mg',spells:['fire']}],blank:true,item:2},
   reward:{}},
  {id:'q1',name:'ゴブリン退治',tier:1,kind:'short',sec:60,gph:18000,enemies:['goblin'],
   desc:'畑を荒らすゴブリンが1匹。初仕事にはちょうどいい。',
@@ -7832,25 +7910,25 @@ const QUESTS=[
   desc:'**回復なしで四連戦。**門ごとに相手の型が変わる。'
       +'MPをどこで使うかがそのまま結果になる。',
   first:{gold:96000,item:true,member:true,rare:true},
-  reward:{equipChance:0.7,memberChance:0.4,memberBias:{sw:6,kn:12,pr:12,mg:12}}},
+  reward:{equipChance:0.7,memberChance:0.4,memberBias:{gd:12,sw:6,kn:12,pr:12,mg:12}}},
  {id:'q3c',name:'墓守の夜',tier:3,kind:'idle',sec:10800,gph:25000,
   enemies:['skeleton','skeleton','vampire','lich'],
   desc:'墓地に夜通し詰める。**3時間。**帰ってくる頃には朝になっている。',
   first:{gold:150000,item:true},
-  reward:{equipChance:0.8,memberChance:0.5,memberBias:{dk:12,sw:6,pr:18,hx:16}}},
+  reward:{equipChance:0.8,memberChance:0.5,memberBias:{gd:12,dk:12,sw:6,pr:18,hx:16}}},
 
  /* ---------- 難度4：1〜2時間 ---------- */
  {id:'q5',name:'ハーピィの岩棚',tier:4,kind:'std',sec:2700,gph:55000,
   enemies:['goblin','goblin','harpy','harpy'],
   desc:'速い。先手を取られる前提で組む必要がある。',
   first:{gold:120000,item:true},
-  reward:{equipChance:0.6,memberChance:0.4,memberBias:{ar:18,rg:12}}},
+  reward:{equipChance:0.6,memberChance:0.4,memberBias:{gd:12,ar:18,rg:12}}},
  {id:'q4b',name:'石像の広間',tier:4,kind:'std',sec:3000,gph:56000,
   enemies:['gargoyle','gargoyle','gargoyle','lich'],
   desc:'防御が最も高い石像が三体、後ろに術者。**殴るほど返ってくる。**'
       +'物理で削り合うと先にこちらが尽きる。',
   first:{gold:140000,item:true},
-  reward:{equipChance:0.65,memberChance:0.4,memberBias:{sw:5,mg:20,hx:14}}},
+  reward:{equipChance:0.65,memberChance:0.4,memberBias:{gd:12,sw:5,mg:20,hx:14}}},
  /* 3体はこの難度で最少だった（普通の依頼は平均5.3体）。
     飛竜はそのままに、足元を固める幼竜を3体足して6体に。 */
  {id:'q4a',name:'竜の通り道',tier:4,kind:'std',sec:3600,gph:58000,key:true,
@@ -7878,7 +7956,7 @@ const QUESTS=[
   enemies:['wyvern','wyvern','harpy','harpy','lich'],
   desc:'国境を6時間見張る。**時給は半分だが、寝ている間も進む。**',
   first:{gold:400000,item:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{sw:5,ar:14,rg:14,kn:10}}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{gd:12,sw:5,ar:14,rg:14,kn:10}}},
 
  /* ---------- 難度5：数時間 ---------- */
  /* ★ 難度5のキーは4本で形を分けてある ★
@@ -7897,7 +7975,7 @@ const QUESTS=[
   desc:'**回復なしで五連戦。**街道をたどるほど首無しが増える。'
       +'**《宣告》で確実に落としにくる。**最後の二騎まで手を残せるか。',
   first:{gold:550000,item:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{dk:12,sw:7,kn:16,pr:16}}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{gd:12,dk:12,sw:7,kn:16,pr:16}}},
  {id:'q5a',name:'吸血鬼の館',tier:5,kind:'chain',sec:9000,gph:88000,key:true,
   waves:[['vampire','skeleton','skeleton','skeleton','lich',rare('skeleton','mimic',0.1)],
          ['vampire','vampire',['skeleton','dullahan'],'dullahan','lich','lich']],
@@ -7920,13 +7998,13 @@ const QUESTS=[
   desc:'**回復なしで三連戦。**門番、石像、そして城主。どの門も五体。'
       +'最後まで立っていられる編成でないと、奥までは行けない。',
   first:{gold:850000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.7,memberBias:{sw:6,kn:12,pr:12,mg:12}}},
+  reward:{equipChance:1,memberChance:0.7,memberBias:{gd:12,sw:6,kn:12,pr:12,mg:12}}},
  {id:'q5c',name:'果ての塔',tier:5,kind:'idle',sec:43200,gph:50000,
   waves:[['gargoyle','gargoyle','gargoyle','lich'],
          ['dullahan','dullahan','vampire','vampire']],
   desc:'塔をひと晩かけて登る。**12時間の二連戦。**時給は落ちるが、置いておけば額は大きい。',
   first:{gold:1200000,item:true},
-  reward:{equipChance:1,memberChance:0.7,memberBias:{sw:6,kn:14,mg:14,pr:14}}},
+  reward:{equipChance:1,memberChance:0.7,memberBias:{gd:12,sw:6,kn:14,mg:14,pr:14}}},
 
  /* ---------- 難度6：壁。クリア者が出ない前提で置いてある ---------- */
  {id:'q6a',name:'大侵攻',tier:6,kind:'horde',sec:21600,gph:150000,
@@ -7980,7 +8058,7 @@ const QUESTS=[
   desc:'**7体すべてが「人型」。**首無しの騎士から小鬼まで、形だけが揃っている。'
       +'《人斬り》を持つ者を並べれば、相手の顔ぶれを問わず削り切れる。',
   first:{gold:680000,item:true,member:true,rare:true},
-  reward:{equipChance:0.8,memberChance:0.45,memberBias:{sw:16,kn:14}}},
+  reward:{equipChance:0.8,memberChance:0.45,memberBias:{gd:12,sw:16,kn:14}}},
 
  {id:'k3u',name:'墓地の夜',tier:3,kind:'horde',sec:1500,gph:45000,
   waves:[tagWave(5,'不死',{max:3})],
@@ -7999,7 +8077,7 @@ const QUESTS=[
   desc:'**5体すべてが「飛行」。**速く、前に出ても捕まえにくい。'
       +'《射落とし》と弓兵が本領を発揮する。',
   first:{gold:80000,item:true},
-  reward:{equipChance:0.55,memberChance:0.3,memberBias:{ar:18,rg:12}}},
+  reward:{equipChance:0.55,memberChance:0.3,memberBias:{gd:12,ar:18,rg:12}}},
  {id:'k5f',name:'制空権',tier:5,kind:'horde',sec:9000,gph:96000,
   waves:[tagWave(7,'飛行')],
   desc:'**7体すべてが「飛行」。**空を取られたまま押し切られるか、先に落とすか。',
@@ -8012,14 +8090,14 @@ const QUESTS=[
   desc:'**6体すべてが「獣」。**どれも速く、攻撃が重い。'
       +'《獣狩り》が初めて全員に刺さる依頼。',
   first:{gold:150000,item:true,member:true},
-  reward:{equipChance:0.65,memberChance:0.35,memberBias:{rg:14,ar:14,tm:12}}},
+  reward:{equipChance:0.65,memberChance:0.35,memberBias:{gd:12,rg:14,ar:14,tm:12}}},
  {id:'k6b',name:'暴走する牙',tier:6,kind:'horde',sec:21600,gph:158000,
   // 下限3で、ウルフ(lv1)とワーウルフ(lv2)は混ざらない。難度6の重さを保つため
   waves:[tagWave(7,'獣',{min:3}),tagWave(7,'獣',{min:3})],
   desc:'**7体の獣が二度。**ケルベロスとケンタウロスしかいない。'
       +'どちらも速く、追い詰めるほど強くなる。速度で押し込まれる前に何を通すか。',
   first:{gold:2900000,item:true,member:true,rare:true},
-  reward:{equipChance:1,memberChance:0.6,memberBias:{sw:6,ar:16,kn:14}}},
+  reward:{equipChance:1,memberChance:0.6,memberBias:{gd:12,sw:6,ar:16,kn:14}}},
 
  /* 竜の依頼。他のタグと同じく**中難度と最高難度の2本**立て。
     k4d は max:4 で古竜（lv5）を外し、幼竜と飛竜だけにしてある。
@@ -8085,7 +8163,7 @@ const QUESTS=[
   desc:'**後列を射抜いてくる。**前に壁を置いても、狙われるのは後ろ。'
       +'隊列の組み方そのものを問われる。',
   first:{gold:140000,item:true,member:true},
-  reward:{equipChance:0.6,memberChance:0.35,memberBias:{ar:16,rg:14,tm:10}}},
+  reward:{equipChance:0.6,memberChance:0.35,memberBias:{gd:12,ar:16,rg:14,tm:10}}},
  {id:'q5i',name:'動かぬ門番',tier:5,kind:'horde',sec:9000,gph:96000,
   enemies:['golem','golem','golem','gargoyle',rare('gargoyle','mimic',0.1)],
   desc:'**毒も眠りも封魔も通らない。**殴っても硬い。'
@@ -8247,7 +8325,7 @@ const QUESTS=[
    enemies:['wyvern','harpy','harpy','harpy','harpy','harpy'],
    desc:'**空を飛ぶ敵が6体。**こちらの攻撃が届く前にズタズタにされる。範囲と速さが必須。',
    first:{gold:320000,item:true,member:true},
-   reward:{equipChance:0.75,memberChance:0.45,memberBias:{ar:20,mg:16}}},
+   reward:{equipChance:0.75,memberChance:0.45,memberBias:{gd:12,ar:20,mg:16}}},
   {id:'q4h',name:'霊峰の巡礼護衛',tier:4,kind:'idle',sec:28800,gph:34000,
    enemies:['wyvern','wyvern','gargoyle','lich','lich','lich'],
    desc:'険しい山道を信徒と共に越える。**8時間。**',
@@ -8673,6 +8751,11 @@ function guildUnit(clsId,opt={}){
       const t=pick(pool); u.traits[free[RI(free.length)]]=t; u.rareFrom=t; }
   }
   if(opt.blank) u.spells=['none','none','none'];
+  // 素の仲間に、決まったものだけ持たせる（ギルド登録の見習いなど）
+  if(opt.blank){
+    (opt.traits||[]).forEach((id,i)=>{ if(TRAITS[id]) u.traits[i]=id; });
+    (opt.spells||[]).forEach((id,i)=>{ if(SP[id]) u.spells[i]=id; });
+  }
   u.equip=emptyEquip();
   u.gambits=defaultGambits(u);
   u.healAt=0;
@@ -8787,6 +8870,55 @@ function tutDone(id){
   saveGuild();
 }
 
+/* ★ ログインボーナス（10/10）★ 区切りごとに1回、宝石1個。サーバは介さない。
+   本番は「1日1回・0時切り替え」の想定。テストプレイで1日待てないので、
+   いまは **15分ごと**（1時間に最大4回）にしてある。LOGIN_DAILY を true にすれば日替わり。
+   ・区切りは通し番号（今の時刻 ÷ 15分）。1:10 に受け取っても 2:10 は別の区切りなので出る
+   ・空けた分はまとめて払わない。何区切り離れていても1回だけ
+   ・ギルド作成前とチュートリアル中は出さない（終われば次の巡回で出る）
+   ・出すのはギルドの通常画面だけ。再生・手動戦闘・報告・詳細・確認窓の最中は待つ
+   ・端末の時計を動かせば何度でも取れる。クライアントだけで配る以上、割り切り */
+const LOGIN_DAILY=false;
+const LOGIN_PERIOD_MS=15*60*1000;
+const LOGIN_GEMS=1;
+function loginKey(){
+  if(LOGIN_DAILY){ const d=new Date(now());
+    return `d${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+  return 'q'+Math.floor(now()/LOGIN_PERIOD_MS);
+}
+function loginReady(){
+  if(!G||!$('#gwrap'))return false;
+  if(tutCur())return false;                              // チュートリアル中は保留
+  if(guildBusy()||DLG)return false;                      // 通常画面だけ
+  if(typeof RREP!=='undefined'&&RREP)return false;       // 報告画面
+  if(typeof MBATTLE!=='undefined'&&MBATTLE)return false;
+  const mh=$('#dlgHost'); if(mh&&mh.innerHTML)return false;
+  return true;
+}
+function maybeLoginBonus(){
+  if(!G)return false;
+  const k=loginKey();
+  if(G.login===k)return false;
+  if(!loginReady())return false;
+  /* 別のタブが先に受け取っていたら、その記録に合わせて終わる */
+  try{ const d=loadGuild(); if(d&&d.login===k){ G.login=k; return false; } }catch(e){}
+  G.login=k; G.gems+=LOGIN_GEMS; saveGuild();
+  const span=LOGIN_DAILY?'毎日':'15分ごと（テスト用）';
+  const ok=dlgOpen(
+    `<header><h3>ログインボーナス</h3></header>
+     <div class="mbody"><div class="dlgmsg">宝石を <b>${LOGIN_GEMS}</b> 個受け取りました。<br>
+       <span class="dlgsub">所持 ${G.gems} 個 ・ ${span}に受け取れます</span></div>
+       <div class="cmds"><button class="btn big" id="dlgOk">受け取る</button></div></div>`,
+    host=>{
+      const done=()=>{ dlgClose(); renderGuild(); };
+      DLG=done;
+      $('#dlgOk').onclick=done;
+      host.querySelector('.mask').onclick=e=>{ if(e.target.classList.contains('mask')) done(); };
+    });
+  if(!ok){ GMSG=`ログインボーナス：宝石を${LOGIN_GEMS}個受け取りました。`; renderGuild(); }
+  return true;
+}
+
 const cleared=q=>!!G.done[q.id];
 const clearCount=q=>+G.done[q.id]||0;
 /* ★ 条件つきの依頼は、条件を満たす編成ができるまで掲示しない ★
@@ -8823,7 +8955,8 @@ function firstText(q){
     const n=f.count||1;
     // 負傷加入は隠さない。受ける前から「すぐには戦力にならない」と分かる方がいい
     const hurt=f.hurt>0?'（負傷している）':'';
-    a.push(f.member===true?`${f.rare?'レア個性持ちの仲間':'仲間'} ${n}人${hurt}`
+    if(Array.isArray(f.member)) a.push(`見習いの${f.member.map(m=>CLS[m.cls]?CLS[m.cls].n:m.cls).join('・')} ${f.member.length}人${hurt}`);
+    else a.push(f.member===true?`${f.rare?'レア個性持ちの仲間':'仲間'} ${n}人${hurt}`
                           :`${CLS[f.member]?CLS[f.member].n:f.member}${f.blank?'（個性・スキルなし）':''} ${n}人${hurt}`);
   }
   return a.join('・');
@@ -9181,7 +9314,9 @@ function rollPending(q,ok,men,met){
     pending.gold+=f.gold||0;
     /* hurt … 秒。0 より大きいと「負傷した状態で加入」する。
        助け出して連れ帰った、という体にできる。療養が明けるまで出撃できない。 */
-    if(f.member) pending.firstMember=(f.member===true)
+    if(f.member) pending.firstMember=Array.isArray(f.member)
+      ?{list:f.member.map(m=>({...m})),blank:!!f.blank,hurt:f.hurt||0}
+      :(f.member===true)
       ?{rare:!!f.rare,count:f.count||1,hurt:f.hurt||0}
       :{clsId:f.member,blank:!!f.blank,count:f.count||1,hurt:f.hurt||0};
     if(f.item) pending.firstItem=(f.item===true?1:(+f.item||0));   // 個数も書ける
@@ -9326,14 +9461,17 @@ function applySkillGain(rep,list){
    「囚われていた者を助け出して連れ帰った」を、既にある療養の仕組みだけで表現できる。
    療養が明けるまで出撃できないので、寺院を使う動機にもなる。 */
 function joinFromPending(rep,q,m){
-  const n=Math.max(1,m.count||1);
+  const n=m.list?m.list.length:Math.max(1,m.count||1);
   for(let i=0;i<n;i++){
     if(G.roster.length>=maxRoster()){
       const o=overflowMember();
       rep.gold+=o.gold; rep.gained.push(o.text);
       continue;
     }
-    const u=m.clsId
+    const sp=m.list&&m.list[i];
+    const u=sp
+      ? (()=>{ const x=guildUnit(sp.cls,{blank:m.blank,traits:sp.traits,spells:sp.spells}); G.roster.push(x); return x; })()
+      : m.clsId
       ? (()=>{ const x=guildUnit(m.clsId,{blank:m.blank}); G.roster.push(x); return x; })()
       : gainMember(q,m.rare);
     if(m.hurt>0){
@@ -9463,7 +9601,7 @@ function guildData(){
     custom:customList().map(q=>({id:q.id,name:q.name,sec:q.sec,waves:q.waves.map(w=>w.slice())})),
     cidc:G.cidc||0,rankSeen:G.rankSeen||0,tut:{step:tutStep()},rev:G.rev||0,cid:G.cid||'',
     done:G.done,best:G.best||{},parties:G.parties,stockAt:G.stockAt,offers:G.offers,seen:G.seen||{},
-    mult:G.mult||{},shopDay:G.shopDay||'',shopLog:G.shopLog||{},
+    mult:G.mult||{},shopDay:G.shopDay||'',shopLog:G.shopLog||{},login:G.login||'',
     /* 預けた先を覚えておく。**コードそのもの**なので、
        これが入った保存を他人に渡すと、その人も上書きできる。 */
     saveCode:G.saveCode||'',saveAt:G.saveAt||'',
@@ -9548,7 +9686,7 @@ function applyGuild(d){
        Object.keys(d.best||{}).forEach(id=>{ const q=questOf(id); if(!q||!recordable(q))return;
          const n=+d.best[id]|0; if(n>=1&&n<=PSLOTS) o[id]=n; });
        return o; })(),
-     mult:d.mult||{},shopDay:d.shopDay||'',shopLog:d.shopLog||{},
+     mult:d.mult||{},shopDay:d.shopDay||'',shopLog:d.shopLog||{},login:d.login||'',
      stockAt:d.stockAt||0,offers:d.offers||[],seen:seenLoad(d.seen),
      saveCode:codeNorm(d.saveCode),saveAt:d.saveAt||'',
      roster:[],parties:d.parties||[],stock:[]};
@@ -9863,6 +10001,7 @@ function renderGuild(){
       <button class="btn sm dbg" id="dbgK">ランクを1つ上げる</button>
       <button class="btn sm dbg" id="dbgZ" title="全種を「倒した」状態にします。自作依頼の選択肢も全部開きます">図鑑を全部開く</button>
       <button class="btn sm dbg" id="dbgZ0">図鑑を空にする</button>
+      <button class="btn sm dbg" id="dbgL">ログインボーナスの受け取り記録を消す</button>
     </div>`:''}
     ${DEBUG?`<div class="gfoot">
       時間は実時間で進みます。<b>ページを閉じていても依頼は進行します。</b><br>
@@ -9891,6 +10030,7 @@ function renderGuild(){
     MONSTERS.forEach(c=>{ G.seen[c.id]={met:1,kill:1,tame:1}; });
     GMSG=`【検証】図鑑を全部開いた（${MONSTERS.length}種）`; });
   dbg('#dbgZ0',()=>{ G.seen={}; GMSG='【検証】図鑑を空にした'; });
+  dbg('#dbgL',()=>{ G.login=''; GMSG='【検証】ログインボーナスの受け取り記録を消した（1秒以内に出ます）'; });
   dbg('#dbgM',()=>dbgJoin(false));
   dbg('#dbgR',()=>dbgJoin(true));
   /* テイマーを引くまで捕獲を試せないので、直接入れる口を用意する。 */
@@ -9988,6 +10128,7 @@ function startGuildTick(){
     syncRecallButtons();   // 凍らせている間に帰ってきた部隊のボタンだけ直す
     syncReportAgain();     // 報告画面で待っていると、治療して再送 → ふつうの再送 に変わる
     syncTempleButtons();   // 寺院の値段は残り時間で下がる。貼り付いた金額を出さない
+    maybeLoginBonus();     // 区切りをまたいだら、通常画面にいる時だけ出す
   },1000);
 }
 /* 時短。残り時間を消して即座に終わらせる。 */
