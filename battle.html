@@ -190,9 +190,19 @@ body.guildmode .gwrap{display:flex;flex-direction:column;gap:14px;
 .ghead h1{font-family:var(--serif);font-size:24px;margin:0;font-weight:400;letter-spacing:.06em}
 .ghead h1 small{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.28em;
   color:var(--muted);margin-bottom:3px}
-.gstat{margin-left:auto;display:flex;gap:14px;font-family:var(--mono);font-size:12px;flex-wrap:wrap}
+/* ★ 見出しと数字を1行に（10/10）★ 以前は見出しを数字の上に積んでいて、横は余っているのに2段ぶん高かった。
+   1組ずつは折り返さない（nowrap）。幅が足りなければ組ごと次の行へ回る。 */
+.gstat{margin-left:auto;display:flex;gap:6px 16px;font-family:var(--mono);font-size:12px;flex-wrap:wrap;align-items:baseline;
+  flex:0 0 auto;max-width:100%}   /* 縮まずに丸ごと次の行へ回る。1行に収まらない極狭だけ中で折り返す */
+.gtitle{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-width:0}
+/* ギルド名が主役、ランクは添え書き（控えめな色・ひと回り小さく）。
+   .grank はギルド管理の枠付きの別物なので名前を分けた */
+.gtitle b{font-family:var(--serif);font-size:19px;font-weight:400;letter-spacing:.06em}
+.gtitle .gtrank{font-size:13px;color:var(--gold);letter-spacing:.06em}
+.gstat>div{white-space:nowrap}
 .gstat .grk b{font-family:var(--sans);font-size:12.5px;letter-spacing:.04em}
-.gstat u{text-decoration:none;color:var(--muted);font-size:10px;letter-spacing:.12em;display:block}
+.gstat u{text-decoration:none;color:var(--muted);font-size:12px;letter-spacing:.06em;margin-right:6px}
+.gstat u.gu{margin-left:2px}
 .gstat b{color:var(--gold);font-weight:700;font-size:15px}
 .gmenu{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
 .gmenu button{background:var(--panel);border:1px solid var(--line2);border-radius:4px;
@@ -388,6 +398,8 @@ body.guildmode.replaying.manualplay #cmdBox{display:block}
 /* 「すべて／未所属／所属あり」と「〜で絞り込む」を横に並べる。
    幅が足りなければ折り返して2段になる（携帯はほぼ2段）。 */
 .frow{display:flex;flex-wrap:wrap;gap:6px}
+/* 縦に積む時用の詰め（.esteps+.esteps の -4px）が、横に並ぶ絞り込みの2つ目を4px持ち上げて段差になっていた */
+.frow .esteps+.esteps{margin-top:0}
 #fOpen button i{font-style:normal;font-family:var(--mono);font-size:9.5px;margin-left:5px;
   opacity:.9;color:var(--gold)}
 #fOpen button.on i{color:inherit}
@@ -9202,7 +9214,8 @@ function checkReturns(){
   let any=false;
   G.parties.forEach(p=>{
     // 闘技場は帰還＝「着いた」だけ。通信も戦闘も「報告を聞く」を押してから（→ arenaArrive）
-    if(p.arena&&p.returnAt&&p.returnAt<=now()){ arenaArrive(p); any=true; return; }
+    // 戻り値：依頼が1つでも帰れば true、闘技場だけなら 'arena'（お知らせの文を分けるため）
+    if(p.arena&&p.returnAt&&p.returnAt<=now()){ arenaArrive(p); any=any||'arena'; return; }
     if(!p.questId||p.returnAt>now())return;
     const offer=offerOf(p.offerId)||makeOffer(p.questId);
     if(!offer){ p.questId=null; p.offerId=null; return; }
@@ -9972,12 +9985,14 @@ function renderGuild(){
       <em>達成で宝石+1</em>
     </div>`:''}
     <div class="ghead">
-      <h1><small>GUILD HOUSE</small>${gEsc(G.name)}</h1>
+      ${/* ★ ランク＋ギルド名を左、数値を右（10/10）★ h1 ではなく div にしてある。
+           h1 は携帯で検証盤のタイトル行ごと消す指定（body.mobile h1）に巻き込まれ、ギルド名が消えていた。
+           狭い時は 1行目＝ランクとギルド名、2行目＝数値 に分かれる（→ .gstat の max-width） */''}
+      <div class="gtitle"><span class="gtrank">${gEsc(rankNow().n)}</span><b>${gEsc(G.name)}</b></div>
       <div class="gstat">
         <div><u>GOLD</u><b>${G.gold.toLocaleString()}</b></div>
         <div><u>宝石</u><b class="ggem">${G.gems}</b></div>
-        <div><u>仲間</u><b>${G.roster.length} / ${maxRoster()}</b></div>
-        <div class="grk"><u>ランク</u><b>${gEsc(rankNow().n)}</b></div>
+        <div><u>在籍</u><b>${G.roster.length}</b><u class="gu">人 / 定員</u><b>${maxRoster()}</b><u class="gu">人</u></div>
       </div>
     </div>
     <div class="gmenu">
@@ -10122,8 +10137,9 @@ function startGuildTick(){
     /* 帰還の通知で、見ている画面を奪わない。
        一覧なら描き直してよいが、編成中・詳細を開いている最中・依頼を受ける操作中は
        **バッジだけ**にとどめる。ここで renderGuild すると操作が丸ごと飛ぶ。 */
-    if(checkReturns()){
-      GMSG='部隊が帰還しました。報告を聞いてください。';
+    const r=checkReturns();
+    if(r){
+      GMSG=r==='arena'?'闘技場の対戦相手が出そろいました。':'部隊が帰還しました。報告を聞いてください。';
       if(!guildBusy()){ renderGuild(); return; }
       gBadgeSync();
     }
@@ -10230,7 +10246,7 @@ function gParty(){
     const men=partyUnits(p);
     // 成否はここに出さない。報告を聞くまで分からないようにする。
     const st=p.report?repState(p,'quest')
-      :p.arena?`闘技場へ出場中　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
+      :p.arena?`闘技場にエントリー中　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :p.questId?`受注中：${gEsc(questOf(p.questId).name)}　残り <b class="gleft" data-until="${p.returnAt}">—</b>`
       :'<span class="rnone">待機中</span>';
     const skip=(p.questId||p.arena)?skipCost(p.returnAt-now()):0;
@@ -10286,7 +10302,7 @@ function gParty(){
          G.parties.length}/${maxParties()}）</button></div>`}
     ${/* 注釈は外した（10/10）。上限で「部隊を作る」が消えても理由は書かない —
          枠の拡張はメニューの「ギルド管理（ランクと枠の拡張）」で伝わるので、ここでは過剰 */''}
-    <div class="sechead">ギルドの仲間　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
+    <div class="sechead">ギルドの仲間　<i class="fcount">${shownLead(pool.length)}在籍 ${pool0.length}人 / 定員 ${maxRoster()}人</i></div>
     ${fbar}
     <div class="rlist">${pool.map(mline).join('')
       ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'まだ仲間がいません。'}</div>`}</div>`;
@@ -10404,6 +10420,10 @@ function filtPass(u){
    ★ 自己修復 ★ 仲間を手放したり装備を外したりすると、
    指し先が消えたまま「何も出ないのに解除する手段も無い」状態になる。
    数え直したついでに、いま存在しない指定は落とす。 */
+/* ★ 人数の書き方（10/10）★ 上部の「在籍 / 定員」と同じ形で、絞った数は「〇人を表示中」と別の言葉で頭に付ける。
+   以前は「4 / 5 人（絞った数 / 全員）」で、上部の「5 / 10（在籍 / 定員）」と同じ形なのに意味が違い、混同しやすかった。 */
+const filtOn=()=>GFILT.own!=='all'||GFILT.cls.length>0||GFILT.abl.length>0||GFILT.cat.length>0;
+const shownLead=n=>filtOn()?`<b>${n}人を表示中</b>　`:'';
 function filtBar(pool0,ownLabels){
   // 保険。古い形の GFILT が残っていても落とさない（配列でなければ空にする）
   ['open','cls','cat','abl'].forEach(k=>{ if(!Array.isArray(GFILT[k])) GFILT[k]=[]; });
@@ -10575,7 +10595,7 @@ function gPartyEdit(p){
       ${slots.some(x=>x==null)
         ?'<button class="btn" id="pAuto">空きに控えを入れる</button>':''}
     </div>
-    <div class="sechead">控え・他の部隊　<i class="fcount">${pool.length} / ${pool0.length} 人</i></div>
+    <div class="sechead">控え・他の部隊　<i class="fcount">${shownLead(pool.length)}${filtOn()?'全 ':''}${pool0.length}人</i></div>
     ${fbar}
     <div class="rlist">${pool.map(line).join('')
       ||`<div class="tdesc">${pool0.length?'絞り込みに合う仲間がいません。':'ほかに仲間がいません。'}</div>`}</div>`;
@@ -11079,7 +11099,9 @@ let REPLAY=null;   // {p,rep,q,men,idx,playing}
 
 /* 手動依頼はまだ戦っていないので、再生ではなく出撃へ回す。 */
 const repPending=r=>!!(r&&r.manual&&!r.fought&&!r.arena);
-const repLabel=r=>repPending(r)?'指揮を執る':'報告を聞く';
+/* 闘技場は「エントリーして、対戦相手が出そろうまで待つ」という見立て（10/10）。
+   なので帰還・報告ではなく「相手を選ぶ」。 */
+const repLabel=r=>repPending(r)?'指揮を執る':(r&&r.arena)?'相手を選ぶ':'報告を聞く';
 /* 報告が置かれている部隊の状態文。
    ★ 画面によって出す名前が逆 ★
      部隊一覧 … 行の見出しが部隊名なので、ここには**依頼名**（闘技場なら「闘技場」）
@@ -11090,7 +11112,7 @@ const repLabel=r=>repPending(r)?'指揮を執る':'報告を聞く';
 const repWhat=r=>gEsc(r.quest||(r.arena?'闘技場':'依頼'));
 const repState=(p,show)=>`<b class="gwait">${
   show==='party'?gEsc(p.name):repWhat(p.report)} — ${
-  repPending(p.report)?'現地に到着・指揮待ち':'帰還済み・報告待ち'}</b>`;
+  repPending(p.report)?'現地に到着・指揮待ち':(p.report&&p.report.arena)?'対戦相手が出そろった':'帰還済み・報告待ち'}</b>`;
 
 function gReport(p){
   const r=p.report; if(!r)return;
@@ -12021,7 +12043,8 @@ function gZukan(){
   const tagChips=Object.keys(tagCount).sort((a,b2)=>tagCount[b2]-tagCount[a]||a.localeCompare(b2,'ja'))
     .map(t=>`<button class="fchip${GZF.tags.includes(t)?' on':''}" data-zt="${gAttr(t)}">${
       gEsc(t)}<i>${tagCount[t]}</i></button>`).join('');
-  const stat=c=>`HP${c.hp}　MP${c.mp}　攻${c.atk}　防${c.def}　魔${c.mat}　魔防${c.mdf}　速${c.spd}`;
+  // 表記は仲間の詳細と揃える（攻撃・防御・魔力・魔防・素早／10/10）
+  const stat=c=>`HP${c.hp}　MP${c.mp}　攻撃${c.atk}　防御${c.def}　魔力${c.mat}　魔防${c.mdf}　素早${c.spd}`;
   const row=c=>{
     const e=seenOf(c.id), open=e.kill>0;
     const tr=soloTraits(c), sp=soloSpells(c);
@@ -12047,10 +12070,7 @@ function gZukan(){
     </div>`;
   };
   b.innerHTML=`<h2>魔物図鑑</h2>
-    <div class="seghint">依頼で<b>実際に戦った魔物</b>だけが載ります。見立て（試算）では増えません。<br>
-      <b>数値は基準値です。</b>実際に出てくる個体は ±10%（敵はさらにHP+5%）ばらつきます。<br>
-      <b>一度倒すと、その魔物の専用の個性とスキルが読めるようになります。</b>
-      自作依頼に置けるのも、ここに載っている魔物だけです。</div>
+    ${/* 注釈は外した（10/10）。空の時の案内・行ごとの「一度倒すと読めます」・自作依頼側の説明で足りる */''}
     <div class="sechead">見つけた魔物　<i class="fcount">${seen.length} / ${MONSTERS.length} 種</i></div>
     ${Object.keys(tagCount).length?`<div class="fbar"><div class="fchips">
       <span class="flab">タグ</span>${tagChips}
@@ -12726,7 +12746,7 @@ function arenaSend(p){
   if(men.some(injured)){ GMSG='療養中の仲間がいるので出せません。'; renderGuild(); return; }
   p.arena=true; p.questId=null; p.offerId=null; p.report=null;
   p.returnAt=now()+ARENA_SEC*1000;
-  GMSG=`${gEsc(p.name)} を闘技場へ送り出した。`;
+  GMSG=`${gEsc(p.name)} を闘技場にエントリーした。`;
   saveGuild(); renderGuild();
 }
 
@@ -12847,8 +12867,7 @@ function gArenaPick(){
   const S=ARENA; if(!S)return;
   const b=$('#gbody'); if(!b)return;
   b.innerHTML=withFoeInv(()=>`<h2>闘技場</h2>
-    <div class="gtodo"><b>どの部隊と戦いますか？</b><br>
-      顔ぶれを見て決めてください。<b>勝てば宝石が2個上積み</b>されます。</div>
+    <div class="gtodo"><b>どの部隊と戦いますか？</b>　勝てば宝石+2</div>
     ${S.foes.map((f,i)=>`<div class="aparty" data-af="${i}">
       <div class="ahead">
         <span class="amain">${f.guild?`<i>${gEsc(f.guild)}</i>`:''}<b>${gEsc(f.party)}</b></span>
@@ -12970,15 +12989,15 @@ function gArena(){
   const out =G.parties.filter(arenaBusy);
   b.innerHTML=`<h2>闘技場</h2>
     ${onlyBanner()}
-    <div class="gtodo">他のギルドの部隊とすれ違いで戦います。
-      <b>${Math.round(ARENA_SEC/3600)}時間</b>で帰還し、<b>報告を聞く</b>と相手が決まります。<br>
-      報酬は<b>勝敗に関わらず 仲間1人・付与付きの装備1つ・宝石1個</b>。<b>勝てば宝石がさらに2個。</b></div>
-    ${out.length?`<div class="sechead">出場中</div>`+out.map(p=>`<div class="rrow" data-p="${p.pid}">
+    <div class="gtodo">ほかのギルドの部隊と腕試し。エントリーすると、<b>${Math.round(ARENA_SEC/3600)}時間</b>で対戦相手の候補が出そろいます。
+      その中から、戦う相手を選べます。<br>
+      報酬　仲間1人・装備1つ・宝石1個（<b>勝てば宝石+2</b>）</div>
+    ${out.length?`<div class="sechead">エントリー中</div>`+out.map(p=>`<div class="rrow" data-p="${p.pid}">
       <span class="rmain"><b>${gEsc(p.name)}</b><br><span class="rsub">${
-        p.report?'<b class="gwait">帰還済み — 報告待ち</b>'
+        p.report?'<b class="gwait">対戦相手が出そろった</b>'
                 :`残り <b class="gleft" data-until="${p.returnAt}">—</b>`}</span></span>
       <span class="rbtn">${
-        p.report?'<button data-a="rep" data-pid="'+p.pid+'">報告を聞く</button>'
+        p.report?'<button data-a="rep" data-pid="'+p.pid+'">相手を選ぶ</button>'
         :btnOr(G.gems>=skipCost(p.returnAt-now()),
           `<button data-a="skip" data-pid="${p.pid}">呼び戻す 宝石${skipCost(p.returnAt-now())}</button>`,
           `呼び戻すには宝石${skipCost(p.returnAt-now())}（いま ${G.gems}）`)}</span></div>`).join(''):''}
@@ -12988,7 +13007,7 @@ function gArena(){
         <span class="rmain"><b>${gEsc(p.name)}</b><i>${men.length}人</i>
           ${partyRows(men)}</span>
         <span class="rbtn">${btnOr(!men.some(injured),
-          '<button data-a="go">出場する</button>','療養中の仲間がいます')}</span></div>`;}).join('')
+          '<button data-a="go">エントリーする</button>','療養中の仲間がいます')}</span></div>`;}).join('')
       : '<div class="tdesc">待機中の部隊がありません。</div>'}`;
   b.querySelectorAll('.rrow').forEach(row=>{
     row.querySelectorAll('[data-a]').forEach(el=>{
